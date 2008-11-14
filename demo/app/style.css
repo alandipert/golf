@@ -1,0 +1,15 @@
+a {
+  color: black;
+  text-decoration: none;
+}
+
+.clickable {
+  color: red;
+  text-decoration: underline;
+  cursor: pointer;
+  cursor: hand;
+}
+
+.voodoo {
+  color: orange;
+}
