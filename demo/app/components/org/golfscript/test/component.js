@@ -1,19 +1,26 @@
-function counter(n) {
+/******************************************************************************
+ * step 1: define local functions and data structures                         *
+ ******************************************************************************/
+
+var count;
+
+var counter = function(n) {
   count = n;
   $("counter").text(String(count));
 }
 
-// various states the component can be in:
-// 0: info is all shown
-// 1: info is hidden
+/******************************************************************************
+ * step 2: set up the state machine                                           *
+ ******************************************************************************/
+
 var states = [
-  function() {
+  function() { // 0: info is all shown
     $("show").hide();
     $("close").show();
     $("reset").show();
     $("thanks").show();
   },
-  function() {
+  function() { // 1: info is hidden
     $("thanks").hide();
     $("close").hide();
     $("reset").hide();
@@ -21,8 +28,10 @@ var states = [
   },
 ];
     
-// clicking on the heading causes the counter to increment
-// and info to be shown
+/******************************************************************************
+ * step 3: wire events to state changes                                       *
+ ******************************************************************************/
+
 $("clickme").click(
   function(event) {
     counter(++count);
@@ -30,7 +39,6 @@ $("clickme").click(
   }
 );
 
-// clicking on the reset button causes the counter to reset to zero
 $("reset").click(
   function(event) {
     counter(0);
@@ -38,21 +46,22 @@ $("reset").click(
   }
 );
 
-// click the "more info" button to show more info
 $("show").click(
   function(event) {
     states[0]();
   }
 );
 
-// click on the "less info" button to show less info
 $("close").click(
   function(event) {
     states[1]();
   }
 );
 
-var count; // pseudo-global variable to hold some state info
+/******************************************************************************
+ * step 4: initialization code                                                *
+ ******************************************************************************/
+
 Golf.title = "Golf Egg-speriment"; // set the page title
 
 counter(0);  // initialize the counter
