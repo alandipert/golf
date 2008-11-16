@@ -1,8 +1,30 @@
+var count;
+Golf.title = "Golf Egg-speriment";
 
-Golf.title = "Golf Egg-speriment!";
+function counter(n) {
+  count = n;
+  $("counter").text(String(count));
+}
 
-$("title").apply("clickable").click(
+$("clickme").click(
   function(event) {
-    $("content").toggle("voodoo");
+    counter(++count);
+    $("thanks").show();
   }
 );
+
+$("close").click(
+  function(event) {
+    $("thanks").hide();
+  }
+);
+
+$("reset").click(
+  function(event) {
+    counter(0);
+    $("thanks").show();
+  }
+);
+
+counter(0);
+$("thanks").hide();

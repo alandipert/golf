@@ -1,15 +1,31 @@
+body {
+  background: white;
+  color: black;
+  font-family: sans-serif;
+  font-size: 12pt;
+}
+
 a {
   color: black;
   text-decoration: none;
 }
 
 .clickable {
-  color: red;
-  text-decoration: underline;
   cursor: pointer;
   cursor: hand;
 }
 
-.voodoo {
-  color: orange;
+.button {
+  padding: .25em;
+  color: white;
+  background: orange;
+}
+
+.clickme {
+  font-size: 24pt;
+  background: red;
+}
+
+.close, .reset {
+  margin-left: .5em;
 }

@@ -88,6 +88,16 @@ window.Golf.impl = {
       node.setAttribute("class", joined);
   },
 
+  // hide an element
+  hide: function(node) {
+    jQuery(node).hide();
+  },
+
+  // show an element
+  show: function(node) {
+    jQuery(node).show();
+  },
+
   // add event listener
   bind: function(node, eventName, callback) {
     jQuery(node).bind(eventName, callback);
@@ -198,6 +208,16 @@ window.Component = function(callback, name, config) {
       append: function(what) {
         for (var i in nodes)
           $g.append(nodes[i], what);
+        return this;
+      },
+      hide: function() {
+        for (var i in nodes)
+          $g.hide(nodes[i]);
+        return this;
+      },
+      show: function() {
+        for (var i in nodes)
+          $g.show(nodes[i]);
         return this;
       },
       bind: function(eventName, callback) {
