@@ -9,6 +9,15 @@ function counter(n) {
 $("clickme").click(
   function(event) {
     counter(++count);
+    $("show").click();
+  }
+);
+
+$("show").click(
+  function(event) {
+    $("show").hide();
+    $("close").show();
+    $("reset").show();
     $("thanks").show();
   }
 );
@@ -16,6 +25,9 @@ $("clickme").click(
 $("close").click(
   function(event) {
     $("thanks").hide();
+    $("close").hide();
+    $("reset").hide();
+    $("show").show();
   }
 );
 
@@ -28,3 +40,6 @@ $("reset").click(
 
 counter(0);
 $("thanks").hide();
+$("reset").hide();
+$("close").hide();
+$("show").show();

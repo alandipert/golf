@@ -25,7 +25,3 @@ a {
   font-size: 24pt;
   background: red;
 }
-
-.close, .reset {
-  margin-left: .5em;
-}
