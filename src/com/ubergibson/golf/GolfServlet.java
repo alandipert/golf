@@ -13,6 +13,10 @@ import org.mozilla.javascript.*;
 import org.golfscript.js.*;
 import org.mortbay.log.Log;
 
+import com.gargoylesoftware.htmlunit.*;
+import com.gargoylesoftware.htmlunit.html.*;
+import com.gargoylesoftware.htmlunit.javascript.*;
+
 public class GolfServlet extends HttpServlet {
   
   public void doGet(HttpServletRequest request, HttpServletResponse response)

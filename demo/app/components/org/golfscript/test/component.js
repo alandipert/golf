@@ -10,17 +10,22 @@ var counter = function(n) {
 }
 
 /******************************************************************************
- * step 2: set up the state machine                                           *
+ * step 2: define the state machine                                           *
  ******************************************************************************/
 
 var states = [
-  function() { // 0: info is all shown
+  function() { // 0: initial state
+    Golf.title = "Golf Egg-speriment"; // set the page title
+    counter(0);  // initialize the counter
+    states[2](); // set initial state
+  },
+  function() { // 1: info is all shown
     $("show").hide();
     $("close").show();
     $("reset").show();
     $("thanks").show();
   },
-  function() { // 1: info is hidden
+  function() { // 2: info is hidden
     $("thanks").hide();
     $("close").hide();
     $("reset").hide();
@@ -35,7 +40,7 @@ var states = [
 $("clickme").click(
   function(event) {
     counter(++count);
-    states[0]();
+    states[1]();
   }
 );
 
@@ -48,21 +53,18 @@ $("reset").click(
 
 $("show").click(
   function(event) {
-    states[0]();
+    states[1]();
   }
 );
 
 $("close").click(
   function(event) {
-    states[1]();
+    states[2]();
   }
 );
 
 /******************************************************************************
- * step 4: initialization code                                                *
+ * step 4: initialize the component                                           *
  ******************************************************************************/
 
-Golf.title = "Golf Egg-speriment"; // set the page title
-
-counter(0);  // initialize the counter
-states[1](); // set state 1, i.e. info hidden
+states[0](); // boilerplate code at the end of every component js file
