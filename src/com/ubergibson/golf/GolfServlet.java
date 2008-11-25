@@ -7,21 +7,28 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.io.BufferedReader;
+import org.mozilla.javascript.*;
+
+import java.net.*;
+
 import javax.servlet.*;
 import javax.servlet.http.*;
-import org.mozilla.javascript.*;
-import org.golfscript.js.*;
+
 import org.mortbay.log.Log;
 
 import com.gargoylesoftware.htmlunit.*;
 import com.gargoylesoftware.htmlunit.html.*;
 import com.gargoylesoftware.htmlunit.javascript.*;
 
+import org.golfscript.js.*;
+
 public class GolfServlet extends HttpServlet {
   
+  /** @override */
   public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
   {
+
     if (request.getSession(false) == null) {
       HttpSession s = request.getSession(true);
       Log.info(fmtLogMsg(request, "NEW SESSION"));
@@ -29,35 +36,37 @@ public class GolfServlet extends HttpServlet {
 
     logRequest(request);
 
+    /* htmlunit objects */
+    WebClient         client      = null;
+    HtmlPage          page        = null;
+
+    /* http request resources */
     PrintWriter       out         = response.getWriter();
-    ContextFactory    cf          = ContextFactory.getGlobal();
-    Context           cx          = cf.enterContext();
     HttpSession       session     = request.getSession();
-    String            initialDOM  = (String) session.getAttribute("initialDOM");
-    ScriptableObject  myScope     = (ScriptableObject)
-                                      session.getAttribute("myScope");
+
+    /* query string parameters related to event proxying */
     String            event       = request.getParameter("event");
     String            target      = request.getParameter("target");
+
+    /* request URI segments and path info */
     String            contextPath = request.getContextPath();
     String            pathInfo    = request.getPathInfo();
+    String            queryString = (request.getQueryString() == null ? "" : request.getQueryString());
+
+    /* servlet configuration settings and paths */
     String            docRoot     = getServletContext().getRealPath("");
-    String            finalDOM    = "";
-    Scriptable        scope;
-    Object            res;
 
     /*
-     * 2 possible cases:
-     *   1) path doesn't end in a '/' character
-     *   2) path ends in '/' character
-     *
-     * First case  --> raw file retreival.
-     * Second case --> routed component entry point.
+     * As far as routing the request goes there are 2 possible cases:
+     *   1) path doesn't end in a '/' character: request is for static
+     *      content, i.e. a file or resource (in the jarfile).
+     *   2) path ends in '/' character: request is for the golf servlet
+     *      to deal with.
      */
     
-    /* First case */
+    /* First case (static content), ignoring parent directories */
     if (!pathInfo.endsWith("/")) {
 
-      /* Resources in jar file and stuff in servlet docroot. */
       try {
         String path[] = pathInfo.split("//*");
         if (path.length > 0) {
@@ -78,10 +87,10 @@ public class GolfServlet extends HttpServlet {
       }
 
       catch (Exception x) {
-        // no worries
+        // no worries, fall through to next case
       }
 
-      /* Files in the routed component dirs (for direct access). */
+      /* Static content, with parent directories */
       try {
         String file = pathInfo;
         String content = getGolfResourceAsString(file);
@@ -99,101 +108,49 @@ public class GolfServlet extends HttpServlet {
       }
 
       catch (Exception x) {
-        // no worries
+        // no worries, fall through to next case
       }
 
       /* No files found: maybe '/' was omitted by mistake?
          Try redirecting to routed entry point. */
-      String qs = 
-        (request.getQueryString() == null ? "" : request.getQueryString());
-      String uri = request.getRequestURI() + "/" + qs;
+      String uri = request.getRequestURI() + "/" + queryString;
       sendRedirect(request, response, uri);
       return;
     }
 
-    /* Second case */
+    /* Second case (dynamic content) */
     try {
-      response.setContentType("text/html");
-
-      /* Client-server sync can be lost e.g. when server is restarted */
-      if ((event != null || target != null) 
-          && (initialDOM == null || initialDOM.length() < 30)) {
-        Log.warn(fmtLogMsg(request, "lost sync (event with no associated VM)"));
-        sendRedirect(request, response, request.getRequestURI());
-      }
-
-      /* No event --> fresh VM */
-      if ((event == null && target == null) || initialDOM.length() < 30
-          || event == null || target == null) {
-        session.setAttribute("initialDOM", null);
-        session.setAttribute("myScope", null);
-        myScope = null;
-        initialDOM = getGolfResourceAsString("new.html");
-      } 
-
-      if (myScope == null) {
-        /* Fresh VM */
-        Log.info(fmtLogMsg(request, "creating a new VM"));
-
-        myScope = new Global();
-        scope = cx.initStandardObjects(myScope);
-        ScriptableObject.defineClass(scope, File.class);
-
-        ScriptableObject.putProperty(scope, "serverside", new Boolean(true));
-
-        String componentPath = getServletContext().getRealPath("/components" + 
-              getPathRouted(pathInfo));
-
-        Scriptable golfObj = cx.newObject(scope, "Object");
-        ScriptableObject.putProperty(golfObj, "initialDOM", initialDOM);
-        ScriptableObject.putProperty(golfObj, "componentPath", componentPath);
-        scope.put("Golf", scope, golfObj);
-
-        res = runScript(cx, scope, "dom.js");
-        res = runScript(cx, scope, "jquery.js");
-        res = runScript(cx, scope, "golf.js");
-        res = cx.evaluateString(scope,"Golf.load()","golf",0,null);
-      } else {
-        /* Re-use existing VM */ 
-        Log.info(fmtLogMsg(request, "re-using an existing VM"));
-
-        scope = myScope;
-
-        /* Verify that VM is not braindead */
-        res = cx.evaluateString(scope,"Golf.ping()","golf",0,null);
-        if ( !Context.toString(res).equals("ok") ) {
-          Log.warn(fmtLogMsg(request, 
-                "ping->not ok: VM appears to be braindead!"));
-          sendRedirect(request, response, request.getRequestURI());
+      
+      /* just assume that a vm should already exist iff request contains
+         event info */
+      
+      if (event != null && target != null) {
+        client = (WebClient) session.getAttribute("vm");
+        if (client == null) {
+          String uri = request.getRequestURI();
+          sendRedirect(request, response, uri);
           return;
         }
-
-        /* Import the event into the VM */
-        ScriptableObject.putProperty(scope, "golfTarget", target);
-        ScriptableObject.putProperty(scope, "golfEvent",  event);
-
-        /* Import the saved html of the page into the VM as Golf.initialDOM */
-        ScriptableObject.putProperty(scope, "initialDOM", initialDOM);
+        page = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+      } else {
+        event = null; target = null;
+        client  = new WebClient(BrowserVersion.FIREFOX_2);
+        StringWebResponse resp = new StringWebResponse(
+          getGolfResourceAsString("new.html"),
+          new URL(request.getRequestURL().toString() + "/" + queryString)
+        );
+        page = (HtmlPage) client.loadWebResponseInto(
+          resp,
+          client.getCurrentWindow()
+        );
       }
 
-      /* The event loop */
-      res = runScript(cx, scope, "event.js");
-      
-      /* Extract the rendered html from the VM's DOM */
-      res = cx.evaluateString(scope,"document.innerHTML","golf",0,null);
-      finalDOM = Context.toString(res);
+      JavaScriptEngine js = client.getJavaScriptEngine();
+      js.execute(page, getGolfResourceAsString("event.js"), "event.js", 1);
 
-      String docType = 
-        "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
-        "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n";
-
-      /* Remove golfid attribute from the output, and html-escape '&' */
-      String clientDOM = 
-        finalDOM
-        .replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1")
-        .replaceAll("&", "&amp;");
-
-      out.println(docType + clientDOM);
+      out.print("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
+      "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n");
+      out.print(page.asXml());
     }
 
     catch (Exception x) {
@@ -213,11 +170,7 @@ public class GolfServlet extends HttpServlet {
     }
 
     finally {
-      session.setAttribute("myScope", myScope);
-      if (finalDOM != null && finalDOM.length() >= 30) {
-        session.setAttribute("initialDOM", finalDOM);
-      }
-      Context.exit();
+      session.setAttribute("vm", client);
       out.close();
     }
   }
@@ -233,10 +186,22 @@ public class GolfServlet extends HttpServlet {
     return cx.evaluateReader(sc, fs, path, 1, null);
   }
 
+  /**
+   * Resolves the routed path of a URI. This is based on the app-wide
+   * routes.txt file mappings. These mappings consist of a regex to match
+   * the requested path against, and the routed path that it should
+   * resolve to, separated by a colon character. The routes file should
+   * have only one mapping per line.
+   *
+   * @param     path      the requested path
+   * @return              the routed path
+   */
   private String getPathRouted(String path) throws IOException {
+    /* default when path is a directory */
     String basename = "";
     String dirname  = path;
     
+    /* paths that aren't directories */
     if (!path.endsWith("/")) {
       dirname = "";
       String segs[] = path.split("//*");
@@ -245,15 +210,20 @@ public class GolfServlet extends HttpServlet {
         dirname += segs[i] + "/";
     }
 
+    /* FIXME: this is bad but it needs to be here because of the call to 
+       getGolfResourceAsStream("/routes.txt") below */
     if (dirname.equals("/") && basename.equals("routes.txt"))
       return "/routes.txt";
 
+    /* open the routes.txt file and get the route mappings 
+       TODO: possibly cache this in the servlet context? */
     BufferedReader sr = new BufferedReader(
       new InputStreamReader(
         getGolfResourceAsStream("/routes.txt")
       )
     );
 
+    /* parse routes.txt and return the routed path if a match is found */
     String line;
     while ( (line = sr.readLine()) != null ) {
       String toks[] = line.split(":", 2);
@@ -272,6 +242,22 @@ public class GolfServlet extends HttpServlet {
     throw new IOException("route not found: "+path);
   }
 
+  /**
+   * Retrieves a static golf resource from the system.
+   * <p>
+   * Static resources are served from 4 places. When a resource is requested
+   * those places are searched in the following order:
+   * <ol>
+   *  <li>the libraries/ directory in the approot
+   *  <li>the component directory
+   *  <li>the servlet docroot
+   *  <li>the jarfile resources.
+   * </ol>
+   *
+   * @param     name      the 'basename' of the resource (i.e. containing 
+   *                      no '/' characters) 
+   * @return              the resource as a stream
+   */
   private InputStream getGolfResourceAsStream(String name) throws IOException {
     InputStream   is        = null;
 
@@ -296,12 +282,16 @@ public class GolfServlet extends HttpServlet {
     java.io.File  theFile   = new java.io.File(thePath);
 
     if (libFile.exists())
+      /* from the libraries directory of the app */
       is = new FileInputStream(libFile);
     else if (cpnFile != null && cpnFile.exists())
+      /* from the component's directory */
       is = new FileInputStream(cpnFile);
     else if (theFile.exists())
+      /* from the servlet's docroot */
       is = new FileInputStream(theFile);
-    else
+    else 
+      /* from the jarfile resource */
       is = getClass().getClassLoader().getResourceAsStream(name);
 
     if (is == null)
