@@ -19,7 +19,6 @@ var states = [
     Golf.title = "Golf Egg-speriment"; // set the page title
     counter(0);  // initialize the counter
     states[2](); // set initial state
-    new Component(function(data) { $("nested").append(data); }, "org.golfscript.test.item", {});
   },
   function() { // 1: info is all shown
     $("show").hide();
@@ -43,6 +42,7 @@ $("clickme").click(
   function(event) {
     counter(++count);
     states[1]();
+    new Component(function(data) { $("nested").append(data); }, "org.golfscript.test.item", {});
   }
 );
 
