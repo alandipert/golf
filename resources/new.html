@@ -3,23 +3,13 @@
     <title> </title>
     <link rel="stylesheet" type="text/css" href="style.css" />
     <script type="text/javascript" src="jquery.js"></script>
-    <script type="text/javascript">
-      function test() {
-        var e = document.getElementById('div1');
-        var f = e.uniqueID;
-        $("body").append("<div>you rule " + f + "</div>");
-      }
-    </script>
-    <!--
-    <script type="text/javascript"> window.serverside = false; </script>
+    <script type="text/javascript"> window.serverside = true; </script>
     <script type="text/javascript" src="golf.js"></script>
     <script type="text/javascript">
+      $("body").append("<h3>this is a test!</h3>");
       jQuery(window).load(function() { Golf.load(); });
     </script>
-    -->
   </head>
-  <body onload="test()">
-    <h1>hello world</h1>
-    <div id='div1'>hi there</div>
+  <body>
   </body>
 </html>

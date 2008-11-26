@@ -111,10 +111,11 @@ public class GolfServlet extends HttpServlet {
         // no worries, fall through to next case
       }
 
+      Log.info(fmtLogMsg(request, "~~~~ REDIRECTING"));
       /* No files found: maybe '/' was omitted by mistake?
          Try redirecting to routed entry point. */
-      String uri = request.getRequestURI() + "/" + queryString;
-      sendRedirect(request, response, uri);
+      //String uri = request.getRequestURI() + "/" + queryString;
+      //sendRedirect(request, response, uri);
       return;
     }
 
@@ -126,31 +127,47 @@ public class GolfServlet extends HttpServlet {
       
       if (event != null && target != null) {
         client = (WebClient) session.getAttribute("vm");
+
         if (client == null) {
           String uri = request.getRequestURI();
           sendRedirect(request, response, uri);
           return;
         }
+
         page = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+        HtmlElement targetElem = page.getHtmlElementByGolfId(target);
+
+        if (targetElem != null) {
+          targetElem.fireEvent("click");
+        }
       } else {
         event = null; target = null;
         client  = new WebClient(BrowserVersion.FIREFOX_2);
+
+        Log.info(fmtLogMsg(request, "NEW WEBCLIENT"));
+
         StringWebResponse resp = new StringWebResponse(
           getGolfResourceAsString("new.html"),
           new URL(request.getRequestURL().toString() + "/" + queryString)
         );
+
         page = (HtmlPage) client.loadWebResponseInto(
           resp,
           client.getCurrentWindow()
         );
+
+        //JavaScriptEngine js = client.getJavaScriptEngine();
+        //js.execute(page, getGolfResourceAsString("server.js"), "server.js", 1);
       }
 
-      JavaScriptEngine js = client.getJavaScriptEngine();
-      js.execute(page, getGolfResourceAsString("event.js"), "event.js", 1);
+      String output = page.asXml();
+      output = output.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
+      output = output.replaceFirst("(window.serverside =) true;", "$1 false;");
 
       out.print("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
       "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n");
-      out.print(page.asXml());
+
+      out.print(output);
     }
 
     catch (Exception x) {
@@ -269,7 +286,7 @@ public class GolfServlet extends HttpServlet {
 
     try {
       String cpnPath = 
-        getServletContext().getRealPath("/components" + getPathRouted(name));
+        getServletContext().getRealPath("/components" + name);
       cpnFile = new java.io.File(cpnPath);
     } 
 

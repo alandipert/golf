@@ -5,22 +5,7 @@
 
 (function() {
 
-  if (!window.serverside) {
-    window.Golf = {};
-
-    window.debug = function(msg) {
-      alert("DEBUG: " + msg);
-    };
-
-    window.info = function(msg) {
-      alert("INFO: " + msg);
-    };
-
-    window.warn = function(msg) {
-      alert("WARN: " + msg);
-    };
-  }
-
+  window.Golf = {};
   window.Golf.ping = function() { return "ok"; };
 
 })();
@@ -247,38 +232,31 @@ window.Component = function(callback, name, config) {
 
   var p;
 
-  if (window.serverside) {
-    var htmlPath  = Golf.componentPath + "component.html";
-    var jsPath    = Golf.componentPath + "component.js";
+  name = name ? name : "";
 
-    debug("htmlpath=["+htmlPath+"]");
-    debug("jspath=["+jsPath+"]");
-
-    var htmlFile  = new File(htmlPath);
-    var html      = htmlFile.readLines().join("\n");
-    htmlFile.close();
-
-    var jsFile    = new File(jsPath);
-    var js        = jsFile.readLines().join("\n");
-    jsFile.close();
-
-    p = window.Golf.impl.parse(html);
-    window.Golf.impl.index(p[0]);
-    window.Golf.impl._frag.appendChild(p[0]);
-
-    callback(window.Golf.impl._frag);
-    eval(js);
-  } else {
-    jQuery.get((name ? name : "") + "component.html", {}, function(data) {
+  jQuery.ajax({
+    type:     "GET",
+    url:      name + "component.html",
+    dataType: "text",
+    async:    window.serverside ? false : true,
+    success:  function(data) {
       p = window.Golf.impl.parse(data);
+
       window.Golf.impl.index(p[0]);
       window.Golf.impl._frag.appendChild(p[0]);
       callback(window.Golf.impl._frag);
-      jQuery.get((name ? name : "") + "component.js", {}, function(data) {
-        eval(data);
+
+      jQuery.ajax({
+        type:       "GET",
+        url:        name + "component.js",
+        dataType:   "text",
+        async:      window.serverside ? false : true,
+        success:    function(data) {
+          eval(data);
+        },
       });
-    });
-  }
+    },
+  });
 };
 
 /**

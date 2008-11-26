@@ -2,6 +2,7 @@
  * step 1: define local functions and data structures                         *
  ******************************************************************************/
 
+// MICHA!!!
 var count;
 
 var counter = function(n) {
