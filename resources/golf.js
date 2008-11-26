@@ -230,9 +230,7 @@ window.Component = function(callback, name, config) {
     };
   };
 
-  var p;
-
-  name = name ? name : "";
+  name = name ? name.replace(/\./g, "/") + "/" : "";
 
   jQuery.ajax({
     type:     "GET",
@@ -240,11 +238,13 @@ window.Component = function(callback, name, config) {
     dataType: "text",
     async:    window.serverside ? false : true,
     success:  function(data) {
-      p = window.Golf.impl.parse(data);
+      var p     = window.Golf.impl.parse(data);
+      var frag  = document.createDocumentFragment();
 
       window.Golf.impl.index(p[0]);
-      window.Golf.impl._frag.appendChild(p[0]);
-      callback(window.Golf.impl._frag);
+      frag.appendChild(p[0]);
+
+      callback(frag);
 
       jQuery.ajax({
         type:       "GET",
