@@ -42,7 +42,7 @@ $("clickme").click(
   function(event) {
     counter(++count);
     states[1]();
-    new Component(function(data) { $("nested").append(data); }, "org.golfscript.test.item", {});
+    new Component(function(data) { $("nested").append(data); }, "org.golfscript.test.item", {hithere: "[" + count + "]: this is an argument passed to component constructor"});
   }
 );
 

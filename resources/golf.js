@@ -19,8 +19,6 @@ window.Golf.impl = {
   // container for indexed nodes
   _index: {},
 
-  _frag: document.createDocumentFragment(),
-
   // compile xhtml string to DOM object
   parse: function(html) {
     return jQuery(html).get();
@@ -39,17 +37,17 @@ window.Golf.impl = {
   },
 
   // recursive method to load $ object with nodes indexed by class
-  index: function(node) {
+  index: function(idx, node) {
     var klasses = window.Golf.impl.classes(node);
 
     // no uniqueness of (class,node) tuples enforced here (TODO?)
     for (var i in klasses) {
-      if ( !window.Golf.impl._index[klasses[i]] ) 
-        window.Golf.impl._index[klasses[i]] = [];
-      window.Golf.impl._index[klasses[i]].push(node);
+      if ( ! idx[klasses[i]] ) 
+        idx[klasses[i]] = [];
+      idx[klasses[i]].push(node);
     }
 
-    jQuery(node).children().each(function(i) { window.Golf.impl.index(this); });
+    jQuery(node).children().each(function(i) { window.Golf.impl.index(idx, this); });
   },
 
   // add class to element
@@ -152,9 +150,11 @@ window.Golf.impl = {
 
 window.Component = function(callback, name, config) {
 
+  var _index = [];
+
   var $g = window.Golf.impl;
   var $ = function(klass) {
-    var nodes = ($g._index[klass] ? $g._index[klass] : []);  
+    var nodes = (_index[klass] ? _index[klass] : []);  
 
     return {
       apply: function(klassName) {
@@ -241,7 +241,7 @@ window.Component = function(callback, name, config) {
       var p     = window.Golf.impl.parse(data);
       var frag  = document.createDocumentFragment();
 
-      window.Golf.impl.index(p[0]);
+      window.Golf.impl.index(_index, p[0]);
       frag.appendChild(p[0]);
 
       callback(frag);
