@@ -19,18 +19,25 @@ window.Golf.impl = {
   // container for indexed nodes
   _index: {},
 
+  // set onload event handler
+  load: function(callback) {
+    jQuery(window).load(callback);
+  },
+
   // compile xhtml string to DOM object
   parse: function(html) {
     return jQuery(html).get();
   },
 
   // do XHR GET (async on client side)
-  get: function(uri, callback) {
+  get: function(url, callback) {
     jQuery.ajax({
-      type: "GET",
-      url: uri,
-      cache: false,
-      success: function(html) {
+      type:     "GET",
+      url:      url,
+      cache:    true,
+      dataType: "text",
+      async:    window.serverside ? false : true,
+      success:  function(html) {
         callback(html);
       },
     });
@@ -137,7 +144,12 @@ window.Golf.impl = {
   // convenience function to get a node's classes
   classes: function(node) {
     return window.Golf.impl.attrList(node, "class");
-  }
+  },
+
+  // remove all children, thereby emptying the node
+  empty: function(node) {
+    return jQuery(node).empty().get();
+  },
 };
 
 /**
@@ -227,35 +239,29 @@ window.Component = function(callback, name, config) {
       get: function(i) {
         return nodes[i];
       },
+      empty: function() {
+        for (var i in nodes)
+          $g.empty(nodes[i]);
+        // FIXME: maybe this should return the removed nodes?
+        return this;
+      },
     };
   };
 
   name = name ? name.replace(/\./g, "/") + "/" : "";
 
-  jQuery.ajax({
-    type:     "GET",
-    url:      name + "component.html",
-    dataType: "text",
-    async:    window.serverside ? false : true,
-    success:  function(data) {
-      var p     = window.Golf.impl.parse(data);
-      var frag  = document.createDocumentFragment();
+  $g.get(name + "component.html", function(result) {
+    var p     = $g.parse(result);
+    var frag  = document.createDocumentFragment();
 
-      window.Golf.impl.index(_index, p[0]);
-      frag.appendChild(p[0]);
+    $g.index(_index, p[0]);
+    frag.appendChild(p[0]);
 
-      callback(frag);
+    callback(frag);
 
-      jQuery.ajax({
-        type:       "GET",
-        url:        name + "component.js",
-        dataType:   "text",
-        async:      window.serverside ? false : true,
-        success:    function(data) {
-          eval(data);
-        },
-      });
-    },
+    $g.get(name + "component.js", function(result) {
+      eval(result);
+    });
   });
 };
 
@@ -266,9 +272,10 @@ window.Component = function(callback, name, config) {
  */
 
 window.Golf.load = function() {
+  var $g = window.Golf.impl;
   var body = document.getElementsByTagName('body');
-  jQuery(body).children().remove();
-  new Component(function(data) { jQuery(body).append(data); });
+  $g.empty(body);
+  new Component(function(data) { $g.append(body, data); });
 };
 
 /**
@@ -277,7 +284,8 @@ window.Golf.load = function() {
  */
 
 window.Golf.__defineGetter__("title", function() {
-  return jQuery(document.getElementsByTagName("title")).text();
+  var $g = window.Golf.impl;
+  return $g.text(document.getElementsByTagName("title"));
 });
 
 /**
@@ -286,5 +294,6 @@ window.Golf.__defineGetter__("title", function() {
  */
 
 window.Golf.__defineSetter__("title", function(value) {
-  jQuery(document.getElementsByTagName("title")).text(value);
+  var $g = window.Golf.impl;
+  return $g.text(document.getElementsByTagName("title"), value);
 });

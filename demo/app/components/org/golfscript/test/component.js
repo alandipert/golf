@@ -49,7 +49,8 @@ $("clickme").click(
 $("reset").click(
   function(event) {
     counter(0);
-    $("thanks").show();
+    states[1]();
+    $("nested").empty();
   }
 );
 
