@@ -1,0 +1,7 @@
+*.jar     -crlf -diff -merge
+*.gz      -crlf -diff -merge
+*.tar     -crlf -diff -merge
+*.jpg     -crlf -diff -merge
+*.JPEG    -crlf -diff -merge
+*.gif     -crlf -diff -merge
+*.png     -crlf -diff -merge
