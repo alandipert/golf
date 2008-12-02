@@ -70,7 +70,6 @@
   <target name="all" depends="jar" description="Same as 'dist'."/>
 
   <target name="init" description="Initial project configuration.">
-    <exec executable="${ant-scripts.home}/nukesvn"/>
     <mkdir dir="${src.home}/${vendor.namespacedir}/${app.name}"/>
 <echo file="${src.home}/${vendor.namespacedir}/${app.name}/Main.java"
   append="no">package ${vendor.namespace}.${app.name};
