@@ -79,13 +79,13 @@ window.Golf.impl = {
   },
 
   // hide an element
-  hide: function(node) {
-    jQuery(node).hide();
+  hide: function(node, speed, callback) {
+    jQuery(node).hide(speed, callback);
   },
 
   // show an element
-  show: function(node) {
-    jQuery(node).show();
+  show: function(node, speed, callback) {
+    jQuery(node).show(speed, callback);
   },
 
   // add event listener

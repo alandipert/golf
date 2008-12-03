@@ -10,22 +10,26 @@ a {
   text-decoration: none;
 }
 
-.clickable {
+.org-golfscript-test .clickable {
   cursor: pointer;
   cursor: hand;
 }
 
-.button {
+.org-golfscript-test .button {
   padding: .25em;
   color: white;
   background: orange;
 }
 
-.clickme {
+.org-golfscript-test .clickme {
   font-size: 24pt;
   background: red;
+  color: white;
 }
 
-.nested {
+.org-golfscript-test .nested {
   padding: 2em;
+}
+
+.org-golfscript-test .thanks {
 }

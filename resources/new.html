@@ -2,13 +2,21 @@
   <head>
     <title> </title>
     <link rel="stylesheet" type="text/css" href="style.css" />
+
+    <!-- jQuery is the underlying compatibility layer, but you don't ever
+      need to access it directly. It's used internally by the golf runtime. -->
     <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript"> $jQ = jQuery.noConflict(); </script>
+
+    <!-- window.serverside is set to false in the client by a string
+      substitution before this page is sent out. -->
     <script type="text/javascript"> window.serverside = true; </script>
+
+    <!-- the golf runtime -->
     <script type="text/javascript" src="golf.js"></script>
 
+    <!-- bootstrap code -->
     <script type="text/javascript">
-      /*instantiate our history object*/
-      //window.dhtmlHistory.create();
       Golf.impl.load(function() { Golf.load(); });
     </script>
   </head>
