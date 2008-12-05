@@ -1,3 +1,3 @@
-/* do nothing */
 
-$("content").text(String(config.hithere));
+$("title").text(String(config.title));
+$("body").text(String(config.body));

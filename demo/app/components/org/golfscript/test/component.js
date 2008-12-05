@@ -2,8 +2,8 @@
  * step 1: define local functions and data structures                         *
  ******************************************************************************/
 
-// MICHA!!!
 var count;
+var lorem = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum id elit. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Nullam magna. Quisque pede nunc, tristique id, ultricies sed, volutpat quis, magna. Maecenas pellentesque. Mauris sagittis posuere nulla. Cras eu arcu. Pellentesque quis nibh. Fusce a tellus at dui molestie facilisis. Suspendisse ac lacus. Proin mollis nunc id nisl egestas sollicitudin. Sed porta pellentesque odio. Aliquam mattis est ac sem. Etiam nulla. Aliquam vitae justo a tortor luctus sodales. Maecenas et enim quis magna ornare feugiat. Curabitur facilisis neque sed eros. Quisque bibendum metus ac neque. Duis vulputate.";
 
 var counter = function(n) {
   count = n;
@@ -42,7 +42,10 @@ $("clickme").click(
   function(event) {
     counter(++count);
     states[1]();
-    new Component(function(data) { $("nested").append(data); }, "org.golfscript.test.item", {hithere: "[" + count + "]: this is an argument passed to component constructor"});
+    $("items").append(
+      'org.golfscript.test.item', 
+      { title: "item #" + count, body: lorem }
+    );
   }
 );
 
@@ -50,7 +53,7 @@ $("reset").click(
   function(event) {
     counter(0);
     states[1]();
-    $("nested").empty();
+    $("items").empty();
   }
 );
 

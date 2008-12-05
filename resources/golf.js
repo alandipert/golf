@@ -11,6 +11,25 @@
 })();
 
 /**
+ * Cache static parts of components (FIXME, maybe some kind of GC here later)
+ */
+
+window.Golf.cache = { 
+  enable: true,
+  data: {},
+  get: function(url, callback) {
+    if (callback) {
+      callback(this.data[url]);
+    } else {
+      return this.data[url];
+    }
+  },
+  set: function(url, data) {
+    this.data[url] = data;
+  },
+};
+
+/**
  * Low-level AJAX API wrapper
  */
 
@@ -54,7 +73,9 @@ window.Golf.impl = {
       idx[klasses[i]].push(node);
     }
 
-    jQuery(node).children().each(function(i) { window.Golf.impl.index(idx, this); });
+    jQuery(node).children().each(function(i) {
+      window.Golf.impl.index(idx, this); 
+    });
   },
 
   // add class to element
@@ -165,6 +186,8 @@ window.Component = function(callback, name, config) {
   var _index = [];
 
   var $g = window.Golf.impl;
+  var $c = window.Golf.cache;
+
   var $ = function(klass) {
     var nodes = (_index[klass] ? _index[klass] : []);  
 
@@ -202,9 +225,11 @@ window.Component = function(callback, name, config) {
           return s;
         }
       },
-      append: function(what) {
+      append: function(componentName, args) {
         for (var i in nodes)
-          $g.append(nodes[i], what);
+          new Component(function(data) {
+            $g.append(nodes[i], data);
+          }, componentName, args);
         return this;
       },
       hide: function() {
@@ -250,7 +275,12 @@ window.Component = function(callback, name, config) {
 
   name = name ? name.replace(/\./g, "/") + "/" : "";
 
-  $g.get(name + "component.html", function(result) {
+  var $hlr = ($c.enable && $c.get(name + "component.html")) ? $c : $g;
+    
+  $hlr.get(name + "component.html", function(result) {
+    if ($hlr === $g)
+      $c.set(name + "component.html", result);
+
     var p     = $g.parse(result);
     var frag  = document.createDocumentFragment();
 
@@ -259,7 +289,10 @@ window.Component = function(callback, name, config) {
 
     callback(frag);
 
-    $g.get(name + "component.js", function(result) {
+    $hlr.get(name + "component.js", function(result) {
+      if ($hlr === $g)
+        $c.set(name + "component.js", result);
+
       eval(result);
     });
   });
