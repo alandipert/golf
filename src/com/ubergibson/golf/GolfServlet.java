@@ -24,6 +24,9 @@ import org.golfscript.js.*;
 
 public class GolfServlet extends HttpServlet {
   
+  // golf sequence number: this ensures that all urls are unique
+  private int golfSeq = 1;
+
   /** @override */
   public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
@@ -36,24 +39,24 @@ public class GolfServlet extends HttpServlet {
 
     logRequest(request);
 
-    /* htmlunit objects */
+    // htmlunit objects
     WebClient         client      = null;
     HtmlPage          page        = null;
 
-    /* http request resources */
+    // http request resources
     PrintWriter       out         = response.getWriter();
     HttpSession       session     = request.getSession();
 
-    /* query string parameters related to event proxying */
+    // query string parameters related to event proxying
     String            event       = request.getParameter("event");
     String            target      = request.getParameter("target");
 
-    /* request URI segments and path info */
+    // request URI segments and path info
     String            contextPath = request.getContextPath();
     String            pathInfo    = request.getPathInfo();
     String            queryString = (request.getQueryString() == null ? "" : request.getQueryString());
 
-    /* servlet configuration settings and paths */
+    // servlet configuration settings and paths
     String            docRoot     = getServletContext().getRealPath("");
 
     /*
@@ -64,7 +67,7 @@ public class GolfServlet extends HttpServlet {
      *      to deal with.
      */
     
-    /* First case (static content), ignoring parent directories */
+    // First case (static content), ignoring parent directories
     if (!pathInfo.endsWith("/")) {
 
       try {
@@ -90,7 +93,7 @@ public class GolfServlet extends HttpServlet {
         // no worries, fall through to next case
       }
 
-      /* Static content, with parent directories */
+      // Static content, with parent directories
       try {
         String file = pathInfo;
         String content = getGolfResourceAsString(file);
@@ -111,21 +114,26 @@ public class GolfServlet extends HttpServlet {
         // no worries, fall through to next case
       }
 
+      // No files found: maybe '/' was omitted by mistake?
+      // Try redirecting to routed entry point.
       Log.info(fmtLogMsg(request, "~~~~ REDIRECTING"));
-      /* No files found: maybe '/' was omitted by mistake?
-         Try redirecting to routed entry point. */
+
+      // this was causing some weird recursion so i commented it out
+      // everything seems to still work though...
       //String uri = request.getRequestURI() + "/" + queryString;
       //sendRedirect(request, response, uri);
       return;
     }
 
-    /* Second case (dynamic content) */
+    // Second case (dynamic content)
     try {
       
-      /* just assume that a vm should already exist iff request contains
-         event info */
+      // just assume that a vm should already exist iff request contains
+      // event info
       
       if (event != null && target != null) {
+        // create new vm
+
         client = (WebClient) session.getAttribute("vm");
 
         if (client == null) {
@@ -141,6 +149,8 @@ public class GolfServlet extends HttpServlet {
           targetElem.fireEvent("click");
         }
       } else {
+        // thaw existing vm
+
         event = null; target = null;
         client  = new WebClient(BrowserVersion.FIREFOX_2);
 
@@ -161,7 +171,17 @@ public class GolfServlet extends HttpServlet {
       }
 
       String output = page.asXml();
+
+      // pattern that should match the wrapper links added for proxy mode
+      String pat = "<a href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=";
+
+      // remove the golfid attribute as it's not necessary on the client
       output = output.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
+
+      // increment the golf sequence numbers in the event proxy links
+      output = output.replaceAll( "("+pat+")[0-9]+", "$1"+golfSeq++);
+
+      // on the client window.serverside must be false
       output = output.replaceFirst("(window.serverside =) true;", "$1 false;");
 
       out.print("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
@@ -214,11 +234,11 @@ public class GolfServlet extends HttpServlet {
    * @return              the routed path
    */
   private String getPathRouted(String path) throws IOException {
-    /* default when path is a directory */
+    // default when path is a directory
     String basename = "";
     String dirname  = path;
     
-    /* paths that aren't directories */
+    // paths that aren't directories
     if (!path.endsWith("/")) {
       dirname = "";
       String segs[] = path.split("//*");
@@ -227,20 +247,20 @@ public class GolfServlet extends HttpServlet {
         dirname += segs[i] + "/";
     }
 
-    /* FIXME: this is bad but it needs to be here because of the call to 
-       getGolfResourceAsStream("/routes.txt") below */
+    // FIXME: this is bad but it needs to be here because of the call to 
+    // getGolfResourceAsStream("/routes.txt") below
     if (dirname.equals("/") && basename.equals("routes.txt"))
       return "/routes.txt";
 
-    /* open the routes.txt file and get the route mappings 
-       TODO: possibly cache this in the servlet context? */
+    // open the routes.txt file and get the route mappings 
+    // TODO: possibly cache this in the servlet context?
     BufferedReader sr = new BufferedReader(
       new InputStreamReader(
         getGolfResourceAsStream("/routes.txt")
       )
     );
 
-    /* parse routes.txt and return the routed path if a match is found */
+    // parse routes.txt and return the routed path if a match is found
     String line;
     while ( (line = sr.readLine()) != null ) {
       String toks[] = line.split(":", 2);
@@ -299,16 +319,16 @@ public class GolfServlet extends HttpServlet {
     java.io.File  theFile   = new java.io.File(thePath);
 
     if (libFile.exists())
-      /* from the libraries directory of the app */
+      // from the libraries directory of the app
       is = new FileInputStream(libFile);
     else if (cpnFile != null && cpnFile.exists())
-      /* from the component's directory */
+      // from the component's directory
       is = new FileInputStream(cpnFile);
     else if (theFile.exists())
-      /* from the servlet's docroot */
+      // from the servlet's docroot
       is = new FileInputStream(theFile);
     else 
-      /* from the jarfile resource */
+      // from the jarfile resource
       is = getClass().getClassLoader().getResourceAsStream(name);
 
     if (is == null)
