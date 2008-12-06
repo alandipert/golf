@@ -18,8 +18,3 @@ $("search").click(
     $jQ.getJSON(url, got_images);
   }
 );
-
-
-
-
-
