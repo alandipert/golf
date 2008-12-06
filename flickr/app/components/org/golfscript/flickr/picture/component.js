@@ -1,1 +1,1 @@
-$("img").setAttr('src', config.url);
+$("img").setAttr('src', argv.url);

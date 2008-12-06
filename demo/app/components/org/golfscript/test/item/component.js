@@ -1,3 +1,3 @@
 
-$("title").text(String(config.title));
-$("body").text(String(config.body));
+$("title").text(String(argv.title));
+$("body").text(String(argv.body));

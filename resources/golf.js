@@ -194,10 +194,10 @@ window.Golf.impl = {
  *
  * @param callback  (Function)  eg. function(html) { ... }
  * @param name      (String)    eg. "org.golfscript.MyComponent"
- * @param config    (Object)    eg. { title:"My Component Instance" }
+ * @param argv      (Object)    eg. { title:"My Component Instance" }
  */
 
-window.Component = function(callback, name, config) {
+window.Component = function(callback, name, argv) {
 
   var _index = [];
 
