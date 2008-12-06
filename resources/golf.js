@@ -177,7 +177,7 @@ window.Golf.impl = {
  * Creates a new component.
  *
  * @param callback  (Function)  eg. function(html) { ... }
- * @param name      (String)    eg. "/org/golfscript/MyComponent"
+ * @param name      (String)    eg. "org.golfscript.MyComponent"
  * @param config    (Object)    eg. { title:"My Component Instance" }
  */
 
