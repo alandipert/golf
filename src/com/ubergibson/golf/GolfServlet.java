@@ -74,7 +74,6 @@ public class GolfServlet extends HttpServlet {
         String path[] = pathInfo.split("//*");
         if (path.length > 0) {
           String file = path[path.length - 1];
-          Log.info("******** file=[" + file + "]");
           String content = getGolfResourceAsString(file);
           if (content.length() > 0) {
             if (file.endsWith(".js"))
@@ -117,12 +116,13 @@ public class GolfServlet extends HttpServlet {
 
       // No files found: maybe '/' was omitted by mistake?
       // Try redirecting to routed entry point.
-      Log.info(fmtLogMsg(request, "~~~~ REDIRECTING"));
+      //Log.info(fmtLogMsg(request, "~~~~ REDIRECTING"));
 
       // this was causing some weird recursion so i commented it out
       // everything seems to still work though...
       //String uri = request.getRequestURI() + "/" + queryString;
       //sendRedirect(request, response, uri);
+
       return;
     }
 
@@ -133,7 +133,7 @@ public class GolfServlet extends HttpServlet {
       // event info
       
       if (event != null && target != null) {
-        // create new vm
+        // thaw existing vm
 
         client = (WebClient) session.getAttribute("vm");
 
@@ -150,7 +150,7 @@ public class GolfServlet extends HttpServlet {
           targetElem.fireEvent("click");
         }
       } else {
-        // thaw existing vm
+        // create new vm
 
         event = null; target = null;
         client  = new WebClient(BrowserVersion.FIREFOX_2);
@@ -180,7 +180,8 @@ public class GolfServlet extends HttpServlet {
       output = output.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
 
       // increment the golf sequence numbers in the event proxy links
-      output = output.replaceAll( "("+pat+")[0-9]+", "$1"+golfSeq++);
+      output = output.replaceAll( "("+pat+")[0-9]+", "$1"+ golfSeq++ + 
+          "&amp;jsessionid=" + session.getId());
 
       // on the client window.serverside must be false
       output = output.replaceFirst("(window.serverside =) true;", "$1 false;");
@@ -298,8 +299,6 @@ public class GolfServlet extends HttpServlet {
    */
   private InputStream getGolfResourceAsStream(String name) throws IOException {
     InputStream   is        = null;
-
-    Log.info("**** request for resource: [/*/" + name + "]");
 
     String        libPath   = 
       getServletContext().getRealPath("/libraries/" + name);

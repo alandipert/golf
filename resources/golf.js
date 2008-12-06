@@ -175,10 +175,11 @@ window.Golf.impl = {
   // remove all children, thereby emptying the node
   val: function(node) {
       return jQuery(node).val();
-  }
-
-
-
+  },
+  // get JSONP
+  getJSON: function(url, data, callback) {
+    return jQuery(url, data, callback);
+  },
 
 };
 
@@ -285,6 +286,10 @@ window.Component = function(callback, name, config) {
         return this;
       },
     };
+  };
+
+  $.getJSON = function(url, data, callback) {
+    return $g.getJSON(url, data, callback);
   };
 
   name = name ? name.replace(/\./g, "/") + "/" : "";
