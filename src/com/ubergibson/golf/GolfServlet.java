@@ -27,6 +27,9 @@ public class GolfServlet extends HttpServlet {
   // golf sequence number: this ensures that all urls are unique
   private int golfSeq = 1;
 
+  // cache the rendered output for the initial page load here
+  private String cachedPage = "";
+
   /** @override */
   public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
