@@ -1,0 +1,1 @@
+$("mainFlickr").append("org.golfscript.flickr", {});
