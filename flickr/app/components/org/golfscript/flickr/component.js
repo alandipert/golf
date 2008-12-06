@@ -18,8 +18,6 @@ $("search").click(
       var val = $("searchbox").val();
       url = search_image_url(val);
       $jQ.getJSON(url, got_images);
-
-
    }
 );
 
