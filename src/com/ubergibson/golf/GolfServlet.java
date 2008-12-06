@@ -74,6 +74,7 @@ public class GolfServlet extends HttpServlet {
         String path[] = pathInfo.split("//*");
         if (path.length > 0) {
           String file = path[path.length - 1];
+          Log.info("******** file=[" + file + "]");
           String content = getGolfResourceAsString(file);
           if (content.length() > 0) {
             if (file.endsWith(".js"))
@@ -286,7 +287,7 @@ public class GolfServlet extends HttpServlet {
    * those places are searched in the following order:
    * <ol>
    *  <li>the libraries/ directory in the approot
-   *  <li>the component directory
+   *  <li>the components/ directory
    *  <li>the servlet docroot
    *  <li>the jarfile resources.
    * </ol>
@@ -297,6 +298,8 @@ public class GolfServlet extends HttpServlet {
    */
   private InputStream getGolfResourceAsStream(String name) throws IOException {
     InputStream   is        = null;
+
+    Log.info("**** request for resource: [/*/" + name + "]");
 
     String        libPath   = 
       getServletContext().getRealPath("/libraries/" + name);
