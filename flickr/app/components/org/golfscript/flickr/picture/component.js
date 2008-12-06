@@ -1,1 +1,1 @@
-$("body").text(String(config.body));
+$("img").setAttr('src', config.url);

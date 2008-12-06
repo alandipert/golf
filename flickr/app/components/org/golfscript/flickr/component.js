@@ -5,12 +5,10 @@ var search_image_url = function(topic){
 }
 
 var got_images = function(data){
-    console.log(data);
-     $("results").append(
+    $("results").append(
 	  'org.golfscript.flickr.results', 
 	  { body: data }
       );
-
 }
 
 $("search").click(

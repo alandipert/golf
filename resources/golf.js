@@ -181,6 +181,12 @@ window.Golf.impl = {
     return jQuery(url, data, callback);
   },
 
+    setAttr: function(nodes, attr, val){
+	return jQuery(nodes).attr(attr, val);
+    },
+
+
+
 };
 
 /**
@@ -275,10 +281,12 @@ window.Component = function(callback, name, config) {
           return nodes[i];
 	},
 	val: function(){
-	    
 	    return $g.val(nodes);
-	    
 	},
+	setAttr: function(attr, val){
+	    return $g.setAttr(nodes, attr, val);
+	},
+
 
       empty: function() {
           for (var i in nodes)
