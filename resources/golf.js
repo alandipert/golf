@@ -171,6 +171,11 @@ window.Golf.impl = {
   empty: function(node) {
     return jQuery(node).empty().get();
   },
+
+  // get JSONP
+  getJSON: function(url, data, callback) {
+    return jQuery(url, data, callback);
+  },
 };
 
 /**
@@ -271,6 +276,10 @@ window.Component = function(callback, name, config) {
         return this;
       },
     };
+  };
+
+  $.getJSON = function(url, data, callback) {
+    return $g.getJSON(url, data, callback);
   };
 
   name = name ? name.replace(/\./g, "/") + "/" : "";
