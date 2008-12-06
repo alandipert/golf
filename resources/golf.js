@@ -171,6 +171,15 @@ window.Golf.impl = {
   empty: function(node) {
     return jQuery(node).empty().get();
   },
+
+  // remove all children, thereby emptying the node
+  val: function(node) {
+      return jQuery(node).val();
+  }
+
+
+
+
 };
 
 /**
@@ -264,6 +273,11 @@ window.Component = function(callback, name, config) {
       get: function(i) {
         return nodes[i];
       },
+	val: function(i){
+	    return $g.val(nodes[i]);  
+	    
+	},
+
       empty: function() {
         for (var i in nodes)
           $g.empty(nodes[i]);

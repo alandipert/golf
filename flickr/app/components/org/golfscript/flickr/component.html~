@@ -1,0 +1,26 @@
+<div class="org-golfscript-test">
+
+  <!-- big title bar on top -->
+  <h2 class="clickme clickable button">Click me!</h2>
+
+  <!-- info block directly under the title bar -->
+  <div>
+    <span class="show clickable button">
+      more info
+    </span>
+    <span class="close clickable button" style="display:none">
+      less info
+    </span>
+    <span class="spacer">&nbsp;</span>
+    <span class="reset clickable button" style="display:none">
+      reset
+    </span>
+    <span class="spacer">&nbsp;</span>
+    <span class="thanks">
+      Hey, you clicked <span class="counter">X</span> times. Thanks!
+    </span>
+  </div>
+
+  <!-- container for the dynamically loaded list item components -->
+  <div  class="items"></div>
+</div>
