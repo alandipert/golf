@@ -173,8 +173,8 @@ window.Golf.impl = {
   },
 
   // remove all children, thereby emptying the node
-  val: function(node) {
-      return jQuery(node).val();
+  val: function(nodes) {
+      return jQuery(nodes).val();
   },
   // get JSONP
   getJSON: function(url, data, callback) {
@@ -271,16 +271,17 @@ window.Component = function(callback, name, config) {
         nodes = [ nodes[i] ];
         return this;
       },
-      get: function(i) {
-        return nodes[i];
-      },
-	val: function(i){
-	    return $g.val(nodes[i]);  
+	get: function(i) {
+          return nodes[i];
+	},
+	val: function(){
+	    
+	    return $g.val(nodes);
 	    
 	},
 
       empty: function() {
-        for (var i in nodes)
+          for (var i in nodes)
           $g.empty(nodes[i]);
         // FIXME: maybe this should return the removed nodes?
         return this;
