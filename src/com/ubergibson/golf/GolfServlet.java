@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.IOException;
 import java.io.FileNotFoundException;
 import java.io.BufferedReader;
+import java.util.concurrent.ConcurrentHashMap;
 import org.mozilla.javascript.*;
 
 import java.net.*;
@@ -25,22 +26,22 @@ import org.golfscript.js.*;
 public class GolfServlet extends HttpServlet {
   
   // golf sequence number: this ensures that all urls are unique
-  private int golfSeq = 1;
+  private int golfNum = 1;
 
-  // cache the rendered output for the initial page load here
-  private String cachedPage = "";
+  // cache the initial HTML output here
+  private String cachedPage = null;
+
+  // 
+  private ConcurrentHashMap<String, WebClient> clients =
+    new ConcurrentHashMap<String, WebClient>();
 
   /** @override */
   public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
   {
 
-    if (request.getSession(false) == null) {
-      HttpSession s = request.getSession(true);
-      Log.info(fmtLogMsg(request, "NEW SESSION"));
-    }
-
-    logRequest(request);
+    // text output of XHTML page
+    String            output      = null;
 
     // htmlunit objects
     WebClient         client      = null;
@@ -48,11 +49,11 @@ public class GolfServlet extends HttpServlet {
 
     // http request resources
     PrintWriter       out         = response.getWriter();
-    HttpSession       session     = request.getSession();
 
     // query string parameters related to event proxying
     String            event       = request.getParameter("event");
     String            target      = request.getParameter("target");
+    String            jsessionid  = request.getParameter("jsessionid");
 
     // request URI segments and path info
     String            contextPath = request.getContextPath();
@@ -61,6 +62,18 @@ public class GolfServlet extends HttpServlet {
 
     // servlet configuration settings and paths
     String            docRoot     = getServletContext().getRealPath("");
+
+    // htmlunit browser version
+    // FIXME: parse the user agent, etc.
+    BrowserVersion    browser     = BrowserVersion.FIREFOX_2;
+
+    // HTTP session
+    if (jsessionid == null) {
+      jsessionid = generateSessionId(request);
+      Log.info(fmtLogMsg(jsessionid, "NEW SESSION 1"));
+    }
+
+    logRequest(request, jsessionid);
 
     /*
      * As far as routing the request goes there are 2 possible cases:
@@ -85,7 +98,7 @@ public class GolfServlet extends HttpServlet {
               response.setContentType("text/css");
             else
               response.setContentType("text/plain");
-            Log.info(fmtLogMsg(request, "static content `" + pathInfo + "'"));
+            Log.info(fmtLogMsg(jsessionid, "static content `" + pathInfo + "'"));
             out.println(content);
             return;
           }
@@ -107,7 +120,7 @@ public class GolfServlet extends HttpServlet {
             response.setContentType("text/css");
           else
             response.setContentType("text/plain");
-          Log.info(fmtLogMsg(request, "static content `" + pathInfo + "'"));
+          Log.info(fmtLogMsg(jsessionid, "static content `" + pathInfo + "'"));
           out.println(content);
           return;
         }
@@ -117,64 +130,76 @@ public class GolfServlet extends HttpServlet {
         // no worries, fall through to next case
       }
 
-      // No files found: maybe '/' was omitted by mistake?
-      // Try redirecting to routed entry point.
-      //Log.info(fmtLogMsg(request, "~~~~ REDIRECTING"));
-
-      // this was causing some weird recursion so i commented it out
-      // everything seems to still work though...
-      //String uri = request.getRequestURI() + "/" + queryString;
-      //sendRedirect(request, response, uri);
-
       return;
     }
 
     // Second case (dynamic content)
     try {
       
-      // just assume that a vm should already exist iff request contains
-      // event info
-      
+      client = clients.get(jsessionid);
+
       if (event != null && target != null) {
-        // thaw existing vm
+        // client has already been to initial page and we are now servicing
+        // a proxied event
 
-        client = (WebClient) session.getAttribute("vm");
-
-        if (client == null) {
-          String uri = request.getRequestURI();
-          sendRedirect(request, response, uri);
+        if (jsessionid == null) {
+          // this means something is wrong, like someone is entering the
+          // system with an event already (impossible)
+          redirectToBase(request, response);
           return;
         }
 
-        page = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
-        HtmlElement targetElem = page.getHtmlElementByGolfId(target);
+        if (client == null) {
+          Log.info("client is null");
+          client  = new WebClient(BrowserVersion.FIREFOX_2);
+          page    = initClient(request, client);
 
-        if (targetElem != null) {
-          targetElem.fireEvent("click");
+          String thisPage   = page.asXml();
+          target = shiftGolfId(thisPage, cachedPage, target);
+        } else {
+          Log.info("client is not null");
+          page = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+        }
+
+        if (target != null) {
+          HtmlElement targetElem = null;
+
+          try {
+            targetElem = page.getHtmlElementByGolfId(target);
+          } catch (Exception e) {
+            Log.info(fmtLogMsg(jsessionid, "CAN'T FIRE EVENT: REDIRECTING"));
+            redirectToBase(request, response);
+            return;
+          }
+
+          if (targetElem != null)
+            targetElem.fireEvent("click");
         }
       } else {
-        // create new vm
+        // client requests initial page
 
         event = null; target = null;
-        client  = new WebClient(BrowserVersion.FIREFOX_2);
 
-        Log.info(fmtLogMsg(request, "NEW WEBCLIENT"));
+        // trash the existing session id FIXME: is this necessary?
+        jsessionid = generateSessionId(request);
+        Log.info(fmtLogMsg(jsessionid, "NEW SESSION 2"));
 
-        StringWebResponse resp = new StringWebResponse(
-          getGolfResourceAsString("new.html"),
-          new URL(request.getRequestURL().toString() + "/" + queryString)
-        );
+        if (cachedPage != null) {
+          output = cachedPage;
+        } else {
+          // FIXME: probably want a cached client for each user agent
+          client      = new WebClient(BrowserVersion.FIREFOX_2);
+          page        = initClient(request, client);
+          cachedPage  = page.asXml();
+        }
 
-        page = (HtmlPage) client.loadWebResponseInto(
-          resp,
-          client.getCurrentWindow()
-        );
-
-        //JavaScriptEngine js = client.getJavaScriptEngine();
-        //js.execute(page, getGolfResourceAsString("server.js"), "server.js", 1);
+        client = null;
       }
 
-      String output = page.asXml();
+      ++golfNum;
+
+      if (output == null)
+        output = page.asXml();
 
       // pattern that should match the wrapper links added for proxy mode
       String pat = "<a href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=";
@@ -183,8 +208,8 @@ public class GolfServlet extends HttpServlet {
       output = output.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
 
       // increment the golf sequence numbers in the event proxy links
-      output = output.replaceAll( "("+pat+")[0-9]+", "$1"+ golfSeq++ + 
-          "&amp;jsessionid=" + session.getId());
+      output = output.replaceAll( "("+pat+")[0-9]+", "$1"+ golfNum + 
+          "&amp;jsessionid=" + jsessionid);
 
       // on the client window.serverside must be false
       output = output.replaceFirst("(window.serverside =) true;", "$1 false;");
@@ -196,6 +221,7 @@ public class GolfServlet extends HttpServlet {
     }
 
     catch (Exception x) {
+      x.printStackTrace();
       response.setContentType("text/html");
       out.println("<html><head><title>Golf Error</title></head><body>");
       out.println("<table height='100%' width='100%'>");
@@ -212,76 +238,119 @@ public class GolfServlet extends HttpServlet {
     }
 
     finally {
-      session.setAttribute("vm", client);
+      if (client != null)
+        clients.put(jsessionid, client);
+      else
+        clients.remove(jsessionid);
       out.close();
     }
   }
 
-  private Object runScript(
-      Context cx,
-      Scriptable sc,
-      String path) 
-    throws IOException 
-  {
-    InputStream is = getGolfResourceAsStream(path);
-    InputStreamReader fs = new InputStreamReader(is);
-    return cx.evaluateReader(sc, fs, path, 1, null);
+  /**
+   * Generate new session id.
+   *
+   * @param     request   the http request object
+   * @return              the session id
+   */
+  private String generateSessionId(HttpServletRequest request) {
+    request.getSession().invalidate();
+    HttpSession s = request.getSession(true);
+    return s.getId();
   }
 
   /**
-   * Resolves the routed path of a URI. This is based on the app-wide
-   * routes.txt file mappings. These mappings consist of a regex to match
-   * the requested path against, and the routed path that it should
-   * resolve to, separated by a colon character. The routes file should
-   * have only one mapping per line.
+   * Send redirect header to send client back to the app entry point.
    *
-   * @param     path      the requested path
-   * @return              the routed path
+   * @param     request   the http request object
+   * @param     response  the http response object
    */
-  private String getPathRouted(String path) throws IOException {
-    // default when path is a directory
-    String basename = "";
-    String dirname  = path;
-    
-    // paths that aren't directories
-    if (!path.endsWith("/")) {
-      dirname = "";
-      String segs[] = path.split("//*");
-      basename = segs[segs.length - 1];
-      for (int i=0; i<(segs.length - 1); i++)
-        dirname += segs[i] + "/";
+  private void redirectToBase(HttpServletRequest request, 
+      HttpServletResponse response) throws IOException {
+    sendRedirect(request, response, request.getRequestURI());
+  }
+
+  /**
+   * Adjusts the golfId according to the calculated offset.
+   *
+   * @param     newXml  the actual xhtml page
+   * @param     oldXml  the cached xhtml page
+   * @param     target  the requested target (from cached page)
+   * @return            the corresponding target on the actual page
+   */
+  private String shiftGolfId(String newXml, String oldXml, String target) {
+    String result   = null;
+    int thisGolfId  = getFirstGolfId(newXml);
+    int origGolfId  = getFirstGolfId(oldXml);
+    int offset      = -1;
+
+    if (thisGolfId >= 0 && origGolfId >= 0) {
+      offset    = thisGolfId - origGolfId;
+
+      try {
+        result = String.valueOf(Integer.parseInt(target) + offset);
+      } catch (NumberFormatException e) {
+        // it's okay, do nothing
+      }
     }
 
-    // FIXME: this is bad but it needs to be here because of the call to 
-    // getGolfResourceAsStream("/routes.txt") below
-    if (dirname.equals("/") && basename.equals("routes.txt"))
-      return "/routes.txt";
+    Log.info("thisGolfId = ["+thisGolfId+"]");
+    Log.info("origGolfId = ["+origGolfId+"]");
+    Log.info("offset     = ["+offset+"]");
+    Log.info("old target = ["+target+"]");
+    Log.info("new target = ["+result+"]");
 
-    // open the routes.txt file and get the route mappings 
-    // TODO: possibly cache this in the servlet context?
-    BufferedReader sr = new BufferedReader(
-      new InputStreamReader(
-        getGolfResourceAsStream("/routes.txt")
-      )
+    return result;
+  }
+
+  /**
+   * Extracts the first golfId from an xml string.
+   *
+   * @param     xml     the xml string to extract from
+   * @return            the golfId
+   */
+  private int getFirstGolfId(String xml) {
+    int result = -1;
+
+    String toks[] = xml.split("<[^>]+ golfid=\"");
+    if (toks.length > 1) {
+      String tmp = toks[1].replaceAll("[^0-9].*", "");
+      try {
+        result = Integer.parseInt(tmp);
+      } catch (NumberFormatException e) {
+        // do nothing
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Initializes a client JSVM for proxy mode.
+   *
+   * @param     request the HTTP request
+   * @param     client  the web client object to initialize
+   * @return            the resulting page
+   */
+  private synchronized HtmlPage initClient(HttpServletRequest request,
+      WebClient client) throws IOException {
+    HtmlPage result;
+
+    Log.info(fmtLogMsg(null, "INITIALIZING NEW CLIENT"));
+
+    String queryString = 
+      (request.getQueryString() == null ? "" : request.getQueryString());
+
+    StringWebResponse response = new StringWebResponse(
+      getGolfResourceAsString("new.html"),
+      new URL(request.getRequestURL().toString() + "/" + queryString)
     );
 
-    // parse routes.txt and return the routed path if a match is found
-    String line;
-    while ( (line = sr.readLine()) != null ) {
-      String toks[] = line.split(":", 2);
-      String key    = toks[0];
-      String val    = toks[1];
-      dirname = dirname.trim();
-      dirname = dirname.replaceFirst("/*$", "/");
-      key     = key.trim();
-      key     = key.replaceFirst("/*$", "/");
-      val     = val.trim();
-      val     = val.replaceFirst("/*$", "/");
-      if (dirname.equals(key))
-        return val + basename;
-    }
+    result = (HtmlPage) client.loadWebResponseInto(
+      response,
+      client.getCurrentWindow()
+    );
 
-    throw new IOException("route not found: "+path);
+    return result;
   }
 
   /**
@@ -342,6 +411,12 @@ public class GolfServlet extends HttpServlet {
     return is;
   }
 
+  /**
+   * Returns a resource as a string.
+   *
+   * @param     name        the name of the resource
+   * @return                the resource as a string
+   */
   private String getGolfResourceAsString(String name) throws IOException {
     InputStream     is  = getGolfResourceAsStream(name);
     BufferedReader  sr  = new BufferedReader(new InputStreamReader(is));
@@ -353,13 +428,25 @@ public class GolfServlet extends HttpServlet {
     return ret;
   }
 
-  private String fmtLogMsg(HttpServletRequest request, String s) {
-    HttpSession sess = request.getSession(false);
-    return (sess != null ? "[" + sess.getId().toUpperCase().replaceAll(
+  /**
+   * Format a nice log message.
+   *
+   * @param     jsessionid  the session id
+   * @param     s           the log message
+   * @return                the formatted log message
+   */
+  private String fmtLogMsg(String jsessionid, String s) {
+    return (jsessionid != null ? "[" + jsessionid.toUpperCase().replaceAll(
           "(...)(?=...)", "$1.") + "]" : "") + " " + s;
   }
 
-  private void logRequest(HttpServletRequest request) {
+  /**
+   * Logs a http servlet request.
+   *
+   * @param     request     the http servlet request
+   * @param     jsessionid  the session id
+   */
+  private void logRequest(HttpServletRequest request, String jsessionid) {
     String method = request.getMethod();
     String scheme = request.getScheme();
     String server = request.getServerName();
@@ -372,18 +459,31 @@ public class GolfServlet extends HttpServlet {
       "//" + (server != null ? server + ":" + port : "") +
       uri + (query != null ? "?" + query : "") + " " + host;
 
-    Log.info(fmtLogMsg(request, line));
+    Log.info(fmtLogMsg(jsessionid, line));
   }
 
+  /**
+   * Sends a redirect header to the client.
+   *
+   * @param     request     the http servlet request
+   * @param     response    the http servlet response
+   * @param     uri         the URI to redirect to
+   */
   private void sendRedirect(
     HttpServletRequest request,
     HttpServletResponse response,
     String uri
   ) throws IOException {
-    Log.info(fmtLogMsg(request, "redirect -> `" + uri + "'"));
+    Log.info(fmtLogMsg(null, "redirect -> `" + uri + "'"));
     response.sendRedirect(uri);
   }
 
+  /**
+   * Convenience function to do html entity encoding.
+   *
+   * @param     s         the string to encode
+   * @return              the encoded string
+   */
   public static String HTMLEntityEncode(String s) {
     StringBuffer buf = new StringBuffer();
     int len = (s == null ? -1 : s.length());
