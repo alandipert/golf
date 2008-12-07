@@ -5,8 +5,8 @@
 
 (function() {
 
-  window.Golf = {};
-  window.Golf.ping = function() { return "ok"; };
+  Golf = {};
+  Golf.ping = function() { return "ok"; };
 
 })();
 
@@ -14,7 +14,7 @@
  * Cache static parts of components (FIXME, maybe some kind of GC here later)
  */
 
-window.Golf.cache = { 
+Golf.cache = { 
   enable: true,
   data: {},
   get: function(url, callback) {
@@ -33,14 +33,33 @@ window.Golf.cache = {
  * Low-level AJAX API wrapper
  */
 
-window.Golf.impl = {
+Golf.loadLib = function(){
+
+  var loadedLibs = [];
+  return function(libName, libVersion){
+    if(!loadedLibs[libName]){
+      google.load(libName, libVersion);
+      loadedLibs[libName] = true;
+    }
+  };
+
+}();
+
+Golf.init = function(libName, libVersion) {
+  Golf.loadLib(libName, libVersion);
+  Golf.impl = Golf.impls[libName];
+};
+
+Golf.impls = {};
+
+Golf.impls.jquery = {
 
   // container for indexed nodes
   _index: {},
 
   // set onload event handler
-  load: function(callback) {
-    jQuery(window).load(callback);
+  init: function() {
+    $jQ = jQuery.noConflict();
   },
 
   // compile xhtml string to DOM object
@@ -55,7 +74,7 @@ window.Golf.impl = {
       url:      url,
       cache:    true,
       dataType: "text",
-      async:    window.serverside ? false : true,
+      async:    serverside ? false : true,
       success:  function(html) {
         callback(html);
       },
@@ -64,7 +83,7 @@ window.Golf.impl = {
 
   // recursive method to load $ object with nodes indexed by class
   index: function(idx, node) {
-    var klasses = window.Golf.impl.classes(node);
+    var klasses = Golf.impl.classes(node);
 
     // no uniqueness of (class,node) tuples enforced here (TODO?)
     for (var i in klasses) {
@@ -74,13 +93,13 @@ window.Golf.impl = {
     }
 
     jQuery(node).children().each(function(i) {
-      window.Golf.impl.index(idx, this); 
+      Golf.impl.index(idx, this); 
     });
   },
 
   // add class to element
   apply: function(node, klass) {
-    var klasses = window.Golf.impl.classes(node);
+    var klasses = Golf.impl.classes(node);
     klasses.push(klass);
     var joined = klasses.join(" ");
     if (joined)
@@ -89,7 +108,7 @@ window.Golf.impl = {
 
   // remove class from element
   clear: function(node, klass) {
-    var klasses = window.Golf.impl.classes(node);
+    var klasses = Golf.impl.classes(node);
     var ret = Array();
     for (var i in klasses)
       if (klasses[i] != klass)
@@ -121,10 +140,10 @@ window.Golf.impl = {
 
   // toggle membership in specified class
   toggle: function(node, klass) {
-    if (window.Golf.impl.has(node, klass))
-      window.Golf.impl.clear(node, klass);
+    if (Golf.impl.has(node, klass))
+      Golf.impl.clear(node, klass);
     else
-      window.Golf.impl.apply(node, klass);
+      Golf.impl.apply(node, klass);
   },
 
   // change text child node
@@ -142,7 +161,7 @@ window.Golf.impl = {
 
   // true if node has the specified class
   has: function(node, klass) {
-    var klasses = window.Golf.impl.classes(node);
+    var klasses = Golf.impl.classes(node);
     for (var i in klasses)
       if (klasses[i] == klass)
         return 1;
@@ -164,7 +183,7 @@ window.Golf.impl = {
 
   // convenience function to get a node's classes
   classes: function(node) {
-    return window.Golf.impl.attrList(node, "class");
+    return Golf.impl.attrList(node, "class");
   },
 
   // remove all children, thereby emptying the node
@@ -196,12 +215,12 @@ window.Golf.impl = {
  * @param argv      (Object)    eg. { title:"My Component Instance" }
  */
 
-window.Component = function(callback, name, argv) {
+Component = function(callback, name, argv) {
 
   var _index = [];
 
-  var $g = window.Golf.impl;
-  var $c = window.Golf.cache;
+  var $g = Golf.impl;
+  var $c = Golf.cache;
 
   var $ = function(klass) {
     var nodes = (_index[klass] ? _index[klass] : []);  
@@ -329,8 +348,9 @@ window.Component = function(callback, name, argv) {
  *
  */
 
-window.Golf.load = function() {
-  var $g = window.Golf.impl;
+Golf.load = function() {
+  var $g = Golf.impl;
+  $g.init();
   var body = document.getElementsByTagName('body');
   $g.empty(body);
   new Component(function(data) { $g.append(body, data); });
@@ -341,8 +361,8 @@ window.Golf.load = function() {
  *
  */
 
-window.Golf.__defineGetter__("title", function() {
-  var $g = window.Golf.impl;
+Golf.__defineGetter__("title", function() {
+  var $g = Golf.impl;
   return $g.text(document.getElementsByTagName("title"));
 });
 
@@ -351,7 +371,7 @@ window.Golf.__defineGetter__("title", function() {
  *
  */
 
-window.Golf.__defineSetter__("title", function(value) {
-  var $g = window.Golf.impl;
+Golf.__defineSetter__("title", function(value) {
+  var $g = Golf.impl;
   return $g.text(document.getElementsByTagName("title"), value);
 });
