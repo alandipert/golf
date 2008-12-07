@@ -33,8 +33,20 @@ Golf.cache = {
  * Low-level AJAX API wrapper
  */
 
+Golf.loadLib = function(){
+
+  var loadedLibs = [];
+  return function(libName, libVersion){
+    if(!loadedLibs[libName]){
+      google.load(libName, libVersion);
+      loadedLibs[libName] = true;
+    }
+  };
+
+}();
+
 Golf.init = function(libName, libVersion) {
-  google.load(libName, libVersion);
+  Golf.loadLib(libName, libVersion);
   Golf.impl = Golf.impls[libName];
 };
 
