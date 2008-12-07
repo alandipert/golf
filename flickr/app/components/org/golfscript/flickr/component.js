@@ -5,6 +5,7 @@ var search_image_url = function(topic){
 }
 
 var got_images = function(data){
+  $("results").empty();
   $("results").append(
     'org.golfscript.flickr.results', 
     { body: data }
