@@ -133,7 +133,7 @@ public class GolfServlet extends HttpServlet {
       return;
     }
 
-    response.setContentType("text/javascript");
+    response.setContentType("text/html");
 
     // Second case (dynamic content)
     try {
