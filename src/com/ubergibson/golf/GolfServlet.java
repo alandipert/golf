@@ -67,12 +67,6 @@ public class GolfServlet extends HttpServlet {
     // FIXME: parse the user agent, etc.
     BrowserVersion    browser     = BrowserVersion.FIREFOX_2;
 
-    // HTTP session
-    if (jsessionid == null) {
-      jsessionid = generateSessionId(request);
-      Log.info(fmtLogMsg(jsessionid, "NEW SESSION 1"));
-    }
-
     logRequest(request, jsessionid);
 
     /*
@@ -138,7 +132,7 @@ public class GolfServlet extends HttpServlet {
     // Second case (dynamic content)
     try {
       
-      client = clients.get(jsessionid);
+      client = (jsessionid == null) ? null : clients.get(jsessionid);
 
       if (event != null && target != null) {
         // client has already been to initial page and we are now servicing
