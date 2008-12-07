@@ -35,7 +35,6 @@ public class GolfServlet extends HttpServlet {
   private ConcurrentHashMap<String, WebClient> clients =
     new ConcurrentHashMap<String, WebClient>();
 
-  /** @override */
   public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
   {
@@ -178,16 +177,15 @@ public class GolfServlet extends HttpServlet {
 
         // trash the existing session id FIXME: is this necessary?
         jsessionid = generateSessionId(request);
-        Log.info(fmtLogMsg(jsessionid, "NEW SESSION 2"));
+        Log.info(fmtLogMsg(jsessionid, "NEW SESSION CREATED"));
 
-        if (cachedPage != null) {
+        if (cachedPage == null)
+          cachePage(request);
+
+        if (cachedPage != null)
           output = cachedPage;
-        } else {
-          // FIXME: probably want a cached client for each user agent
-          client      = new WebClient(BrowserVersion.FIREFOX_2);
-          page        = initClient(request, client);
-          cachedPage  = page.asXml();
-        }
+        else
+          throw new Exception("cached page not found");
 
         client = null;
       }
@@ -217,20 +215,7 @@ public class GolfServlet extends HttpServlet {
     }
 
     catch (Exception x) {
-      x.printStackTrace();
-      response.setContentType("text/html");
-      out.println("<html><head><title>Golf Error</title></head><body>");
-      out.println("<table height='100%' width='100%'>");
-      out.println("<tr><td valign='middle' align='center'>");
-      out.println("<table width='600px'>");
-      out.println("<tr><td style='color:darkred;border:1px dashed red;" +
-                  "background:#fee;padding:0.5em;'>");
-      out.println("<b>Golf error:</b> " + HTMLEntityEncode(x.getMessage()));
-      out.println("</td></tr>");
-      out.println("</table>");
-      out.println("</td></tr>");
-      out.println("</table>");
-      out.println("</body></html>");
+      errorPage(request, response, x);
     }
 
     finally {
@@ -239,6 +224,53 @@ public class GolfServlet extends HttpServlet {
       else
         clients.remove(jsessionid);
       out.close();
+    }
+  }
+
+  /**
+   * Cache the initial html rendering of the page.
+   *
+   * @param     request   the http request object
+   */
+  private synchronized void cachePage(HttpServletRequest request) 
+    throws IOException {
+    if (cachedPage == null) {
+      // FIXME: probably want a cached page for each user agent
+      WebClient client  = new WebClient(BrowserVersion.FIREFOX_2);
+      HtmlPage  page    = initClient(request, client);
+      cachedPage = page.asXml();
+    }
+  }
+
+  /**
+   * Show error page.
+   *
+   * @param     req       the http request object
+   * @param     res       the http response object
+   * @param     e         the exception
+   */
+  public void errorPage(HttpServletRequest req, HttpServletResponse res,
+      Exception e) {
+    try {
+      PrintWriter out = new PrintWriter(res.getOutputStream()); 
+
+      res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      res.setContentType("text/html");
+
+      out.println("<html><head><title>Golf Error</title></head><body>");
+      out.println("<table height='100%' width='100%'>");
+      out.println("<tr><td valign='middle' align='center'>");
+      out.println("<table width='600px'>");
+      out.println("<tr><td style='color:darkred;border:1px dashed red;" +
+                  "background:#fee;padding:0.5em;'>");
+      out.println("<b>Golf error:</b> " + HTMLEntityEncode(e.getMessage()));
+      out.println("</td></tr>");
+      out.println("</table>");
+      out.println("</td></tr>");
+      out.println("</table>");
+      out.println("</body></html>");
+    } catch (Exception x) {
+      x.printStackTrace();
     }
   }
 
@@ -280,7 +312,7 @@ public class GolfServlet extends HttpServlet {
     int offset      = -1;
 
     if (thisGolfId >= 0 && origGolfId >= 0) {
-      offset    = thisGolfId - origGolfId;
+      offset = thisGolfId - origGolfId;
 
       try {
         result = String.valueOf(Integer.parseInt(target) + offset);
@@ -307,13 +339,15 @@ public class GolfServlet extends HttpServlet {
   private int getFirstGolfId(String xml) {
     int result = -1;
 
-    String toks[] = xml.split("<[^>]+ golfid=\"");
-    if (toks.length > 1) {
-      String tmp = toks[1].replaceAll("[^0-9].*", "");
-      try {
-        result = Integer.parseInt(tmp);
-      } catch (NumberFormatException e) {
-        // do nothing
+    if (xml != null) {
+      String toks[] = xml.split("<[^>]+ golfid=\"");
+      if (toks.length > 1) {
+        String tmp = toks[1].replaceAll("[^0-9].*", "");
+        try {
+          result = Integer.parseInt(tmp);
+        } catch (NumberFormatException e) {
+          // do nothing
+        }
       }
     }
 
