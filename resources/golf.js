@@ -39,8 +39,8 @@ window.Golf.impl = {
   _index: {},
 
   // set onload event handler
-  load: function(callback) {
-    jQuery(window).load(callback);
+  init: function() {
+    $jQ = jQuery.noConflict();
   },
 
   // compile xhtml string to DOM object
@@ -331,6 +331,7 @@ window.Component = function(callback, name, argv) {
 
 window.Golf.load = function() {
   var $g = window.Golf.impl;
+  $g.init();
   var body = document.getElementsByTagName('body');
   $g.empty(body);
   new Component(function(data) { $g.append(body, data); });

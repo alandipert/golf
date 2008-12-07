@@ -5,9 +5,8 @@
 
     <!-- jQuery is the underlying compatibility layer, but you don't ever
       need to access it directly. It's used internally by the golf runtime. -->
-    <script type="text/javascript" src="jquery.js"></script>
-    <script type="text/javascript"> $jQ = jQuery.noConflict(); </script>
-
+    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
+    
     <!-- window.serverside is set to false in the client by a string
       substitution before this page is sent out. -->
     <script type="text/javascript"> window.serverside = true; </script>
@@ -17,7 +16,8 @@
 
     <!-- bootstrap code -->
     <script type="text/javascript">
-      Golf.impl.load(function() { Golf.load(); });
+      google.load("jquery", "1");
+      google.setOnLoadCallback(window.Golf.load);
     </script>
   </head>
   <body>
