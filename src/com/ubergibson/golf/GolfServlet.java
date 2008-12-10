@@ -31,13 +31,20 @@ public class GolfServlet extends HttpServlet {
   // cache the initial HTML output here
   private String cachedPage = null;
 
-  // 
+  // htmlunit webclients for proxy-mode sessions
   private ConcurrentHashMap<String, WebClient> clients =
     new ConcurrentHashMap<String, WebClient>();
 
-  public void doGet(HttpServletRequest request, HttpServletResponse response)
+  // htmlunit webclients for reflection services
+  private ConcurrentHashMap<String, WebClient> reflectors =
+    new ConcurrentHashMap<String, WebClient>();
+
+  public void service(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
   {
+
+    // HTTP method (verb)
+    String            method      = request.getMethod();
 
     // text output of XHTML page
     String            output      = null;
@@ -53,6 +60,7 @@ public class GolfServlet extends HttpServlet {
     String            event       = request.getParameter("event");
     String            target      = request.getParameter("target");
     String            jsessionid  = request.getParameter("jsessionid");
+    String            reflect     = request.getParameter("reflect");
 
     // request URI segments and path info
     String            contextPath = request.getContextPath();
@@ -126,14 +134,37 @@ public class GolfServlet extends HttpServlet {
       return;
     }
 
+    /*
+     * Perform a reflector service.
+     */
+
+    if (reflect != null) {
+    }
+
     response.setContentType("text/html");
 
     // Second case (dynamic content)
     try {
       
-      client = (jsessionid == null) ? null : clients.get(jsessionid);
+      client    = (jsessionid == null) ? null : clients.get(jsessionid);
+      reflector = (jsessionid == null) ? null : reflectors.get(jsessionid);
 
-      if (event != null && target != null) {
+      if (reflect != null) {
+        // we want a reflector service
+        
+        if (jsessionid == null) {
+          // this means something is wrong, like someone is trying to do
+          // ajax calls before even hitting the initial page (impossible)
+          throw new Exception("session id not found");
+          return;
+        }
+
+        if (reflector != null) {
+          client  = new WebClient(BrowserVersion.FIREFOX_2);
+        } else {
+        }
+
+      } else if (event != null && target != null) {
         // client has already been to initial page and we are now servicing
         // a proxied event
 
@@ -147,9 +178,9 @@ public class GolfServlet extends HttpServlet {
         if (client == null) {
           Log.info("client is null");
           client  = new WebClient(BrowserVersion.FIREFOX_2);
-          page    = initClient(request, client);
+          page    = initClient(request, client, jsessionid);
 
-          String thisPage   = page.asXml();
+          String thisPage = page.asXml();
           target = shiftGolfId(thisPage, cachedPage, target);
         } else {
           Log.info("client is not null");
@@ -175,12 +206,12 @@ public class GolfServlet extends HttpServlet {
 
         event = null; target = null;
 
-        // trash the existing session id FIXME: is this necessary?
+        // trash the existing session id
         jsessionid = generateSessionId(request);
         Log.info(fmtLogMsg(jsessionid, "NEW SESSION CREATED"));
 
         if (cachedPage == null)
-          cachePage(request);
+          cachePage(request, jsessionid);
 
         if (cachedPage != null)
           output = cachedPage;
@@ -195,23 +226,7 @@ public class GolfServlet extends HttpServlet {
       if (output == null)
         output = page.asXml();
 
-      // pattern that should match the wrapper links added for proxy mode
-      String pat = "<a href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=";
-
-      // remove the golfid attribute as it's not necessary on the client
-      output = output.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
-
-      // increment the golf sequence numbers in the event proxy links
-      output = output.replaceAll( "("+pat+")[0-9]+", "$1"+ golfNum + 
-          "&amp;jsessionid=" + jsessionid);
-
-      // on the client window.serverside must be false
-      output = output.replaceFirst("(window.serverside =) true;", "$1 false;");
-
-      out.print("<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
-      "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n");
-
-      out.print(output);
+      out.print(preprocess(output, jsessionid, golfNum, false));
     }
 
     catch (Exception x) {
@@ -227,17 +242,40 @@ public class GolfServlet extends HttpServlet {
     }
   }
 
+  private String preprocess(String page, String sid, int num, boolean server) {
+    // pattern that should match the wrapper links added for proxy mode
+    String pat = "<a href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=";
+
+    // document type: xhtml
+    String dtd = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
+      "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n";
+
+    // remove the golfid attribute as it's not necessary on the client
+    page = page.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
+
+    // increment the golf sequence numbers in the event proxy links
+    page = page.replaceAll( "("+pat+")[0-9]+", "$1"+ num + 
+        "&amp;jsessionid=" + sid);
+
+    // on the client window.serverside must be false, and vice versa
+    page = page.replaceFirst("(window.serverside =) [a-z]+;", 
+        "$1 " + (server ? "true" : "false") + ";");
+
+    return (server ? "" : dtd) + page;
+  }
+
   /**
    * Cache the initial html rendering of the page.
    *
    * @param     request   the http request object
+   * @param     sid       the session id
    */
-  private synchronized void cachePage(HttpServletRequest request) 
-    throws IOException {
+  private synchronized void cachePage(HttpServletRequest request,
+      String sid) throws IOException {
     if (cachedPage == null) {
       // FIXME: probably want a cached page for each user agent
       WebClient client  = new WebClient(BrowserVersion.FIREFOX_2);
-      HtmlPage  page    = initClient(request, client);
+      HtmlPage  page    = initClient(request, client, sid);
       cachedPage = page.asXml();
     }
   }
@@ -359,19 +397,29 @@ public class GolfServlet extends HttpServlet {
    *
    * @param     request the HTTP request
    * @param     client  the web client object to initialize
+   * @param     sid     the session id
    * @return            the resulting page
    */
   private synchronized HtmlPage initClient(HttpServletRequest request,
-      WebClient client) throws IOException {
+      WebClient client, String sid) throws IOException {
     HtmlPage result;
 
-    Log.info(fmtLogMsg(null, "INITIALIZING NEW CLIENT"));
+    Log.info("INITIALIZING NEW CLIENT");
+
+    // write any alert() calls to the log
+    client.setAlertHandler(new AlertHandler() {
+      public void handleAlert(Page page, String message) {
+        Log.info("ALERT: " + message);
+      }
+    );
 
     String queryString = 
       (request.getQueryString() == null ? "" : request.getQueryString());
 
+    String newHtml = getGolfResourceAsString("new.html");
+
     StringWebResponse response = new StringWebResponse(
-      getGolfResourceAsString("new.html"),
+      preprocess(newHtml, sid, -1, true),
       new URL(request.getRequestURL().toString() + "/" + queryString)
     );
 
