@@ -77,10 +77,10 @@ public class JsonpTunnel {
       }
     }
 
-    if(!extURLString.equals("") && !extMethod.equals("")) {
-      return true;
-    } else {
+    if(extURLString.equals("") || extMethod.equals("")) {
       return false;
+    } else {
+      return true;
     }
   }
 }
