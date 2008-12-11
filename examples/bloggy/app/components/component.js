@@ -2,12 +2,11 @@
 $("main").append("com.thinkminimo.bloggy.itemlist", {one: "asdf", two: "safd"});
 
 $.bind("com.thinkminimo.bloggy.itemlist:get", function(event) {
-  alert("i was called");
-  $g.get("http://ubergibson.com:8082/posts.json", function(data) {
-    alert("i was callbacked");
+  jQuery.getJSON("http://ubergibson.com:8082/posts?callback=?", function(data) {
     var result = eval(data);
     for (i in result) {
-      alert(i);
+      var res = result[i];
+      $("main").append("com.thinkminimo.bloggy.item", {title: res.title, body: res.body});
     }
   });
 });

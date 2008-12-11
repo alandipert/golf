@@ -2,7 +2,7 @@
 
   <!-- default configuration -->
   <property name="orig.vendor.namespace" 
-    value="com.ubergibson"/>
+    value="com.thinkminimo"/>
   <property name="orig.app.name"    value="jtemplate"/>
   <property name="orig.app.version" value="0.1"/>
   <property name="orig.app.release" value="dev"/>

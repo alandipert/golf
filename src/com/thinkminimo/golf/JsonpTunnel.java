@@ -1,4 +1,4 @@
-package com.ubergibson.golf;
+package com.thinkminimo.golf;
 
 import java.io.PrintWriter;
 import java.io.InputStreamReader;

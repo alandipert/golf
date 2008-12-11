@@ -1,4 +1,4 @@
-package com.ubergibson.golf;
+package com.thinkminimo.golf;
 
 import java.io.PrintWriter;
 import java.io.InputStreamReader;
@@ -35,10 +35,6 @@ public class GolfServlet extends HttpServlet {
   private ConcurrentHashMap<String, WebClient> clients =
     new ConcurrentHashMap<String, WebClient>();
 
-  // htmlunit webclients for reflection services
-  private ConcurrentHashMap<String, WebClient> reflectors =
-    new ConcurrentHashMap<String, WebClient>();
-
   public void service(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
   {
@@ -60,7 +56,6 @@ public class GolfServlet extends HttpServlet {
     String            event       = request.getParameter("event");
     String            target      = request.getParameter("target");
     String            jsessionid  = request.getParameter("jsessionid");
-    String            reflect     = request.getParameter("reflect");
 
     // request URI segments and path info
     String            contextPath = request.getContextPath();
@@ -134,37 +129,14 @@ public class GolfServlet extends HttpServlet {
       return;
     }
 
-    /*
-     * Perform a reflector service.
-     */
-
-    if (reflect != null) {
-    }
-
     response.setContentType("text/html");
 
     // Second case (dynamic content)
     try {
       
       client    = (jsessionid == null) ? null : clients.get(jsessionid);
-      reflector = (jsessionid == null) ? null : reflectors.get(jsessionid);
 
-      if (reflect != null) {
-        // we want a reflector service
-        
-        if (jsessionid == null) {
-          // this means something is wrong, like someone is trying to do
-          // ajax calls before even hitting the initial page (impossible)
-          throw new Exception("session id not found");
-          return;
-        }
-
-        if (reflector != null) {
-          client  = new WebClient(BrowserVersion.FIREFOX_2);
-        } else {
-        }
-
-      } else if (event != null && target != null) {
+      if (event != null && target != null) {
         // client has already been to initial page and we are now servicing
         // a proxied event
 
@@ -411,7 +383,7 @@ public class GolfServlet extends HttpServlet {
       public void handleAlert(Page page, String message) {
         Log.info("ALERT: " + message);
       }
-    );
+    });
 
     String queryString = 
       (request.getQueryString() == null ? "" : request.getQueryString());
