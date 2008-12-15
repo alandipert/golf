@@ -138,6 +138,11 @@ Golf.impls.jquery = {
     jQuery(node).bind(eventName, callback);
   },
 
+  // trigger event
+  trigger: function(node, eventName, argv) {
+    jQuery(node).trigger(eventName, argv);
+  },
+
   // set onclick event handler for node
   click: function(node, callback) {
     jQuery(node).click(callback);
@@ -281,11 +286,6 @@ Golf.Component = function(callback, name, argv) {
           $g.show(nodes[i]);
         return this;
       },
-      bind: function(eventName, callback) {
-        for (var i in nodes)
-          $g.bind(nodes[i], eventName, callback);
-        return this;
-      },
       click: function(callback) {
         for (var i in nodes)
           $g.click(nodes[i], callback);
@@ -318,8 +318,22 @@ Golf.Component = function(callback, name, argv) {
     };
   };
 
+  $.component = name;
+
+  $.get = function(url, callback) {
+    return $g.get(url, callback);
+  };
+
   $.getJSON = function(url, data, callback) {
     return $g.getJSON(url, data, callback);
+  };
+
+  $.bind = function(eventName, callback) {
+    return $g.bind(document, eventName, callback);
+  };
+
+  $.trigger = function(eventName, argv) {
+    return $g.trigger(document, eventName, argv);
   };
 
   name = name ? name.replace(/\./g, "/") + "/" : "";
