@@ -21,8 +21,6 @@ import com.gargoylesoftware.htmlunit.*;
 import com.gargoylesoftware.htmlunit.html.*;
 import com.gargoylesoftware.htmlunit.javascript.*;
 
-import org.golfscript.js.*;
-
 public class GolfServlet extends HttpServlet {
   
   // golf sequence number: this ensures that all urls are unique
@@ -252,7 +250,7 @@ public class GolfServlet extends HttpServlet {
   public void errorPage(HttpServletRequest req, HttpServletResponse res,
       Exception e) {
     try {
-      PrintWriter out = new PrintWriter(res.getOutputStream()); 
+      PrintWriter out = res.getWriter();
 
       res.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
       res.setContentType("text/html");

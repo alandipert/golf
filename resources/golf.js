@@ -34,15 +34,20 @@ Golf.cache = {
  */
 
 Golf.loadLib = function(){
-
   var loadedLibs = [];
   return function(libName, libVersion){
     if(!loadedLibs[libName]){
-      google.load(libName, libVersion);
+      try {
+        google.load(libName, libVersion);
+      } catch (e) {
+        var s = document.createElement("SCRIPT");
+        s.type = "text/javascript";
+        s.src  = libName + ".js";
+        document.getElementsByTagName("HEAD").item(0).appendChild(s);
+      }
       loadedLibs[libName] = true;
     }
   };
-
 }();
 
 Golf.init = function(libName, libVersion) {
@@ -215,7 +220,7 @@ Golf.impls.jquery = {
  * @param argv      (Object)    eg. { title:"My Component Instance" }
  */
 
-Component = function(callback, name, argv) {
+Golf.Component = function(callback, name, argv) {
 
   var _index = [];
 
@@ -261,7 +266,7 @@ Component = function(callback, name, argv) {
       },
       append: function(componentName, args) {
         for (var i in nodes)
-          new Component(function(data) {
+          new Golf.Component(function(data) {
             $g.append(nodes[i], data);
           }, componentName, args);
         return this;
@@ -353,7 +358,7 @@ Golf.load = function() {
   $g.init();
   var body = document.getElementsByTagName('body');
   $g.empty(body);
-  new Component(function(data) { $g.append(body, data); });
+  new Golf.Component(function(data) { $g.append(body, data); });
 };
 
 /**
@@ -375,3 +380,17 @@ Golf.__defineSetter__("title", function(value) {
   var $g = Golf.impl;
   return $g.text(document.getElementsByTagName("title"), value);
 });
+
+/* Choose implementation */
+Golf.init("jquery", "1");
+
+/* Set onLoad callback to bootstrap golf */
+try {
+  google.setOnLoadCallback(Golf.load);
+} catch (e) {
+  try {
+    jQuery(Golf.load);
+  } catch (f) {
+    throw "omfg bad badness";
+  }
+}
