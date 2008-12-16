@@ -37,14 +37,7 @@ Golf.loadLib = function(){
   var loadedLibs = [];
   return function(libName, libVersion){
     if(!loadedLibs[libName]){
-      try {
-        google.load(libName, libVersion);
-      } catch (e) {
-        var s = document.createElement("SCRIPT");
-        s.type = "text/javascript";
-        s.src  = libName + ".js";
-        document.getElementsByTagName("HEAD").item(0).appendChild(s);
-      }
+      // just a stub here for now
       loadedLibs[libName] = true;
     }
   };
@@ -53,6 +46,7 @@ Golf.loadLib = function(){
 Golf.init = function(libName, libVersion) {
   Golf.loadLib(libName, libVersion);
   Golf.impl = Golf.impls[libName];
+  Golf.impl.init();
 };
 
 Golf.impls = {};
@@ -65,6 +59,7 @@ Golf.impls.jquery = {
   // set onload event handler
   init: function() {
     $jQ = jQuery.noConflict();
+    jQuery(Golf.load);
   },
 
   // compile xhtml string to DOM object
@@ -369,7 +364,6 @@ Golf.Component = function(callback, name, argv) {
 
 Golf.load = function() {
   var $g = Golf.impl;
-  $g.init();
   var body = document.getElementsByTagName('body');
   $g.empty(body);
   new Golf.Component(function(data) { $g.append(body, data); });
@@ -395,16 +389,5 @@ Golf.__defineSetter__("title", function(value) {
   return $g.text(document.getElementsByTagName("title"), value);
 });
 
-/* Choose implementation */
+/* Choose implementation and set onload handler */
 Golf.init("jquery", "1");
-
-/* Set onLoad callback to bootstrap golf */
-try {
-  google.setOnLoadCallback(Golf.load);
-} catch (e) {
-  try {
-    jQuery(Golf.load);
-  } catch (f) {
-    throw "omfg bad badness";
-  }
-}

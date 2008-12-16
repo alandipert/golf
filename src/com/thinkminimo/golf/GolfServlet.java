@@ -26,10 +26,16 @@ public class GolfServlet extends HttpServlet {
   private class StoredJSVM {
     public int golfNum;
     public WebClient client;
+
+    StoredJSVM(WebClient c, int n) {
+      client = c;
+      golfNum = n;
+    }
   }
 
-  // cache the initial HTML output here
-  private String cachedPage = null;
+  // cache the initial HTML for each page here
+  private ConcurrentHashMap<String, String> cachedPages =
+    new ConcurrentHashMap<String, String>();
 
   // htmlunit webclients for proxy-mode sessions
   private ConcurrentHashMap<String, StoredJSVM> clients =
@@ -59,7 +65,7 @@ public class GolfServlet extends HttpServlet {
     String            golf        = request.getParameter("golf");
 
     // the golf sequence number
-    int               golfNum     = 1;
+    int               golfNum     = 0;
 
     try {
       golfNum = Integer.parseInt(golf);
@@ -88,9 +94,9 @@ public class GolfServlet extends HttpServlet {
     
     Log.info(fmtLogMsg(sessionid, "pathInfo: ["+pathInfo+"]"));
 
-    // First case (static content), ignoring parent directories
     if (!pathInfo.endsWith("/")) {
 
+      // First case (static content), ignoring parent directories
       try {
         String path[] = pathInfo.split("//*");
         if (path.length > 0) {
@@ -150,26 +156,40 @@ public class GolfServlet extends HttpServlet {
         StoredJSVM jsvm = (sessionid == null) ? null : clients.get(sessionid);
         
         if (jsvm != null) {
-          Log.info("client is not null");
+          Log.info("found a stored jsvm");
 
-          if (golfNum != jsvm.golfNum)
+          // if golfNums don't match then session is stale
+          if (golfNum != jsvm.golfNum) {
             redirectToBase(request, response);
+            return;
+          }
 
+          client = jsvm.client;
           page = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
         } else {
-          Log.info("client is null");
+          Log.info("didn't find a stored jsvm");
 
-          if (golfNum != 1)
+          // golfNum isn't 1 then we're not coming from a cached page, so
+          // there should have been a stored jsvm
+          if (golfNum != 1) {
             redirectToBase(request, response);
+            return;
+          }
 
           sessionid = generateSessionId(request);
           client    = new WebClient(BrowserVersion.FIREFOX_2);
           page      = initClient(request, client, sessionid);
 
           String thisPage = page.asXml();
-          target = shiftGolfId(thisPage, cachedPage, target);
+
+          // adjust offset for discrepancy between cached page and current
+          // golfId values, so the shifted target points to the element on
+          // the new page that corresponds to the same element on the cached
+          // page (if that makes any sense at all)
+          target = shiftGolfId(thisPage, cachedPages.get(pathInfo), target);
         }
 
+        // fire off the event
         if (target != null) {
           HtmlElement targetElem = null;
 
@@ -190,10 +210,12 @@ public class GolfServlet extends HttpServlet {
         event = null; target = null; sessionid = null; client = null;
 
         if (cachedPages.get(pathInfo) == null)
-          cachePage(request, sessionid);
+          cachePage(request);
 
-        if (cachedPage != null)
-          output = cachedPage;
+        String cached = cachedPages.get(pathInfo);
+
+        if (cached != null)
+          output = cached;
         else
           throw new Exception("cached page not found");
       }
@@ -211,12 +233,13 @@ public class GolfServlet extends HttpServlet {
     }
 
     finally {
-      if (client != null) {
-        clients.put(sessionid, client);
-        golfNums.put(sessionid, golfNum);
-      } else {
-        clients.remove(sessionid);
-        golfNums.remove(sessionid);
+      if (sessionid != null) {
+        StoredJSVM stored = clients.get(sessionid);
+
+        if (stored != null)
+          stored.golfNum = golfNum;
+        else
+          clients.put(sessionid, new StoredJSVM(client, golfNum));
       }
         
       out.close();
@@ -243,9 +266,10 @@ public class GolfServlet extends HttpServlet {
         "$1 " + (server ? "true" : "false") + ";");
 
     // import the session ID into the javascript environment
-    page = page.replaceFirst("(window.sessionid =) [a-zA-Z_]+;", 
-        (sid == null ? "" : "$1 " + sid + ";"));
+    page = page.replaceFirst("(window.sessionid =) \"[a-zA-Z_]+\";", 
+        (sid == null ? "" : "$1 \"" + sid + "\";"));
 
+    // no dtd for serverside because it breaks the xml parser
     return (server ? "" : dtd) + page;
   }
 

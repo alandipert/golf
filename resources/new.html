@@ -2,17 +2,11 @@
   <head>
     <title> </title>
     <link rel="stylesheet" type="text/css" href="style.css" />
-    <script type="text/javascript" src="http://www.google.com/jsapi"></script>
-    <script type="text/javascript"> window.serverside = true; </script>
-<<<<<<< HEAD:resources/new.html
-=======
-
-    <!-- window.jsessionid is set by a string
-      substitution before this page is sent out. -->
-    <script type="text/javascript"> window.jsessionid = ""; </script>
-
-    <!-- the golf runtime -->
->>>>>>> bde09d3488b82861ebeb5cb550420df8a94424ea:resources/new.html
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript">
+      window.serverside = __SVRSIDE__;
+      window.sessionid = "__SESSID__";
+    </script>
     <script type="text/javascript" src="golf.js"></script>
   </head>
   <body>
