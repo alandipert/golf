@@ -20,7 +20,7 @@ import org.mortbay.log.Log;
 
 public class JsonpTunnel {
 
-  private final String extURLParam = "extURL";
+  private final String extURLParam    = "extURL";
   private final String extMethodParam = "extMethod";
 
   private Hashtable<String, String> extArgs = new Hashtable<String, String>();

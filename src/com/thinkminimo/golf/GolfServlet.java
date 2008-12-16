@@ -23,15 +23,17 @@ import com.gargoylesoftware.htmlunit.javascript.*;
 
 public class GolfServlet extends HttpServlet {
   
-  // golf sequence number: this ensures that all urls are unique
-  private int golfNum = 1;
+  private class StoredJSVM {
+    public int golfNum;
+    public WebClient client;
+  }
 
   // cache the initial HTML output here
   private String cachedPage = null;
 
   // htmlunit webclients for proxy-mode sessions
-  private ConcurrentHashMap<String, WebClient> clients =
-    new ConcurrentHashMap<String, WebClient>();
+  private ConcurrentHashMap<String, StoredJSVM> clients =
+    new ConcurrentHashMap<String, StoredJSVM>();
 
   public void service(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
@@ -53,21 +55,28 @@ public class GolfServlet extends HttpServlet {
     // query string parameters related to event proxying
     String            event       = request.getParameter("event");
     String            target      = request.getParameter("target");
-    String            jsessionid  = request.getParameter("jsessionid");
+    String            sessionid   = request.getParameter("sessionid");
+    String            golf        = request.getParameter("golf");
+
+    // the golf sequence number
+    int               golfNum     = 1;
+
+    try {
+      golfNum = Integer.parseInt(golf);
+    } catch (NumberFormatException e) {
+      // it's okay, use the default value
+    }
 
     // request URI segments and path info
     String            contextPath = request.getContextPath();
     String            pathInfo    = request.getPathInfo();
     String            queryString = (request.getQueryString() == null ? "" : request.getQueryString());
 
-    // servlet configuration settings and paths
-    String            docRoot     = getServletContext().getRealPath("");
-
     // htmlunit browser version
     // FIXME: parse the user agent, etc.
     BrowserVersion    browser     = BrowserVersion.FIREFOX_2;
 
-    logRequest(request, jsessionid);
+    logRequest(request, sessionid);
 
     /*
      * As far as routing the request goes there are 2 possible cases:
@@ -77,6 +86,8 @@ public class GolfServlet extends HttpServlet {
      *      to deal with.
      */
     
+    Log.info(fmtLogMsg(sessionid, "pathInfo: ["+pathInfo+"]"));
+
     // First case (static content), ignoring parent directories
     if (!pathInfo.endsWith("/")) {
 
@@ -92,7 +103,7 @@ public class GolfServlet extends HttpServlet {
               response.setContentType("text/css");
             else
               response.setContentType("text/plain");
-            Log.info(fmtLogMsg(jsessionid, "static content `" + pathInfo + "'"));
+            Log.info(fmtLogMsg(sessionid, "static content (w/o parent dirs) `" + pathInfo + "'"));
             out.println(content);
             return;
           }
@@ -114,7 +125,7 @@ public class GolfServlet extends HttpServlet {
             response.setContentType("text/css");
           else
             response.setContentType("text/plain");
-          Log.info(fmtLogMsg(jsessionid, "static content `" + pathInfo + "'"));
+          Log.info(fmtLogMsg(sessionid, "static content (w/ parent dirs) `" + pathInfo + "'"));
           out.println(content);
           return;
         }
@@ -132,29 +143,31 @@ public class GolfServlet extends HttpServlet {
     // Second case (dynamic content)
     try {
       
-      client    = (jsessionid == null) ? null : clients.get(jsessionid);
-
       if (event != null && target != null) {
         // client has already been to initial page and we are now servicing
         // a proxied event
 
-        if (jsessionid == null) {
-          // this means something is wrong, like someone is entering the
-          // system with an event already (impossible)
-          redirectToBase(request, response);
-          return;
-        }
+        StoredJSVM jsvm = (sessionid == null) ? null : clients.get(sessionid);
+        
+        if (jsvm != null) {
+          Log.info("client is not null");
 
-        if (client == null) {
+          if (golfNum != jsvm.golfNum)
+            redirectToBase(request, response);
+
+          page = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+        } else {
           Log.info("client is null");
-          client  = new WebClient(BrowserVersion.FIREFOX_2);
-          page    = initClient(request, client, jsessionid);
+
+          if (golfNum != 1)
+            redirectToBase(request, response);
+
+          sessionid = generateSessionId(request);
+          client    = new WebClient(BrowserVersion.FIREFOX_2);
+          page      = initClient(request, client, sessionid);
 
           String thisPage = page.asXml();
           target = shiftGolfId(thisPage, cachedPage, target);
-        } else {
-          Log.info("client is not null");
-          page = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
         }
 
         if (target != null) {
@@ -163,32 +176,26 @@ public class GolfServlet extends HttpServlet {
           try {
             targetElem = page.getHtmlElementByGolfId(target);
           } catch (Exception e) {
-            Log.info(fmtLogMsg(jsessionid, "CAN'T FIRE EVENT: REDIRECTING"));
+            Log.info(fmtLogMsg(sessionid, "CAN'T FIRE EVENT: REDIRECTING"));
             redirectToBase(request, response);
             return;
           }
 
           if (targetElem != null)
-            targetElem.fireEvent("click");
+            targetElem.fireEvent(event);
         }
       } else {
         // client requests initial page
 
-        event = null; target = null;
+        event = null; target = null; sessionid = null; client = null;
 
-        // trash the existing session id
-        jsessionid = generateSessionId(request);
-        Log.info(fmtLogMsg(jsessionid, "NEW SESSION CREATED"));
-
-        if (cachedPage == null)
-          cachePage(request, jsessionid);
+        if (cachedPages.get(pathInfo) == null)
+          cachePage(request, sessionid);
 
         if (cachedPage != null)
           output = cachedPage;
         else
           throw new Exception("cached page not found");
-
-        client = null;
       }
 
       ++golfNum;
@@ -196,7 +203,7 @@ public class GolfServlet extends HttpServlet {
       if (output == null)
         output = page.asXml();
 
-      out.print(preprocess(output, jsessionid, golfNum, false));
+      out.print(preprocess(output, sessionid, golfNum, false));
     }
 
     catch (Exception x) {
@@ -204,10 +211,14 @@ public class GolfServlet extends HttpServlet {
     }
 
     finally {
-      if (client != null)
-        clients.put(jsessionid, client);
-      else
-        clients.remove(jsessionid);
+      if (client != null) {
+        clients.put(sessionid, client);
+        golfNums.put(sessionid, golfNum);
+      } else {
+        clients.remove(sessionid);
+        golfNums.remove(sessionid);
+      }
+        
       out.close();
     }
   }
@@ -225,11 +236,15 @@ public class GolfServlet extends HttpServlet {
 
     // increment the golf sequence numbers in the event proxy links
     page = page.replaceAll( "("+pat+")[0-9]+", "$1"+ num + 
-        "&amp;jsessionid=" + sid);
+        (sid == null ? "" : "&amp;sessionid=" + sid));
 
     // on the client window.serverside must be false, and vice versa
-    page = page.replaceFirst("(window.serverside =) [a-z]+;", 
+    page = page.replaceFirst("(window.serverside =) [a-zA-Z_]+;", 
         "$1 " + (server ? "true" : "false") + ";");
+
+    // import the session ID into the javascript environment
+    page = page.replaceFirst("(window.sessionid =) [a-zA-Z_]+;", 
+        (sid == null ? "" : "$1 " + sid + ";"));
 
     return (server ? "" : dtd) + page;
   }
@@ -238,15 +253,15 @@ public class GolfServlet extends HttpServlet {
    * Cache the initial html rendering of the page.
    *
    * @param     request   the http request object
-   * @param     sid       the session id
    */
-  private synchronized void cachePage(HttpServletRequest request,
-      String sid) throws IOException {
-    if (cachedPage == null) {
+  private synchronized void cachePage(HttpServletRequest request)
+      throws IOException {
+    String pathInfo = request.getPathInfo();
+    if (cachedPages.get(pathInfo) == null) {
       // FIXME: probably want a cached page for each user agent
       WebClient client  = new WebClient(BrowserVersion.FIREFOX_2);
-      HtmlPage  page    = initClient(request, client, sid);
-      cachedPage = page.asXml();
+      HtmlPage  page    = initClient(request, client, null);
+      cachedPages.put(pathInfo, page.asXml());
     }
   }
 
@@ -389,7 +404,7 @@ public class GolfServlet extends HttpServlet {
     String newHtml = getGolfResourceAsString("new.html");
 
     StringWebResponse response = new StringWebResponse(
-      preprocess(newHtml, sid, -1, true),
+      preprocess(newHtml, sid, 1, true),
       new URL(request.getRequestURL().toString() + "/" + queryString)
     );
 
@@ -479,12 +494,12 @@ public class GolfServlet extends HttpServlet {
   /**
    * Format a nice log message.
    *
-   * @param     jsessionid  the session id
+   * @param     sid         the session id
    * @param     s           the log message
    * @return                the formatted log message
    */
-  private String fmtLogMsg(String jsessionid, String s) {
-    return (jsessionid != null ? "[" + jsessionid.toUpperCase().replaceAll(
+  private String fmtLogMsg(String sid, String s) {
+    return (sid != null ? "[" + sid.toUpperCase().replaceAll(
           "(...)(?=...)", "$1.") + "]" : "") + " " + s;
   }
 
@@ -492,9 +507,9 @@ public class GolfServlet extends HttpServlet {
    * Logs a http servlet request.
    *
    * @param     request     the http servlet request
-   * @param     jsessionid  the session id
+   * @param     sid         the session id
    */
-  private void logRequest(HttpServletRequest request, String jsessionid) {
+  private void logRequest(HttpServletRequest request, String sid) {
     String method = request.getMethod();
     String scheme = request.getScheme();
     String server = request.getServerName();
@@ -507,7 +522,7 @@ public class GolfServlet extends HttpServlet {
       "//" + (server != null ? server + ":" + port : "") +
       uri + (query != null ? "?" + query : "") + " " + host;
 
-    Log.info(fmtLogMsg(jsessionid, line));
+    Log.info(fmtLogMsg(sid, line));
   }
 
   /**
