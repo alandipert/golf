@@ -3,12 +3,7 @@
  * Initialize the environment.
  */
 
-(function() {
-
-  Golf = {};
-  Golf.ping = function() { return "ok"; };
-
-})();
+Golf = {};
 
 /**
  * Cache static parts of components (FIXME, maybe some kind of GC here later)
@@ -29,187 +24,39 @@ Golf.cache = {
   },
 };
 
-/**
- * Low-level AJAX API wrapper
- */
-
-Golf.loadLib = function(){
-  var loadedLibs = [];
-  return function(libName, libVersion){
-    if(!loadedLibs[libName]){
-      // just a stub here for now
-      loadedLibs[libName] = true;
-    }
-  };
-}();
-
-Golf.init = function(libName, libVersion) {
-  Golf.loadLib(libName, libVersion);
-  Golf.impl = Golf.impls[libName];
-  Golf.impl.init();
+Golf.init = function() {
+  jQuery.noConflict();
+  jQuery(Golf.load);
 };
 
-Golf.impls = {};
-
-Golf.impls.jquery = {
-
-  // container for indexed nodes
-  _index: {},
-
-  // set onload event handler
-  init: function() {
-    $jQ = jQuery.noConflict();
-    jQuery(Golf.load);
-  },
-
-  // compile xhtml string to DOM object
-  parse: function(html) {
-    return jQuery(html).get();
-  },
-
-  // do XHR GET (async on client side)
-  get: function(url, callback) {
-    jQuery.ajax({
-      type:     "GET",
-      url:      url,
-      cache:    true,
-      dataType: "text",
-      async:    serverside ? false : true,
-      success:  function(html) {
-        callback(html);
-      },
-    });
-  },
+// do XHR GET (async on client side)
+Golf.get = function(url, callback) {
+  jQuery.ajax({
+    type:     "GET",
+    url:      url,
+    cache:    true,
+    dataType: "text",
+    async:    serverside ? false : true,
+    success:  function(html) {
+      callback(html);
+    },
+  });
+};
 
   // recursive method to load $ object with nodes indexed by class
-  index: function(idx, node) {
-    var klasses = Golf.impl.classes(node);
+Golf.index = function(idx, node) {
+  var klasses = Golf.impl.classes(node);
 
-    // no uniqueness of (class,node) tuples enforced here (TODO?)
-    for (var i in klasses) {
-      if ( ! idx[klasses[i]] ) 
-        idx[klasses[i]] = [];
-      idx[klasses[i]].push(node);
-    }
+  // no uniqueness of (class,node) tuples enforced here (TODO?)
+  for (var i in klasses) {
+    if ( ! idx[klasses[i]] ) 
+      idx[klasses[i]] = [];
+    idx[klasses[i]].push(node);
+  }
 
-    jQuery(node).children().each(function(i) {
-      Golf.impl.index(idx, this); 
-    });
-  },
-
-  // add class to element
-  apply: function(node, klass) {
-    var klasses = Golf.impl.classes(node);
-    klasses.push(klass);
-    var joined = klasses.join(" ");
-    if (joined)
-      node.setAttribute("class", joined);
-  },
-
-  // remove class from element
-  clear: function(node, klass) {
-    var klasses = Golf.impl.classes(node);
-    var ret = Array();
-    for (var i in klasses)
-      if (klasses[i] != klass)
-        ret.unshift(klasses[i]);
-    var joined = ret.join(" ");
-    if (joined)
-      node.setAttribute("class", joined);
-  },
-
-  // hide an element
-  hide: function(node, speed, callback) {
-    jQuery(node).hide(speed, callback);
-  },
-
-  // show an element
-  show: function(node, speed, callback) {
-    jQuery(node).show(speed, callback);
-  },
-
-  // add event listener
-  bind: function(node, eventName, callback) {
-    jQuery(node).bind(eventName, callback);
-  },
-
-  // trigger event
-  trigger: function(node, eventName, argv) {
-    jQuery(node).trigger(eventName, argv);
-  },
-
-  // set onclick event handler for node
-  click: function(node, callback) {
-    jQuery(node).click(callback);
-  },
-
-  // toggle membership in specified class
-  toggle: function(node, klass) {
-    if (Golf.impl.has(node, klass))
-      Golf.impl.clear(node, klass);
-    else
-      Golf.impl.apply(node, klass);
-  },
-
-  // change text child node
-  text: function(node, text) {
-    if (text)
-      jQuery(node).text(text);
-    else
-      return jQuery(node).text();
-  },
-
-  // append a node (or html string) as last child
-  append: function(node, what) {
-    jQuery(node).append(what);
-  },
-
-  // true if node has the specified class
-  has: function(node, klass) {
-    var klasses = Golf.impl.classes(node);
-    for (var i in klasses)
-      if (klasses[i] == klass)
-        return 1;
-    return 0;
-  },
-
-  // returns attributes split into array on whitespace
-  attrList: function(node, attrName) {
-    var attr = jQuery(node).attr(attrName);
-    var klasses = Array();
-    if (attr)
-      klasses = attr.split(/\s+/);
-    var ret = Array();
-    for (i in klasses)
-      if (klasses[i])
-        ret.push(klasses[i]);
-    return ret;
-  },
-
-  // convenience function to get a node's classes
-  classes: function(node) {
-    return Golf.impl.attrList(node, "class");
-  },
-
-  // remove all children, thereby emptying the node
-  empty: function(node) {
-    return jQuery(node).empty().get();
-  },
-
-  // 
-  val: function(nodes) {
-      return jQuery(nodes).val();
-  },
-
-  // get JSONP
-  getJSON: function(url, data, callback) {
-    return jQuery(url, data, callback);
-  },
-
-  // 
-  setAttr: function(nodes, attr, val) {
-    return jQuery(nodes).attr(attr, val);
-  },
+  jQuery(node).children().each(function(i) {
+    Golf.impl.index(idx, this); 
+  });
 };
 
 /**
@@ -224,93 +71,13 @@ Golf.Component = function(callback, name, argv) {
 
   var _index = [];
 
-  var $g = Golf.impl;
+  var $g = Golf;
   var $c = Golf.cache;
 
   var $ = function(klass) {
     var nodes = (_index[klass] ? _index[klass] : []);  
 
-    return {
-      apply: function(klassName) {
-        for (var i in nodes)
-          $g.apply(nodes[i], klassName);
-        return this;
-      },
-      clear: function(klassName) {
-        for (var i in nodes)
-          $g.clear(nodes[i], klassName);
-        return this;
-      },
-      toggle: function(klassName) {
-        for (var i in nodes)
-          $g.toggle(nodes[i], klassName);
-        return this;
-      },
-      has: function(klassName) {
-        for (var i in nodes)
-          if ($g.has(nodes[i], klassName))
-            return 1;
-        return 0;
-      },
-      text: function(text) {
-        if (text) {
-          for (var i in nodes)
-            $g.text(nodes[i], text);
-          return this;
-        } else {
-          var s = "";
-          for (var i in nodes)
-            s += $g.text(nodes[i]);
-          return s;
-        }
-      },
-      append: function(componentName, args) {
-        for (var i in nodes)
-          new Golf.Component(function(data) {
-            $g.append(nodes[i], data);
-          }, componentName, args);
-        return this;
-      },
-      hide: function() {
-        for (var i in nodes)
-          $g.hide(nodes[i]);
-        return this;
-      },
-      show: function() {
-        for (var i in nodes)
-          $g.show(nodes[i]);
-        return this;
-      },
-      click: function(callback) {
-        for (var i in nodes)
-          $g.click(nodes[i], callback);
-        return this;
-      },
-      each: function(callback) {
-        for (var i in nodes)
-          callback.apply(nodes[i], callback(i));
-        return this;
-      },
-      eq: function(i) {
-        nodes = [ nodes[i] ];
-        return this;
-      },
-      get: function(i) {
-        return nodes[i];
-      },
-      val: function(){
-        return $g.val(nodes);
-      },
-      setAttr: function(attr, val){
-        return $g.setAttr(nodes, attr, val);
-      },
-      empty: function() {
-        for (var i in nodes)
-          $g.empty(nodes[i]);
-        // FIXME: maybe this should return the removed nodes?
-        return this;
-      },
-    };
+    return jQuery(nodes);
   };
 
   $.component = name;
@@ -364,9 +131,17 @@ Golf.Component = function(callback, name, argv) {
 
 Golf.load = function() {
   var $g = Golf.impl;
-  var body = document.getElementsByTagName('body');
-  $g.empty(body);
+  alert("ASDF");
+  var body = document.getElementsByTagName('body')[0];
+
+  alert("ASDF");
+  while (body.childNodes[0])
+    body.removeChild(body.childNodes[0]);
+
+  alert("ASDF");
   new Golf.Component(function(data) { $g.append(body, data); });
+
+  alert("ASDF");
 };
 
 /**
