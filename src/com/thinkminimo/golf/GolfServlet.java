@@ -189,9 +189,14 @@ public class GolfServlet extends HttpServlet {
         return;
     }
 
+    catch (FileNotFoundException e) {
+      // send a 404
+      errorPage(context, HttpServletResponse.SC_NOT_FOUND, e);
+    }
+
     catch (Exception x) {
-      // send a 500 status response
-      errorPage(context, x);
+      // send a 500
+      errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
 
     finally {
@@ -293,11 +298,11 @@ public class GolfServlet extends HttpServlet {
    * @param     context   the golf request context
    * @param     e         the exception
    */
-  public void errorPage(GolfContext context, Exception e) {
+  public void errorPage(GolfContext context, int status, Exception e) {
     try {
       PrintWriter out = context.response.getWriter();
 
-      context.response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+      context.response.setStatus(status);
       context.response.setContentType("text/html");
 
       out.println("<html><head><title>Golf Error</title></head><body>");
@@ -406,8 +411,6 @@ public class GolfServlet extends HttpServlet {
 
     Log.info("INITIALIZING NEW CLIENT");
 
-    Log.info("got here");
-
     // write any alert() calls to the log
     context.client.setAlertHandler(new AlertHandler() {
       public void handleAlert(Page page, String message) {
@@ -415,30 +418,20 @@ public class GolfServlet extends HttpServlet {
       }
     });
 
-    Log.info("got here");
-
     String queryString = context.request.getQueryString();
     queryString = (queryString == null ? "" : queryString);
 
-    Log.info("got here");
-
     String newHtml = getGolfResourceAsString("new.html");
-
-    Log.info("got here");
 
     StringWebResponse response = new StringWebResponse(
       preprocess(newHtml, context, true),
       new URL(context.request.getRequestURL().toString() + "/" + queryString)
     );
 
-    Log.info("got here");
-
     result = (HtmlPage) context.client.loadWebResponseInto(
       response,
       context.client.getCurrentWindow()
     );
-
-    Log.info("got here");
 
     return result;
   }
@@ -540,31 +533,30 @@ public class GolfServlet extends HttpServlet {
    * @param   context       the golf context for this request
    * @return                the resource as a String or null if not found
    */
-  public String doStaticResourceGet(GolfContext context) {
+  public String doStaticResourceGet(GolfContext context) 
+    throws FileNotFoundException {
     String pathInfo = context.request.getPathInfo();
-    String result  = "";
-    String result2 = "";
+    String result  = null;
 
-    // Static content, w/ or w/o parent directories
+    // prefer the full path
     try {
-      String path[] = pathInfo.split("//*");
+      result = getGolfResourceAsString(pathInfo);
+    } catch (Exception e) {}
 
-      // just the basename
-      if (path.length > 0)
-        result = getGolfResourceAsString(path[path.length - 1]);
+    // otherwise just the basename
+    if (result == null) {
+      try {
+        String path[] = pathInfo.split("//*");
 
-      // the full path
-      result2 = getGolfResourceAsString(pathInfo);
-
-      // prefer the full path
-      result = (result2.length() > 0 ? result2 : result);
+        if (path.length > 0)
+          result = getGolfResourceAsString(path[path.length - 1]);
+      } catch (Exception e) {}
     }
 
-    catch (Exception x) {
-      // no worries
-    }
+    if (result == null)
+      throw new FileNotFoundException("static resource "+pathInfo+" not found");
 
-    return (result.length() > 0 ? result : null);
+    return result;
   }
 
   /**
@@ -592,12 +584,9 @@ public class GolfServlet extends HttpServlet {
       try {
         String realPath = 
           getServletContext().getRealPath(path + name);
-Log.info("TRYING ["+realPath+"]");
         File theFile = new File(realPath);
         if (theFile != null && theFile.exists())
           is = new FileInputStream(theFile);
-if (is != null)
-  Log.info("FOUND IT AT ["+realPath+"]");
       } catch (Exception x) {}
 
       if (is != null)
