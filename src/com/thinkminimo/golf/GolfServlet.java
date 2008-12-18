@@ -337,7 +337,7 @@ public class GolfServlet extends HttpServlet {
   }
 
   /**
-   * Send redirect header to send client back to the app entry point.
+   * Redirect to self URL, discarding query string
    *
    * @param     context   the golf request context
    */

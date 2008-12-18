@@ -9,21 +9,6 @@ Golf = {};
  * Cache static parts of components (FIXME, maybe some kind of GC here later)
  */
 
-Golf.cache = { 
-  enable: true,
-  data: {},
-  get: function(url, callback) {
-    if (callback) {
-      callback(this.data[url]);
-    } else {
-      return this.data[url];
-    }
-  },
-  set: function(url, data) {
-    this.data[url] = data;
-  },
-};
-
 Golf.init = function() {
   jQuery.noConflict();
   jQuery(Golf.load);
@@ -44,20 +29,6 @@ Golf.get = function(url, callback) {
 };
 
   // recursive method to load $ object with nodes indexed by class
-Golf.index = function(idx, node) {
-  var klasses = Golf.impl.classes(node);
-
-  // no uniqueness of (class,node) tuples enforced here (TODO?)
-  for (var i in klasses) {
-    if ( ! idx[klasses[i]] ) 
-      idx[klasses[i]] = [];
-    idx[klasses[i]].push(node);
-  }
-
-  jQuery(node).children().each(function(i) {
-    Golf.impl.index(idx, this); 
-  });
-};
 
 /**
  * Creates a new component.
@@ -75,9 +46,7 @@ Golf.Component = function(callback, name, argv) {
   var $c = Golf.cache;
 
   var $ = function(klass) {
-    var nodes = (_index[klass] ? _index[klass] : []);  
-
-    return jQuery(nodes);
+    return jQuery(_index[klass] ? _index[klass] : []);  
   };
 
   $.component = name;
@@ -91,10 +60,10 @@ Golf.Component = function(callback, name, argv) {
   };
 
   $.bind = function(eventName, callback) {
-    return $g.bind(document, eventName, callback);
+    return jQuery.bind(document, eventName, callback);
   };
 
-  $.trigger = function(eventName, argv) {
+  $.fire = function(eventName, argv) {
     return $g.trigger(document, eventName, argv);
   };
 
@@ -165,4 +134,6 @@ Golf.__defineSetter__("title", function(value) {
 });
 
 /* Choose implementation and set onload handler */
-Golf.init("jquery", "1");
+//Golf.init("jquery", "1");
+
+jQuery(function() { $("body").append("<h3>hi there</h3>"); });
