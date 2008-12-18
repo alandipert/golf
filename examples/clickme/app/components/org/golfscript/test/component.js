@@ -16,7 +16,7 @@ var counter = function(n) {
 
 var states = [
   function() { // 0: initial state
-    Golf.title = "Golf Egg-speriment"; // set the page title
+    jQuery("title").text("Golf Egg-speriment"); // set the page title
     counter(0);  // initialize the counter
     states[2](); // set initial state
   },
@@ -42,7 +42,7 @@ $("clickme").click(
   function(event) {
     counter(++count);
     states[1]();
-    $("items").append(
+    $("items").golf(
       'org.golfscript.test.item', 
       { title: "item #" + count, body: lorem }
     );

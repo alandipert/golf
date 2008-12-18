@@ -57,6 +57,7 @@ public class GolfServlet extends HttpServlet {
    * around rather than the raw request or response.
    */
   public class GolfContext {
+    
     /**
      * Parsed request parameters. This encapsulates the request parameters
      * in case it is necessary to change the query string later.
@@ -68,7 +69,7 @@ public class GolfServlet extends HttpServlet {
       public String       target      = null; 
       /** session ID */
       public String       session     = null; 
-      /** golf proxy request sequence number (increments each proxied request) */
+      /** golf proxy sequence number (increments each proxied request) */
       public String       golf        = null;
       /** if set to the value of "false", client mode is disabled */
       public String       js          = null; 
@@ -92,34 +93,24 @@ public class GolfServlet extends HttpServlet {
 
     /** the http request object */
     public HttpServletRequest   request     = null;
-
     /** the http response object */
     public HttpServletResponse  response    = null;
-
     /** the golf proxy request sequence number */
     public int                  golfNum     = 0;
-    
     /** the golf session id */
     public String               session     = null;
-    
     /** FIXME which browser is the client using? FIXME */
     public BrowserVersion       browser     = BrowserVersion.FIREFOX_2;
-    
     /** whether or not this is a request for a static resource */
     public boolean              isStatic    = false;
-
     /** whether or not this is a request for JSONP services */
     public boolean              isJSONP     = false;
-
     /** whether or not this is an event proxy request */
     public boolean              hasEvent    = false;
-
     /** whether or not client mode is disabled */
     public boolean              proxyonly   = false;
-
     /** the jsvm for this request */
     public WebClient            client      = null;
-
     /** recognized http request query string parameters */
     public GolfParams           params      = null;
 
@@ -129,7 +120,8 @@ public class GolfServlet extends HttpServlet {
      * @param       request     the http request object
      * @param       response    the http response object
      */
-    public GolfContext(HttpServletRequest request, HttpServletResponse response) {
+    public GolfContext(HttpServletRequest request, 
+        HttpServletResponse response) {
       this.request     = request;
       this.response    = response;
       this.params      = new GolfParams(request);
@@ -261,7 +253,8 @@ public class GolfServlet extends HttpServlet {
 
     // increment the golf sequence numbers in the event proxy links
     page = page.replaceAll( "("+pat+")[0-9]+", "$1"+ context.golfNum + 
-        (context.session == null ? "" : "&amp;session=" + context.session));
+        (context.session == null ? "" : "&amp;session=" + context.session) +
+        (context.proxyonly ? "&amp;js=false" : ""));
 
     // on the client window.serverside must be false, and vice versa
     page = page.replaceFirst("(window.serverside =) [a-zA-Z_]+;", 
@@ -549,17 +542,22 @@ public class GolfServlet extends HttpServlet {
    */
   public String doStaticResourceGet(GolfContext context) {
     String pathInfo = context.request.getPathInfo();
-    String result = "";
+    String result  = "";
+    String result2 = "";
 
-    // Static content, w/o parent directories
+    // Static content, w/ or w/o parent directories
     try {
       String path[] = pathInfo.split("//*");
 
+      // just the basename
       if (path.length > 0)
         result = getGolfResourceAsString(path[path.length - 1]);
 
-      if (result.length() == 0)
-        result = getGolfResourceAsString(pathInfo);
+      // the full path
+      result2 = getGolfResourceAsString(pathInfo);
+
+      // prefer the full path
+      result = (result2.length() > 0 ? result2 : result);
     }
 
     catch (Exception x) {
@@ -586,17 +584,20 @@ public class GolfServlet extends HttpServlet {
    * @return              the resource as a stream
    */
   private InputStream getGolfResourceAsStream(String name) throws IOException {
-    final String[]  paths     = { "/libraries", "/components", "/screens", "" };
-    InputStream     is        = null;
+    final String[] paths = { "/libraries/", "/components/", "/screens/", "" };
+    InputStream    is    = null;
 
     // from the filesystem
     for (String path : paths) {
       try {
         String realPath = 
           getServletContext().getRealPath(path + name);
+Log.info("TRYING ["+realPath+"]");
         File theFile = new File(realPath);
         if (theFile != null && theFile.exists())
           is = new FileInputStream(theFile);
+if (is != null)
+  Log.info("FOUND IT AT ["+realPath+"]");
       } catch (Exception x) {}
 
       if (is != null)
