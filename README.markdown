@@ -16,3 +16,4 @@ Golf was designed to be:
 * capable of providing fully dynamic content without sacrificing accessibility 
   to screen readers, web spiders, etc., and without any duplication of work or
   extra coding involved
+* easily integrated with content delivery networks such as Amazon's Cloudfront
