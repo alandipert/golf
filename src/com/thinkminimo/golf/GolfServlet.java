@@ -53,6 +53,15 @@ public class GolfServlet extends HttpServlet {
   }
 
   /**
+   * Break out and send a redirect.
+   */
+  public class RedirectException extends Exception {
+    public RedirectException(String msg) {
+      super(msg);
+    }
+  }
+
+  /**
    * Contains state info for a golf request. This is what should be passed
    * around rather than the raw request or response.
    */
@@ -140,8 +149,10 @@ public class GolfServlet extends HttpServlet {
       if (params.jsonp != null)
         isJSONP = true;
 
-      if (params.event != null && params.target != null)
+      if (params.event != null && params.target != null) {
         hasEvent = true;
+        proxyonly= true;
+      }
 
       if (params.js != null && params.js.equals("false"))
         proxyonly = true;
@@ -187,6 +198,10 @@ public class GolfServlet extends HttpServlet {
         out.println(result);
       else
         return;
+    }
+
+    catch (RedirectException r) {
+      context.response.sendRedirect(r.getMessage());
     }
 
     catch (FileNotFoundException e) {
@@ -243,7 +258,8 @@ public class GolfServlet extends HttpServlet {
    */
   private String preprocess(String page, GolfContext context, boolean server) {
     // pattern that should match the wrapper links added for proxy mode
-    String pat = "<a href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=";
+    String pat  = "<a href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=";
+    String pat2 = "<script type=\"text/javascript\"[^>]*>([^<]|//<!\\[CDATA\\[)*</script>";
 
     // document type: xhtml
     String dtd = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
@@ -254,7 +270,7 @@ public class GolfServlet extends HttpServlet {
 
     // proxy mode only, so remove all javascript except on serverside
     if (context.proxyonly && !server)
-      page = page.replaceAll("<script type=\"text/javascript\"[^>]*>[^<]*</script>", "");
+      page = page.replaceAll(pat2, "");
 
     // increment the golf sequence numbers in the event proxy links
     page = page.replaceAll( "("+pat+")[0-9]+", "$1"+ context.golfNum + 
@@ -335,15 +351,6 @@ public class GolfServlet extends HttpServlet {
   }
 
   /**
-   * Redirect to self URL, discarding query string
-   *
-   * @param     context   the golf request context
-   */
-  private void redirectToBase(GolfContext context) throws IOException {
-    sendRedirect(context, context.request.getRequestURI());
-  }
-
-  /**
    * Adjusts the golfId according to the calculated offset.
    *
    * @param     newXml  the actual xhtml page
@@ -366,12 +373,6 @@ public class GolfServlet extends HttpServlet {
         // it's okay, do nothing
       }
     }
-
-    Log.info("thisGolfId = ["+thisGolfId+"]");
-    Log.info("origGolfId = ["+origGolfId+"]");
-    Log.info("offset     = ["+offset+"]");
-    Log.info("old target = ["+target+"]");
-    Log.info("new target = ["+result+"]");
 
     return result;
   }
@@ -454,23 +455,19 @@ public class GolfServlet extends HttpServlet {
       if (jsvm != null) {
         // have a stored jsvm
 
-        if (context.golfNum != jsvm.golfNum) {
-          // if golfNums don't match then this is a stale session
-          redirectToBase(context);
-          return null;
-        }
+        // if golfNums don't match then this is a stale session
+        if (context.golfNum != jsvm.golfNum)
+          throw new RedirectException(context.request.getRequestURI());
 
         context.client = jsvm.client;
         page = (HtmlPage) context.client.getCurrentWindow().getEnclosedPage();
       } else {
         // don't have a stored jsvm
 
-        if (context.golfNum != 1) {
-          // golfNum isn't 1 so we're not coming from a cached page, and
-          // there is no stored jsvm, so this must be a stale session
-          redirectToBase(context);
-          return null;
-        }
+        // golfNum isn't 1 so we're not coming from a cached page, and
+        // there is no stored jsvm, so this must be a stale session
+        if (context.golfNum != 1)
+          throw new RedirectException(context.request.getRequestURI());
 
         // either there was no session id provided in the get parameters
         // or the session id was not associated with a stored jsvm, so we
@@ -499,8 +496,7 @@ public class GolfServlet extends HttpServlet {
           targetElem = page.getHtmlElementByGolfId(context.params.target);
         } catch (Exception e) {
           Log.info(fmtLogMsg(context, "CAN'T FIRE EVENT: REDIRECTING"));
-          redirectToBase(context);
-          return null;
+          throw new RedirectException(context.request.getRequestURI());
         }
 
         if (targetElem != null)
@@ -654,17 +650,6 @@ public class GolfServlet extends HttpServlet {
       uri + (query != null ? "?" + query : "") + " " + host;
 
     Log.info(fmtLogMsg(context, line));
-  }
-
-  /**
-   * Sends a redirect header to the client.
-   *
-   * @param     context     the golf context for this request
-   * @param     uri         the URI to redirect to
-   */
-  private void sendRedirect(GolfContext context, String uri) throws IOException {
-    Log.info(fmtLogMsg(context, "redirect -> `" + uri + "'"));
-    context.response.sendRedirect(uri);
   }
 
   /**
