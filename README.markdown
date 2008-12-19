@@ -1,38 +1,11 @@
 
-                  *******************************************
-                  *******************************************
-                  *******************************************
-                  ***                                     ***
-                  *** THIS DOCUMENT IS OUT OF DATE, SORRY ***
-                  ***                                     ***
-                  *******************************************
-                  *******************************************
-                  *******************************************
+Introduction
+============
 
---------------------------------------------------------------------------------
-Directory structure:
---------------------------------------------------------------------------------
-    
-    docs/               Project documentation. API javadocs will be written to 
-                        docs/api/ directory. You can include anything you want
-                        here (documentation for dependencies, etc).
+Golf is a web application server. Golf forms the user interface for web service
+applications. The goals of the Golf project are:
 
-    lib/                Jar files to be incorporated into the distribution jar
-                        file.
-
-    resources/          Resources to be included in the distribution jar file.
-                        They will be added to the jar with a path relative to
-                        this directory, i.e., resources/foo/bar.jpg will be
-                        accessed in java as "foo/bar.jpg".
-
-    src/                Java source files go here.
-
---------------------------------------------------------------------------------
-Files:
---------------------------------------------------------------------------------
-
-    default.properties  Project-specific preferences for the build process.
-
-    build.properties    User preferences for the build process.
-                    
-    doit.sh             Application launcher wrapper script.
+* Modular, generalized component architecture from the ground up
+* Extremely rapid development and a natural separation of responsibilities
+  among the development team
+* Full accessibility of dynamic content to screen readers, web spiders, etc.
