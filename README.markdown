@@ -52,3 +52,19 @@ javascript. Only clients interacting in proxy mode will be using local
 resources on the Golf server.
 
 ###Parallelization of Effort
+
+Typically, websites are developed by small teams of people who can usually
+be grouped into the following roles: Graphics, CSS/HTML, Developer, and Backend.
+Some teams might lack one or more of the above, or have someone else not listed.
+But we think that's generally how it goes.  A common problem with the project
+development flow of such a team are what might be called "linear dependencies" -
+the Developers can't get to coding until they have a template and set of functional
+requirements to work with.  The CSS person can't get to splicing until he has a mockup
+to work with.  And the graphics guy isn't done with his mockup until it's approved
+by the client.
+
+In Golf, "scaffolding" is an ongoing, iterative, revisioned process.  Developers
+can immediately start coding the application logic, and then refine the scaffold
+as the project requirements gel.  Templates from the CSS person can be easily
+decomposed into components, or the scaffolded product can be styled to look
+like the mockup.
