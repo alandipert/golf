@@ -29,6 +29,8 @@ effectively restricted to operating on elements within itself. No XPath
 selectors are necessary to get stuff done here, because each component
 naturally knows all about its own internal topology.
 
+![Components Diagram](http://ubergibson.com/~alan/dropbox/components.png "Components are an HTML fragment and Javascript file")
+
 ###Javascript Proxying
 
 Normally, all this templating and transforming will be done in the browser.
