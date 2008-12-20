@@ -58,8 +58,8 @@ resources on the Golf server.
 Typically, websites are developed by small teams of people who can usually
 be grouped into the following roles: Graphics, CSS/HTML, Developer, and Backend.
 Some teams might lack one or more of the above, or have someone else not listed.
-But we think that's generally how it goes.  A common problem with the project
-development flow of such a team are what might be called "linear dependencies" -
+But we think that's generally how it goes.  A common problem with the
+development flow of such a team is what might be called "linear dependency" -
 the Developers can't get to coding until they have a template and set of functional
 requirements to work with.  The CSS person can't get to splicing until he has a mockup
 to work with.  And the graphics guy isn't done with his mockup until it's approved
