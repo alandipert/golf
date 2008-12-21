@@ -29,6 +29,8 @@ effectively restricted to operating on elements within itself. No XPath
 selectors are necessary to get stuff done here, because each component
 naturally knows all about its own internal topology.
 
+![Components Diagram](http://ubergibson.com/~alan/dropbox/components.png "Components are an HTML fragment and Javascript file")
+
 ###Javascript Proxying
 
 Normally, all this templating and transforming will be done in the browser.
@@ -53,4 +55,18 @@ resources on the Golf server.
 
 ###Parallelization of Effort
 
-Lorem ipsum.
+Typically, websites are developed by small teams of people who can usually
+be grouped into the following roles: Graphics, CSS/HTML, Developer, and Backend.
+Some teams might lack one or more of the above, or have someone else not listed.
+But we think that's generally how it goes.  A common problem with the
+development flow of such a team is what might be called "linear dependency" -
+the Developers can't get to coding until they have a template and set of functional
+requirements to work with.  The CSS person can't get to splicing until he has a mockup
+to work with.  And the graphics guy isn't done with his mockup until it's approved
+by the client.
+
+In Golf, "scaffolding" is an ongoing, iterative, revisioned process.  Developers
+can immediately start coding the application logic, and then refine the scaffold
+as the project requirements gel.  Templates from the CSS person can be easily
+decomposed into components, or the scaffolded product can be styled to look
+like the mockup.
