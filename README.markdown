@@ -52,3 +52,5 @@ javascript. Only clients interacting in proxy mode will be using local
 resources on the Golf server.
 
 ###Parallelization of Effort
+
+Lorem ipsum.
