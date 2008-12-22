@@ -201,16 +201,17 @@ public class GolfServlet extends HttpServlet {
     }
 
     catch (RedirectException r) {
+      // send a 302 FOUND
       context.response.sendRedirect(r.getMessage());
     }
 
     catch (FileNotFoundException e) {
-      // send a 404
+      // send a 404 NOT FOUND
       errorPage(context, HttpServletResponse.SC_NOT_FOUND, e);
     }
 
     catch (Exception x) {
-      // send a 500
+      // send a 500 INTERNAL SERVER ERROR
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
 
@@ -265,25 +266,30 @@ public class GolfServlet extends HttpServlet {
     String dtd = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
       "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n";
 
+    // robots must not index event proxy (because infinite loops, etc.)
+    if (!context.hasEvent)
+      page = page.replaceFirst("\n *<meta name=\"robots\" .*\n", "\n");
+
     // remove the golfid attribute as it's not necessary on the client
     page = page.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
-
-    // proxy mode only, so remove all javascript except on serverside
-    if (context.proxyonly && !server)
-      page = page.replaceAll(pat2, "");
 
     // increment the golf sequence numbers in the event proxy links
     page = page.replaceAll( "("+pat+")[0-9]+", "$1"+ context.golfNum + 
         (context.session == null ? "" : "&amp;session=" + context.session) +
-        (context.proxyonly ? "&amp;js=false" : ""));
+        "&amp;js=false");
 
-    // on the client window.serverside must be false, and vice versa
-    page = page.replaceFirst("(window.serverside =) [a-zA-Z_]+;", 
-        "$1 " + (server ? "true" : "false") + ";");
+    if (context.proxyonly && !server) {
+      // proxy mode only, so remove all javascript except on serverside
+      page = page.replaceAll(pat2, "");
+    } else {
+      // on the client window.serverside must be false, and vice versa
+      page = page.replaceFirst("(window.serverside =) [a-zA-Z_]+;", 
+          "$1 " + (server ? "true" : "false") + ";");
 
-    // import the session ID into the javascript environment
-    page = page.replaceFirst("(window.sessionid =) \"[a-zA-Z_]+\";", 
-        (context.session == null ? "" : "$1 \"" + context.session + "\";"));
+      // import the session ID into the javascript environment
+      page = page.replaceFirst("(window.sessionid =) \"[a-zA-Z_]+\";", 
+          (context.session == null ? "" : "$1 \"" + context.session + "\";"));
+    }
 
     // no dtd for serverside because it breaks the xml parser
     return (server ? "" : dtd) + page;
