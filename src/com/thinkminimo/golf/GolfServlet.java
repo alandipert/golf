@@ -27,6 +27,10 @@ import com.gargoylesoftware.htmlunit.javascript.*;
  */
 public class GolfServlet extends HttpServlet {
   
+  public static final int LOG_DEBUG = 0;
+  public static final int LOG_INFO  = 1;
+  public static final int LOG_WARN  = 2;
+
   /**
    * Each client in proxy mode has one of these stored javascript
    * virtual machines (JSVMs). They're linked to the last used golfNum
@@ -204,28 +208,24 @@ public class GolfServlet extends HttpServlet {
         result = preprocess(doDynamicResourceGet(context), context, false);
       }
 
-      // result is only null if a redirect was sent
-      if (result != null)
-        out.println(result);
-      else
-        return;
+      out.println(result);
     }
 
     catch (RedirectException r) {
       // send a 302 FOUND
-      Log.info(fmtLogMsg(context, "302 FOUND ["+r.getMessage()+"]"));
+      log(context, LOG_INFO, "302 FOUND ["+r.getMessage()+"]");
       context.response.sendRedirect(r.getMessage());
     }
 
     catch (FileNotFoundException e) {
       // send a 404 NOT FOUND
-      Log.info(fmtLogMsg(context, "404 NOT FOUND"));
+      log(context, LOG_INFO, "404 NOT FOUND");
       errorPage(context, HttpServletResponse.SC_NOT_FOUND, e);
     }
 
     catch (Exception x) {
       // send a 500 INTERNAL SERVER ERROR
-      Log.info(fmtLogMsg(context, "500 INTERNAL SERVER ERROR"));
+      log(context, LOG_INFO, "500 INTERNAL SERVER ERROR");
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
 
@@ -251,7 +251,7 @@ public class GolfServlet extends HttpServlet {
    * @param       path        the requested resource path
    * @return                  the mime type
    */
-  private String mimeType(GolfContext context, String path) {
+  public static String mimeType(final GolfContext context, final String path) {
 
     if (context.isJSONP || path.endsWith(".js"))
       return "text/javascript";
@@ -445,16 +445,16 @@ public class GolfServlet extends HttpServlet {
    * @param     context     the golf request context
    * @return                the resulting page
    */
-  private synchronized HtmlPage initClient(GolfContext context) 
+  private synchronized HtmlPage initClient(final GolfContext context) 
     throws IOException {
     HtmlPage result;
 
-    Log.info("INITIALIZING NEW CLIENT");
+    log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
 
     // write any alert() calls to the log
     context.client.setAlertHandler(new AlertHandler() {
       public void handleAlert(Page page, String message) {
-        Log.info("ALERT: " + message);
+        log(context, LOG_INFO, "ALERT: " + message);
       }
     });
 
@@ -485,7 +485,7 @@ public class GolfServlet extends HttpServlet {
    * @param   context       the golf context for this request
    * @return                the resource as a String or null if not found
    */
-  public String doDynamicResourceGet(GolfContext context) throws Exception {
+  private String doDynamicResourceGet(GolfContext context) throws Exception {
 
     String      pathInfo  = context.request.getPathInfo();
     String      result    = null;
@@ -538,7 +538,7 @@ public class GolfServlet extends HttpServlet {
         try {
           targetElem = page.getHtmlElementByGolfId(context.params.target);
         } catch (Exception e) {
-          Log.info(fmtLogMsg(context, "CAN'T FIRE EVENT: REDIRECTING"));
+          log(context, LOG_INFO, "CAN'T FIRE EVENT: REDIRECTING");
           throw new RedirectException(context.request.getRequestURI());
         }
 
@@ -572,7 +572,7 @@ public class GolfServlet extends HttpServlet {
    * @param   context       the golf context for this request
    * @return                the resource as a String or null if not found
    */
-  public String doStaticResourceGet(GolfContext context) 
+  private String doStaticResourceGet(GolfContext context) 
     throws FileNotFoundException {
     String pathInfo = context.params.path;
     String result  = null;
@@ -673,6 +673,21 @@ public class GolfServlet extends HttpServlet {
   }
 
   /**
+   * Send a formatted message to the logs.
+   *
+   * @param     context     the golf context for this request
+   * @param     level       the severity of the message (LOG_DEBUG to LOG_WARN)
+   * @param     s           the log message
+   */
+  public void log(GolfContext context, int level, String s) {
+    switch(level) {
+      case LOG_DEBUG:   Log.debug (fmtLogMsg(context, s));    break;
+      case LOG_INFO:    Log.info  (fmtLogMsg(context, s));    break;
+      case LOG_WARN:    Log.warn  (fmtLogMsg(context, s));    break;
+    }
+  }
+
+  /**
    * Logs a http servlet request.
    *
    * @param     context     the golf context for this request
@@ -692,7 +707,7 @@ public class GolfServlet extends HttpServlet {
       "//" + (server != null ? server + ":" + port : "") +
       uri + (query != null ? "?" + query : "") + " " + host;
 
-    Log.info(fmtLogMsg(context, line));
+    log(context, LOG_INFO, line);
   }
 
   /**
