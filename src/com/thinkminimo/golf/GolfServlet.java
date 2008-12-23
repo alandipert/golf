@@ -268,7 +268,7 @@ public class GolfServlet extends HttpServlet {
 
     // robots must not index event proxy (because infinite loops, etc.)
     if (!context.hasEvent)
-      page = page.replaceFirst("\n *<meta name=\"robots\" .*\n", "\n");
+      page = page.replaceFirst("noindex,nofollow", "index,follow");
 
     // remove the golfid attribute as it's not necessary on the client
     page = page.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
@@ -380,6 +380,8 @@ public class GolfServlet extends HttpServlet {
       }
     }
 
+    Log.info("====== " + target + " -> " + result);
+
     return result;
   }
 
@@ -413,7 +415,8 @@ public class GolfServlet extends HttpServlet {
    * @param     context     the golf request context
    * @return                the resulting page
    */
-  private synchronized HtmlPage initClient(GolfContext context) throws IOException {
+  private synchronized HtmlPage initClient(GolfContext context) 
+    throws IOException {
     HtmlPage result;
 
     Log.info("INITIALIZING NEW CLIENT");
@@ -429,6 +432,8 @@ public class GolfServlet extends HttpServlet {
     queryString = (queryString == null ? "" : queryString);
 
     String newHtml = getGolfResourceAsString("new.html");
+
+    Log.info("============\n" + preprocess(newHtml, context, true));
 
     StringWebResponse response = new StringWebResponse(
       preprocess(newHtml, context, true),
@@ -456,10 +461,11 @@ public class GolfServlet extends HttpServlet {
     HtmlPage    page      = null;
 
     if (context.hasEvent) {
-      StoredJSVM  jsvm      = (context.session == null) ? null : clients.get(context.session);
+      StoredJSVM  jsvm = 
+        (context.session == null) ? null : clients.get(context.session);
       
       if (jsvm != null) {
-        // have a stored jsvm
+        // do have a stored jsvm
 
         // if golfNums don't match then this is a stale session
         if (context.golfNum != jsvm.golfNum)
@@ -491,7 +497,7 @@ public class GolfServlet extends HttpServlet {
         // the new page that corresponds to the same element on the cached
         // page (if that makes any sense at all)
         context.params.target = 
-          shiftGolfId(thisPage, cachedPages.get(pathInfo), context.params.target);
+          shiftGolfId(thisPage,cachedPages.get(pathInfo),context.params.target);
       }
 
       // fire off the event
