@@ -1,13 +1,19 @@
-GETTING STARTED INSTRUCTIONS:
+Getting Started With Golf
+=========================
 
-1. Compile golf-<version>.jar: from a terminal do,
+###1. Compile
+
+In a terminal:
         
-        cd <golf directory>
+        cd &lt;golf directory&gt;
         ant
 
-2. Run the golf servlet: from a terminal do,
+###2. Start the server
 
-        cd <golf directory>
-        ./golf-start.sh -p <port> appname@path_to_approot [...] 
+In a terminal:
 
+        cd &lt;golf directory&gt;
+        ./golf-start.sh -p &lt;port&gt; appname@path_to_approot [...] 
+
+###3. Access the application
 3. Point your browser to http://hostname:port/appname.
