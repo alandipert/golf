@@ -84,6 +84,8 @@ public class GolfServlet extends HttpServlet {
       public String       js          = null; 
       /** set to the requested callback function name for JSONP services */
       public String       jsonp       = null; 
+      /** the path of the static resource requested */
+      public String       path        = null; 
 
       /**
        * Constructor.
@@ -97,6 +99,7 @@ public class GolfServlet extends HttpServlet {
         golf        = request.getParameter("golf");
         js          = request.getParameter("js");
         jsonp       = request.getParameter("jsonp");
+        path        = request.getParameter("path");
       }
     }
 
@@ -143,7 +146,7 @@ public class GolfServlet extends HttpServlet {
 
       session = params.session;
 
-      if (!request.getPathInfo().endsWith("/"))
+      if (params.path != null)
         isStatic = true;
 
       if (params.jsonp != null)
@@ -182,10 +185,18 @@ public class GolfServlet extends HttpServlet {
 
     logRequest(context);
 
+    // All query string parameters are considered to be arguments directed
+    // to the golf container. The app itself gets its arguments in the path
+    // info.
+
     try {
+      if (!request.getPathInfo().endsWith("/"))
+        throw new RedirectException(
+            request.getRequestURL().append('/').toString());
+
       if (context.isStatic) {
         // static resource
-        response.setContentType(mimeType(context));
+        response.setContentType(mimeType(context, context.params.path));
         result = doStaticResourceGet(context);
       } else {
         // dynamic page (golf proxy stuff)
@@ -202,16 +213,19 @@ public class GolfServlet extends HttpServlet {
 
     catch (RedirectException r) {
       // send a 302 FOUND
+      Log.info(fmtLogMsg(context, "302 FOUND ["+r.getMessage()+"]"));
       context.response.sendRedirect(r.getMessage());
     }
 
     catch (FileNotFoundException e) {
       // send a 404 NOT FOUND
+      Log.info(fmtLogMsg(context, "404 NOT FOUND"));
       errorPage(context, HttpServletResponse.SC_NOT_FOUND, e);
     }
 
     catch (Exception x) {
       // send a 500 INTERNAL SERVER ERROR
+      Log.info(fmtLogMsg(context, "500 INTERNAL SERVER ERROR"));
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
 
@@ -233,11 +247,11 @@ public class GolfServlet extends HttpServlet {
   /**
    * Figure out the mime type based on the path.
    *
-   * @param       path        the golf request context
+   * @param       context     the golf request context
+   * @param       path        the requested resource path
    * @return                  the mime type
    */
-  private String mimeType(GolfContext context) {
-    String path = context.request.getPathInfo();
+  private String mimeType(GolfContext context, String path) {
 
     if (context.isJSONP || path.endsWith(".js"))
       return "text/javascript";
@@ -258,6 +272,12 @@ public class GolfServlet extends HttpServlet {
    * @return                  the processed page html contents
    */
   private String preprocess(String page, GolfContext context, boolean server) {
+
+    // NOTE: be careful not to remove elements here unless the page is
+    // definitely not going to be rendered on the server. It will break
+    // the shiftGolfId() function if you aren't careful. Instead, try to
+    // empty the elements, if possible.
+
     // pattern that should match the wrapper links added for proxy mode
     String pat  = "<a href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=";
     String pat2 = "<script type=\"text/javascript\"[^>]*>([^<]|//<!\\[CDATA\\[)*</script>";
@@ -283,12 +303,24 @@ public class GolfServlet extends HttpServlet {
       page = page.replaceAll(pat2, "");
     } else {
       // on the client window.serverside must be false, and vice versa
-      page = page.replaceFirst("(window.serverside =) [a-zA-Z_]+;", 
+      page = page.replaceFirst("(window.serverside +=) [a-zA-Z_]+;", 
           "$1 " + (server ? "true" : "false") + ";");
 
       // import the session ID into the javascript environment
-      page = page.replaceFirst("(window.sessionid =) \"[a-zA-Z_]+\";", 
+      page = page.replaceFirst("(window.sessionid +=) \"[a-zA-Z_]+\";", 
           (context.session == null ? "" : "$1 \"" + context.session + "\";"));
+
+      String pathInfo     = context.request.getPathInfo();
+      pathInfo = (pathInfo == null ? "" : pathInfo.replaceFirst("/", ""));
+
+      String argvJS       = "";
+      String[] pathElems  = pathInfo.split("/+");
+      for (String pathElem : pathElems)
+        argvJS += (argvJS.length() == 0 ? "" : ", ") + "\"" + pathElem + "\"";
+
+      // pass the page argv into the javascript environment
+      page = page.replaceFirst("(window.argv +=) \\[[a-zA-Z_]+\\];", 
+          "$1 [" + argvJS + "];");
     }
 
     // no dtd for serverside because it breaks the xml parser
@@ -380,8 +412,6 @@ public class GolfServlet extends HttpServlet {
       }
     }
 
-    Log.info("====== " + target + " -> " + result);
-
     return result;
   }
 
@@ -433,11 +463,12 @@ public class GolfServlet extends HttpServlet {
 
     String newHtml = getGolfResourceAsString("new.html");
 
-    Log.info("============\n" + preprocess(newHtml, context, true));
+    // do not pass query string to the app, as those parameters are meant
+    // only for the golf container itself.
 
     StringWebResponse response = new StringWebResponse(
       preprocess(newHtml, context, true),
-      new URL(context.request.getRequestURL().toString() + "/" + queryString)
+      new URL(context.request.getRequestURL().toString())
     );
 
     result = (HtmlPage) context.client.loadWebResponseInto(
@@ -543,7 +574,7 @@ public class GolfServlet extends HttpServlet {
    */
   public String doStaticResourceGet(GolfContext context) 
     throws FileNotFoundException {
-    String pathInfo = context.request.getPathInfo();
+    String pathInfo = context.params.path;
     String result  = null;
 
     // prefer the full path

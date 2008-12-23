@@ -66,6 +66,17 @@ jQuery.golf = {
     new jQuery.golf.Component(function(comp) {
       b.append(comp);
     });
+
+    if (!serverside && serverside) {
+      jQuery.historyInit(jQuery.golf.onHistoryChange);
+
+      jQuery("a[@rel='history']").click(function() {
+        var hash = this.href;
+        hash = hash.replace(/^.*#/, '');
+        jQuery.historyLoad(hash);
+        return false;
+      });
+    }
   },
 
   Component: function(callback, name, argv) {
@@ -89,6 +100,7 @@ jQuery.golf = {
     };
 
     name = name ? name.replace(/\./g, "/") + "/" : "";
+    name = "?path=" + name;
 
     var $hlr = (jQuery.golf.cache.enable && 
       jQuery.golf.cache.get(name + "component.html")) ? jQuery.golf.cache : $;
