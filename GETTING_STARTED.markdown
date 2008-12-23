@@ -11,4 +11,4 @@ Getting Started With Golf
         cd &lt;golf directory&gt;
         ./golf-start.sh -p &lt;port&gt; appname@path_to_approot [...] 
 
-3. Access the application: point your browser to (http://hostname:port/appname/ "http://hostname:port/appname/").
+3. Access the application: point your browser to [http://hostname:port/appname/](http://hostname:port/appname/).
