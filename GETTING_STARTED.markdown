@@ -8,7 +8,7 @@ Getting Started With Golf
 
 2. Start the server:
 
-        cd &lt;golf directory&gt;
+        cd <golf directory>;
         ./golf-start.sh -p &lt;port&gt; appname@path_to_approot [...] 
 
 3. Access the application: point your browser to [http://hostname:port/appname/](http://hostname:port/appname/).
