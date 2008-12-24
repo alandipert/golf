@@ -65,17 +65,13 @@ jQuery.golf = {
     });
 
     jQuery.history.init(jQuery.golf.onHistoryChange);
-
-    jQuery("a[@rel='history']").click(function() {
-      var hash = this.href;
-      hash = hash.replace(/^.*#/, '');
-      jQuery.history.load(hash);
-      return false;
-    });
   },
 
   onHistoryChange: function(hash) {
-    jQuery.golf.controller(hash.split("/"));
+    // urls always end in '/', so there's an extra blank arg
+    hash = hash.replace(/\/$/, "");
+    var argv = hash.split("/");
+    jQuery.golf.controller(argv);
   },
 
   controller: function(argv) {
@@ -84,7 +80,7 @@ jQuery.golf = {
     if (!theController)
       theController = "home";
 
-    var b = jQuery("body");
+    var b = jQuery(document.body);
     b.empty();
 
     try {
@@ -129,6 +125,16 @@ jQuery.golf = {
 
       var p     = jQuery(result).get();
       var frag  = document.createDocumentFragment();
+
+      jQuery("a[href]", p[0]).each(function() { 
+        var base = this.href.replace(/#.*$/, "");
+        var hash = this.href.replace(/^.*#/, "");
+        this.href = base + hash;
+        jQuery(this).click(function() {
+          jQuery.history.load(hash);
+          return false;
+        });
+      });
 
       jQuery.golf.index(_index, p[0]);
       frag.appendChild(p[0]);
