@@ -55,6 +55,9 @@ jQuery.golf = {
   },
 
   onLoad: function() {
+    if (urlHash && !location.hash)
+      location.href = servletURL + "#" + urlHash;
+
     jQuery.ajaxSetup({
       type:     "GET",
       dataType: "text",
@@ -67,16 +70,18 @@ jQuery.golf = {
       b.append(comp);
     });
 
-    if (!serverside && serverside) {
-      jQuery.historyInit(jQuery.golf.onHistoryChange);
+    jQuery.history.init(jQuery.golf.onHistoryChange);
 
-      jQuery("a[@rel='history']").click(function() {
-        var hash = this.href;
-        hash = hash.replace(/^.*#/, '');
-        jQuery.historyLoad(hash);
-        return false;
-      });
-    }
+    jQuery("a[@rel='history']").click(function() {
+      var hash = this.href;
+      hash = hash.replace(/^.*#/, '');
+      jQuery.history.load(hash);
+      return false;
+    });
+  },
+
+  onHistoryChange: function(hash) {
+    alert("onHistoryChange( '"+hash+"' )");
   },
 
   Component: function(callback, name, argv) {

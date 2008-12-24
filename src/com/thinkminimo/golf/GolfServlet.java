@@ -115,6 +115,10 @@ public class GolfServlet extends HttpServlet {
     public int                  golfNum     = 0;
     /** the golf session id */
     public String               session     = null;
+    /** the servlet's base URL */
+    public String               servletURL  = null;
+    /** the faked URI fragment */
+    public String               urlHash     = null;
     /** FIXME which browser is the client using? FIXME */
     public BrowserVersion       browser     = BrowserVersion.FIREFOX_2;
     /** whether or not this is a request for a static resource */
@@ -163,6 +167,16 @@ public class GolfServlet extends HttpServlet {
 
       if (params.js != null && params.js.equals("false"))
         proxyonly = true;
+
+      urlHash    = request.getPathInfo();
+      servletURL = request.getRequestURL().toString();
+      
+      if (urlHash != null && urlHash.length() > 0) {
+        urlHash    = urlHash.replaceFirst("/", "");
+        servletURL = servletURL.replaceFirst("\\Q"+urlHash+"\\E$", "");
+      } else {
+        urlHash    = "";
+      }
     }
   }
 
@@ -309,18 +323,14 @@ public class GolfServlet extends HttpServlet {
       // import the session ID into the javascript environment
       page = page.replaceFirst("(window.sessionid +=) \"[a-zA-Z_]+\";", 
           (context.session == null ? "" : "$1 \"" + context.session + "\";"));
-
-      String pathInfo     = context.request.getPathInfo();
-      pathInfo = (pathInfo == null ? "" : pathInfo.replaceFirst("/", ""));
-
-      String argvJS       = "";
-      String[] pathElems  = pathInfo.split("/+");
-      for (String pathElem : pathElems)
-        argvJS += (argvJS.length() == 0 ? "" : ", ") + "\"" + pathElem + "\"";
-
-      // pass the page argv into the javascript environment
-      page = page.replaceFirst("(window.argv +=) \\[[a-zA-Z_]+\\];", 
-          "$1 [" + argvJS + "];");
+      
+      // the servlet url (shenanigans here)
+      page = page.replaceFirst("(window.servletURL +=) \"[a-zA-Z_]+\";", 
+          "$1 \"" + context.servletURL + "\";");
+      
+      // the url fragment (shenanigans here)
+      page = page.replaceFirst("(window.urlHash +=) \"[a-zA-Z_]+\";", 
+          "$1 \"" + context.urlHash + "\";");
     }
 
     // no dtd for serverside because it breaks the xml parser
@@ -458,9 +468,6 @@ public class GolfServlet extends HttpServlet {
       }
     });
 
-    String queryString = context.request.getQueryString();
-    queryString = (queryString == null ? "" : queryString);
-
     String newHtml = getGolfResourceAsString("new.html");
 
     // do not pass query string to the app, as those parameters are meant
@@ -468,7 +475,7 @@ public class GolfServlet extends HttpServlet {
 
     StringWebResponse response = new StringWebResponse(
       preprocess(newHtml, context, true),
-      new URL(context.request.getRequestURL().toString())
+      new URL(context.servletURL + "#" + context.urlHash)
     );
 
     result = (HtmlPage) context.client.loadWebResponseInto(
