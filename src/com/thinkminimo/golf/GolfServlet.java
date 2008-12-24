@@ -587,7 +587,7 @@ public class GolfServlet extends HttpServlet {
     // prefer the full path
     try {
       result = getGolfResourceAsString(pathInfo);
-    } catch (Exception e) {}
+    } catch (Exception e) { /* no problem */ }
 
     // otherwise just the basename
     if (result == null) {
@@ -596,7 +596,7 @@ public class GolfServlet extends HttpServlet {
 
         if (path.length > 0)
           result = getGolfResourceAsString(path[path.length - 1]);
-      } catch (Exception e) {}
+      } catch (Exception e) { /* no problem */ }
     }
 
     if (result == null)
@@ -608,12 +608,17 @@ public class GolfServlet extends HttpServlet {
   /**
    * Retrieves a static golf resource from the system.
    * <p>
-   * Static resources are served from 5 places. When a resource is requested
-   * those places are searched in the following order:
+   * Static resources can be requested by relative or absolute path. An
+   * absolute path is considered to be onw starting with the '/' character.
+   * Such paths are retrieved directly from the filesystem (relative to the
+   * approot), or from the jarfile resources.
+   * <p>
+   * Otherwise, resources are served from 4 places. When a static resource is 
+   * requested with a relative path, those places are searched in the 
+   * following order:
    * <ol>
    *  <li>the libraries/ directory relative to approot
    *  <li>the components/ directory relative to approot
-   *  <li>the screens/ directory relative to approot
    *  <li>the approot itself
    *  <li>the jarfile resources.
    * </ol>
@@ -622,18 +627,21 @@ public class GolfServlet extends HttpServlet {
    * @return              the resource as a stream
    */
   private InputStream getGolfResourceAsStream(String name) throws IOException {
-    final String[] paths = { "/libraries/", "/components/", "/screens/", "" };
-    InputStream    is    = null;
+    final String[] scanDirsRel = { "/libraries/", "/components/", "" };
+    final String[] scanDirsAbs = { "" };
+
+    InputStream   is    = null;
+    String[]      path  = (name.startsWith("/") ? scanDirsAbs : scanDirsRel);
 
     // from the filesystem
-    for (String path : paths) {
+    for (String dir : path) {
       try {
         String realPath = 
-          getServletContext().getRealPath(path + name);
+          getServletContext().getRealPath(dir + name);
         File theFile = new File(realPath);
         if (theFile != null && theFile.exists())
           is = new FileInputStream(theFile);
-      } catch (Exception x) {}
+      } catch (Exception x) { /* no worries */ }
 
       if (is != null)
         break;

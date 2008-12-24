@@ -64,12 +64,6 @@ jQuery.golf = {
       async:    serverside ? false : true,
     });
 
-    var b = jQuery("body");
-    b.empty();
-    new jQuery.golf.Component(function(comp) {
-      b.append(comp);
-    });
-
     jQuery.history.init(jQuery.golf.onHistoryChange);
 
     jQuery("a[@rel='history']").click(function() {
@@ -81,7 +75,23 @@ jQuery.golf = {
   },
 
   onHistoryChange: function(hash) {
-    alert("onHistoryChange( '"+hash+"' )");
+    jQuery.golf.controller(hash.split("/"));
+  },
+
+  controller: function(argv) {
+    var theController = argv.shift();
+
+    if (!theController)
+      theController = "home";
+
+    var b = jQuery("body");
+    b.empty();
+
+    try {
+      jQuery.golf.controllers[theController](b, argv);
+    } catch (x) {
+      alert("can't load the controller for this request");
+    }
   },
 
   Component: function(callback, name, argv) {
@@ -104,15 +114,18 @@ jQuery.golf = {
       return jQuery(document).trigger(eventName, argv);
     };
 
-    name = name ? name.replace(/\./g, "/") + "/" : "";
-    name = "?path=" + name;
+    name = name ? name.replace(/\./g, "/") : "";
+    name = "?path=/components/" + name;
+
+    // absolute paths to the component html and js files
+    var $cmp = { html: name + ".html", js: name + ".js" };
 
     var $hlr = (jQuery.golf.cache.enable && 
-      jQuery.golf.cache.get(name + "component.html")) ? jQuery.golf.cache : $;
+      jQuery.golf.cache.get($cmp.html)) ? jQuery.golf.cache : $;
       
-    $hlr.get(name + "component.html", function(result) {
+    $hlr.get($cmp.html, function(result) {
       if ($hlr === $)
-        jQuery.golf.cache.set(name + "component.html", result);
+        jQuery.golf.cache.set($cmp.html, result);
 
       var p     = jQuery(result).get();
       var frag  = document.createDocumentFragment();
@@ -122,9 +135,9 @@ jQuery.golf = {
 
       callback(frag);
 
-      $hlr.get(name + "component.js", function(result) {
+      $hlr.get($cmp.js, function(result) {
         if ($hlr === $)
-          jQuery.golf.cache.set(name + "component.js", result);
+          jQuery.golf.cache.set($cmp.js, result);
 
         eval(result);
       });
