@@ -160,12 +160,11 @@ public class GolfServlet extends HttpServlet {
       if (params.jsonp != null)
         isJSONP = true;
 
-      if (params.event != null && params.target != null) {
+      if (params.event != null && params.target != null)
         hasEvent = true;
-        proxyonly= true;
-      }
 
-      if (params.js != null && params.js.equals("false"))
+      if (params.js != null && (params.js.equalsIgnoreCase("false") 
+            || params.js.equalsIgnoreCase("no") || params.js.equals("0")))
         proxyonly = true;
 
       urlHash    = request.getPathInfo();
@@ -310,11 +309,11 @@ public class GolfServlet extends HttpServlet {
     // increment the golf sequence numbers in the event proxy links
     page = page.replaceAll( "("+pat+")[0-9]+", "$1"+ context.golfNum + 
         (context.session == null ? "" : "&amp;session=" + context.session) +
-        "&amp;js=false");
+        (context.proxyonly ? "&amp;js=false" : ""));
 
     if (context.proxyonly && !server) {
       // proxy mode only, so remove all javascript except on serverside
-      page = page.replaceAll(pat2, "");
+      //page = page.replaceAll(pat2, "");
     } else {
       // on the client window.serverside must be false, and vice versa
       page = page.replaceFirst("(window.serverside +=) [a-zA-Z_]+;", 
