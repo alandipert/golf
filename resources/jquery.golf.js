@@ -130,10 +130,11 @@ jQuery.golf = {
         var base = this.href.replace(/#.*$/, "");
         var hash = this.href.replace(/^.*#/, "");
         this.href = base + hash;
-        jQuery(this).click(function() {
-          jQuery.history.load(hash);
-          return false;
-        });
+        if (!serverside)
+          jQuery(this).click(function() {
+            jQuery.history.load(hash);
+            return false;
+          });
       });
 
       jQuery.golf.index(_index, p[0]);
