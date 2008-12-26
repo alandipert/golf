@@ -47,13 +47,6 @@
     </classpath>
   </taskdef>
 
-  <!-- set regex properties -->
-  <propertyregex property="vendor.namespacedir"
-    input="${vendor.namespace}"
-    regexp="\."
-    replace="/"
-    global="true" />
-
   <!-- detect java version -->
   <available property="jdk1.3+"         classname="java.lang.StrictMath"/>
   <available property="jdk1.4+"         classname="java.lang.CharSequence"/>
@@ -67,23 +60,7 @@
 
   <!-- the rest of this file is target definitions -->
 
-  <target name="all" depends="jar" description="Same as 'dist'."/>
-
-  <target name="init" description="Initial project configuration.">
-    <mkdir dir="${src.home}/${vendor.namespacedir}/${app.name}"/>
-<echo file="${src.home}/${vendor.namespacedir}/${app.name}/Main.java"
-  append="no">package ${vendor.namespace}.${app.name};
-class Main {
-  public static void main(String[] args) {
-    System.out.println("${app.name} says hi!");
-  }
-}
-</echo>
-<echo file="${startscript.dist}" append="no">#\!/usr/bin/env bash
-java -jar ${jarfile.dist} "$@"
-</echo>
-    <chmod file="${startscript.dist}" perm="755"/>
-  </target>
+  <target name="all" depends="jar" description="Same as 'jar'."/>
 
   <target name="clean" 
     description="Remove compiled project, javadocs, and jar files.">
