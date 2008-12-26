@@ -90,8 +90,77 @@ jQuery.golf = {
     }
   },
 
+  css: {
+    apply: function(cssText, context) {
+      var tree    = this.parse(cssText);
+      var cls     = '.' + jQuery(context).attr("class");
+      var result  = '';
+
+      for (var i in tree) {
+        var s = tree[i].selector;
+        var a = tree[i].attributes;
+
+        result += cls + ' ' + s + ' { ';
+        for (var attr in a) {
+          attr = attr.replace(/^_+/, '');
+          result += attr + ':' + a[attr] + '; ';
+        }
+        result += '}\n';
+      }
+
+      if (result != '')
+        result = '<style type="text/css">' + result + '</style>';
+
+      jQuery('head').append(result);
+    },
+
+    sanitize: function(content) {
+      if(!content) return '';
+      var c = content.replace(/[\n\r]/gi,''); // remove newlines
+      c = c.replace(/\/\*.+?\*\//gi,''); // remove comments
+      return c;
+    },
+    
+    parse: function(content){
+      var c = this.sanitize(content);
+      var tree = []; // this is the css tree that is built up
+      c = c.match(/.+?\{.+?\}/gi); // seperate out selectors
+      if(!c) return [];
+      // loop through the selectors & parse the attributes
+      for(var i=0;i<c.length;i++)
+        if(c[i]) 
+          tree.push({
+            selector: this.parseSelectorName(c[i]),
+            attributes: this.parseAttributes(c[i])
+          });
+      return tree;
+    },
+    
+    parseSelectorName: function(content){
+      return jQuery.trim(content.match(/^.+?\{/)[0].replace('{',''));
+    },
+    
+    parseAttributes: function(content){
+      var attributes = {};
+      var matches = content.match(/\{.+?\}/)[0].replace(/[\{\}]/g,'');
+      var c = matches.split(';').slice(0,-1);
+      for(var i=0;i<c.length; i++){
+        if(c[i]){
+          c[i] = c[i].split(':');
+          var key = $.trim(c[i][0]);
+          var val = $.trim(c[i][1]);
+          if (attributes[key])
+            key = '_' + key;
+          attributes[key] = val;
+        }; 
+      };
+      return attributes;
+    },
+  },
+
   Component: function(callback, name, argv) {
     var _index = [];
+    var tmp    = {};
 
     var $ = function(klass) {
       return jQuery(_index[klass] ? _index[klass] : []);  
@@ -114,22 +183,29 @@ jQuery.golf = {
     name = "?path=/components/" + name;
 
     // absolute paths to the component html and js files
-    var $cmp = { html: name + ".html", js: name + ".js" };
+    tmp.cmp = { html: name + ".html", js: name + ".js", css: name + ".css" };
 
-    var $hlr = (jQuery.golf.cache.enable && 
-      jQuery.golf.cache.get($cmp.html)) ? jQuery.golf.cache : $;
+    tmp.hlr = (jQuery.golf.cache.enable && 
+      jQuery.golf.cache.get(tmp.cmp.html)) ? jQuery.golf.cache : $;
       
-    $hlr.get($cmp.html, function(result) {
-      if ($hlr === $)
-        jQuery.golf.cache.set($cmp.html, result);
+    tmp.hlr.get(tmp.cmp.html, function(result) {
+      var tmp2 = {};
 
-      var p     = jQuery(result).get();
-      var frag  = document.createDocumentFragment();
+      if (tmp.hlr === $) {
+        jQuery.golf.cache.set(tmp.cmp.html, result);
+        jQuery("head").append("<link rel=\"stylesheet\" type=\"text/css\" " +
+          "href=\"" + tmp.cmp.css + "\" />");
+      }
 
-      jQuery("a[href]", p[0]).each(function() { 
+      tmp2.p     = jQuery(result).get()[0];
+      tmp2.frag  = document.createDocumentFragment();
+
+      jQuery("a[href^='#']", tmp2.p).each(function() { 
         var base = this.href.replace(/#.*$/, "");
         var hash = this.href.replace(/^.*#/, "");
         this.href = base + hash;
+
+        // only in client mode, otherwise makes redundant <a> tag wrappers
         if (!serverside)
           jQuery(this).click(function() {
             jQuery.history.load(hash);
@@ -137,14 +213,19 @@ jQuery.golf = {
           });
       });
 
-      jQuery.golf.index(_index, p[0]);
-      frag.appendChild(p[0]);
+      jQuery.golf.index(_index, tmp2.p);
+      tmp2.frag.appendChild(tmp2.p);
 
-      callback(frag);
+      callback(tmp2.frag);
 
-      $hlr.get($cmp.js, function(result) {
-        if ($hlr === $)
-          jQuery.golf.cache.set($cmp.js, result);
+      tmp2.klass = jQuery(tmp2.p).attr("class");
+
+      tmp.hlr.get(tmp.cmp.js, function(result) {
+        if (tmp.hlr === $)
+          jQuery.golf.cache.set(tmp.cmp.js, result);
+
+        tmp     = undefined;
+        tmp2    = undefined;
 
         eval(result);
       });
