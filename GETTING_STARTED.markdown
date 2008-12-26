@@ -13,4 +13,4 @@ Getting Started With Golf
 
 3. Access the application: point your browser to <http://hostname:port/appname/>.
 
-There are some example apps in the examples/ directory.
+There are some example apps in the examples/ directory to see how everything works and enjoy.
