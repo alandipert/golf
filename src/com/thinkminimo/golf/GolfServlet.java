@@ -292,8 +292,12 @@ public class GolfServlet extends HttpServlet {
     // empty the elements, if possible.
 
     // pattern that should match the wrapper links added for proxy mode
-    String pat  = "<a href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=";
-    String pat2 = "<script type=\"text/javascript\"[^>]*>([^<]|//<!\\[CDATA\\[)*</script>";
+    String pat1 = 
+      "(<a) (href=\"\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=)[0-9]+";
+
+    // pattern matching all script tags (should this be removed?)
+    String pat2 = 
+      "<script type=\"text/javascript\"[^>]*>([^<]|//<!\\[CDATA\\[)*</script>";
 
     // document type: xhtml
     String dtd = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
@@ -307,13 +311,13 @@ public class GolfServlet extends HttpServlet {
     page = page.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
 
     // increment the golf sequence numbers in the event proxy links
-    page = page.replaceAll( "("+pat+")[0-9]+", "$1"+ context.golfNum + 
+    page = page.replaceAll( pat1, "$1 rel=\"nofollow\" $2" + context.golfNum + 
         (context.session == null ? "" : "&amp;session=" + context.session) +
         (context.proxyonly ? "&amp;js=false" : ""));
 
     if (context.proxyonly && !server) {
       // proxy mode only, so remove all javascript except on serverside
-      //page = page.replaceAll(pat2, "");
+      page = page.replaceAll(pat2, "");
     } else {
       // on the client window.serverside must be false, and vice versa
       page = page.replaceFirst("(window.serverside +=) [a-zA-Z_]+;", 
