@@ -4,8 +4,8 @@ jQuery.golf.controllers = {
     b.golf("org.golfscript.test");
   },
 
-  whammo: function(b, argv) {
-    b.append("<h3>whammo!!!</h3>");
+  otherpage: function(b, argv) {
+    b.append("<h3>Hey there</h3>");
   },
     
 };
