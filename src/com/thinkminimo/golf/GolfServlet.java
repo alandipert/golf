@@ -577,6 +577,36 @@ public class GolfServlet extends HttpServlet {
   }
 
   /**
+   * Process html/css file for service, inserting component class name, etc.
+   *
+   * @param   context       the golf context for this request
+   * @param   component     the component css/html text
+   * @param   klass         the component class name
+   * @return                the processed css/html text
+   */
+  private String processComponent(GolfContext context, String component) {
+    String pathInfo   = context.params.path;
+    String className  =  pathInfo.replaceFirst("^/components/", "");
+    className         = className.replaceFirst("\\.(html|css)$", "");
+    className         = className.replace('/', '-');
+    String result     = component;
+
+    if (pathInfo.endsWith(".css")) {
+      result = 
+        result.replaceAll("(^|\\}[\\s]*)(.*\\{)", "$1." + className + " $2");
+    } else if (pathInfo.endsWith(".html")) {
+      String tmp = result.substring(0, result.indexOf('>') + 1);
+      if (tmp.contains("class="))
+        result = result.replaceFirst("^(.*class=.)", "$1" + className + " ");
+      else
+        result = 
+          result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"" + className + "\"");
+    }
+
+    return result;
+  }
+
+  /**
    * Fetch a static resource as a String.
    *
    * @param   context       the golf context for this request
@@ -590,6 +620,9 @@ public class GolfServlet extends HttpServlet {
     // prefer the full path
     try {
       result = getGolfResourceAsString(pathInfo);
+
+      if (pathInfo.startsWith("/components/")) 
+        result = processComponent(context, result);
     } catch (Exception e) { /* no problem */ }
 
     // otherwise just the basename
