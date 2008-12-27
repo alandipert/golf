@@ -29,7 +29,6 @@
   <property name="src.home"         value="${basedir}/src"/>
   <property name="lib.home"         value="${basedir}/lib"/>
   <property name="resources.home"   value="${basedir}/resources"/>
-  <property name="ant-contrib.home" value="${basedir}/ant/contrib"/>
   <property name="ant-scripts.home" value="${basedir}/ant/scripts"/>
 
   <property name="jarfile.dist"     value="${dist.home}/${app.fullname}.jar"/>
@@ -39,13 +38,6 @@
   <property name="compile.debug"        value="true"/>
   <property name="compile.deprecation"  value="true"/>
   <property name="compile.mainclass"    value="${app.base}.Main"/>
-
-  <!-- include ant-contrib tasks -->
-  <taskdef resource="net/sf/antcontrib/antcontrib.properties">
-    <classpath>
-      <pathelement location="${ant-contrib.home}/ant-contrib.jar"/>
-    </classpath>
-  </taskdef>
 
   <!-- detect java version -->
   <available property="jdk1.3+"         classname="java.lang.StrictMath"/>
