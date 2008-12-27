@@ -1,23 +1,23 @@
-.org-golfscript-test .clickable {
+.clickable {
   cursor: pointer;
   cursor: hand;
 }
 
-.org-golfscript-test .button {
+.button {
   padding: .25em;
   color: white;
   background: orange;
 }
 
-.org-golfscript-test .clickme {
+.clickme {
   font-size: 24pt;
   background: red;
   color: white;
 }
 
-.org-golfscript-test .item {
+.item {
   padding: 2em;
 }
 
-.org-golfscript-test .thanks {
+.thanks {
 }

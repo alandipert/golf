@@ -1,11 +1,11 @@
-.org-golfscript-test-item h3 {
+h3 {
   color: darkgreen;
 }
 
-.org-golfscript-test-item p {
+p {
   color: darkblue;
 }
 
-.org-golfscript-test-item a {
+a {
   color: red;
 }
