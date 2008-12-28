@@ -206,6 +206,8 @@ public class GolfServlet extends HttpServlet {
     // to the golf container. The app itself gets its arguments in the path
     // info.
 
+    Log.info("pathinfo: [" + request.getPathInfo() + "]");
+
     try {
       if (!request.getPathInfo().endsWith("/"))
         throw new RedirectException(
@@ -591,11 +593,14 @@ public class GolfServlet extends HttpServlet {
     className         = className.replace('/', '-');
     String result     = component;
 
+    String pat1       = "(^|\\}[\\s]*)(.*\\{)";
+    String pat2       = "((^|\\})[^\\{]*)\\.component([^a-zA-Z-_\\{]*\\{)";
+
     if (pathInfo.endsWith(".css")) {
-      result = 
-        result.replaceAll("(^|\\}[\\s]*)(.*\\{)", "$1." + className + " $2");
+      result = result.replaceAll(pat1, "$1." + className + " $2");
+      result = result.replaceAll(pat2, "$1$3");
     } else if (pathInfo.endsWith(".html")) {
-      String tmp = result.substring(0, result.indexOf('>') + 1);
+      String tmp = result.substring(0, result.indexOf('>'));
       if (tmp.contains("class="))
         result = result.replaceFirst("^(.*class=.)", "$1" + className + " ");
       else
