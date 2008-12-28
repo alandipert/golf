@@ -1,0 +1,28 @@
+.title {
+  padding-top: 15px;
+}
+
+.navigation {
+  position: fixed;
+  top: 15px;
+  left: 0px;
+}
+
+.navigation ul {
+  list-style-type: none;
+}
+
+.navigation ul li {
+}
+
+.navigation ul li a {
+  padding-left: 10px;
+  padding-right: 10px;
+  text-decoration: none;
+  color: #666;
+}
+
+.navigation ul li a:hover {
+  text-decoration: underline;
+  color: red;
+}

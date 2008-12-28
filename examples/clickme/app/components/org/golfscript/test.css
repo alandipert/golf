@@ -1,6 +1,14 @@
+.component {
+  color: purple;
+}
+
 .clickable {
   cursor: pointer;
   cursor: hand;
+}
+
+.component {
+  color: orange;
 }
 
 .button {
