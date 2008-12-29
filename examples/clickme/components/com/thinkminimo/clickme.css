@@ -10,9 +10,11 @@
 
 .navigation ul {
   list-style-type: none;
+  width: 145px;
 }
 
-.navigation ul li {
+.navigation ul li.selected {
+  background-color: yellow;
 }
 
 .navigation ul li a {
@@ -26,3 +28,10 @@
   text-decoration: underline;
   color: red;
 }
+
+.navigation ul li.selected a:hover {
+  text-decoration: none;
+  color: #666;
+  cursor: normal;
+}
+
