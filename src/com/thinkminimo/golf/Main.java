@@ -69,22 +69,11 @@ public class Main
         String docRoot    = apps.get(app);
 
         String golfPath   = "/" + app;
-        String golfRoot   = docRoot  + "/app";
-
-        String publicPath = golfPath + "/public";
-        String publicRoot = docRoot  + "/public/downloads";
+        String golfRoot   = docRoot;
 
         Context cx1 = new Context(contexts, golfPath, Context.SESSIONS);
         cx1.setResourceBase(golfRoot);
         cx1.addServlet(new ServletHolder(new GolfServlet()), "/*");
-        
-        Context cx2 = new Context(contexts, publicPath, Context.SESSIONS);
-        cx2.setResourceBase(publicRoot);
-        DefaultServlet default_servlet = new DefaultServlet();
-        ServletHolder default_holder = new ServletHolder(default_servlet);
-        default_holder.setInitParameter(
-            "cacheControl", "max-age=3600, must-revalidate");
-        cx2.addServlet(default_holder, "/*");
       }
       
       HandlerList handlers = new HandlerList();
