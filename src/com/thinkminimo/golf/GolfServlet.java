@@ -1,13 +1,6 @@
 package com.thinkminimo.golf;
 
-import java.io.File;
-import java.io.PrintWriter;
-import java.io.InputStreamReader;
-import java.io.FileInputStream;
-import java.io.InputStream;
-import java.io.IOException;
-import java.io.FileNotFoundException;
-import java.io.BufferedReader;
+import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
 import org.mozilla.javascript.*;
 
@@ -90,6 +83,8 @@ public class GolfServlet extends HttpServlet {
       public String       jsonp       = null; 
       /** the path of the static resource requested */
       public String       path        = null; 
+      /** whether or not to use mockup mode */
+      public String       mock        = null; 
 
       /**
        * Constructor.
@@ -104,6 +99,7 @@ public class GolfServlet extends HttpServlet {
         js          = request.getParameter("js");
         jsonp       = request.getParameter("jsonp");
         path        = request.getParameter("path");
+        mock        = request.getParameter("mock");
       }
     }
 
@@ -125,6 +121,8 @@ public class GolfServlet extends HttpServlet {
     public boolean              isStatic    = false;
     /** whether or not this is a request for JSONP services */
     public boolean              isJSONP     = false;
+    /** whether or not to render a component in mockup mode */
+    public boolean              isMock      = false;
     /** whether or not this is an event proxy request */
     public boolean              hasEvent    = false;
     /** whether or not client mode is disabled */
@@ -159,6 +157,10 @@ public class GolfServlet extends HttpServlet {
 
       if (params.jsonp != null)
         isJSONP = true;
+
+      if (params.mock != null && (params.mock.equalsIgnoreCase("true") 
+            || params.js.equalsIgnoreCase("yes") || params.js.equals("1")))
+        isMock = true;
 
       if (params.event != null && params.target != null)
         hasEvent = true;
@@ -205,8 +207,6 @@ public class GolfServlet extends HttpServlet {
     // All query string parameters are considered to be arguments directed
     // to the golf container. The app itself gets its arguments in the path
     // info.
-
-    Log.info("pathinfo: [" + request.getPathInfo() + "]");
 
     try {
       if (!request.getPathInfo().endsWith("/"))
@@ -267,15 +267,20 @@ public class GolfServlet extends HttpServlet {
    * @return                  the mime type
    */
   public static String mimeType(final GolfContext context, final String path) {
+    String ret;
+    String file = path.trim();
 
-    if (context.isJSONP || path.endsWith(".js"))
-      return "text/javascript";
-    else if (path.endsWith(".html"))
-      return "text/html";
-    else if (path.endsWith(".css"))
-      return "text/css";
+    if (context.isJSONP || file.endsWith(".js"))
+      ret = "text/javascript";
+    else if (file.endsWith(".html"))
+      ret = "text/html";
+    else if (file.endsWith(".css"))
+      ret = "text/css";
     else
-      return "text/plain";
+      ret = URLConnection.guessContentTypeFromName(file);
+
+    Log.info("XXXXXXXXXX [" + file + "][" + ret + "]");
+    return (ret == null ? "text/plain" : ret);
   }
 
   /**
@@ -649,18 +654,11 @@ public class GolfServlet extends HttpServlet {
   /**
    * Retrieves a static golf resource from the system.
    * <p>
-   * Static resources can be requested by relative or absolute path. An
-   * absolute path is considered to be onw starting with the '/' character.
-   * Such paths are retrieved directly from the filesystem (relative to the
-   * approot), or from the jarfile resources.
-   * <p>
-   * Otherwise, resources are served from 4 places. When a static resource is 
+   * Otherwise, resources are served from 2 places. When a static resource is 
    * requested with a relative path, those places are searched in the 
    * following order:
    * <ol>
-   *  <li>the libraries/ directory relative to approot
-   *  <li>the components/ directory relative to approot
-   *  <li>the approot itself
+   *  <li>the approot
    *  <li>the jarfile resources.
    * </ol>
    *
@@ -668,25 +666,17 @@ public class GolfServlet extends HttpServlet {
    * @return              the resource as a stream
    */
   private InputStream getGolfResourceAsStream(String name) throws IOException {
-    final String[] scanDirsRel = { "/libraries/", "/components/", "" };
-    final String[] scanDirsAbs = { "" };
+    InputStream is = null;
 
-    InputStream   is    = null;
-    String[]      path  = (name.startsWith("/") ? scanDirsAbs : scanDirsRel);
+    name = name.replaceFirst("/", "");
 
     // from the filesystem
-    for (String dir : path) {
-      try {
-        String realPath = 
-          getServletContext().getRealPath(dir + name);
-        File theFile = new File(realPath);
-        if (theFile != null && theFile.exists())
-          is = new FileInputStream(theFile);
-      } catch (Exception x) { /* no worries */ }
-
-      if (is != null)
-        break;
-    }
+    try {
+      String realPath = getServletContext().getRealPath(name);
+      File theFile = new File(realPath);
+      if (theFile != null && theFile.exists())
+        is = new FileInputStream(theFile);
+    } catch (Exception x) { /* no worries */ }
 
     // from the jarfile resource
     if (is == null) 
