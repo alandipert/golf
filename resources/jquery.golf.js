@@ -22,9 +22,10 @@ jQuery.golf = {
           out.push('null');
         } else {
           if (inVal.constructor == Array) {
-            // Need to make a decision... if theres any associative elements of the array
-            // then I will block the whole thing as an object {} otherwise, I'll block it 
-            // as a  normal array []
+            // Need to make a decision... 
+            // if theres any associative elements of the array then I will
+            // block the whole thing as an object {} otherwise, I'll block
+            // it as a  normal array []
             var testVal = inVal.length;
             var compVal = 0;
             for (var key in inVal) compVal++;
@@ -54,7 +55,8 @@ jQuery.golf = {
             out.push('{');
             var first = true;
             for (var i in inVal) {
-              var curr = out.length; // Record position to allow undo when arg[i] is undefined.
+              // Record position to allow undo when arg[i] is undefined.
+              var curr = out.length;
               if (!first) out.push(',\n');
               jQuery.golf._json_encode(i, out);
               out.push(':');                    
@@ -79,7 +81,11 @@ jQuery.golf = {
         
       case 'string':
             out.push('"');
-            out.push(inVal.replace(/(["\\])/g, '\$1').replace(/\r/g, '').replace(/\n/g, '\n'));
+            out.push(
+              nVal.replace(/(["\\])/g, '\$1')
+                  .replace(/\r/g, '')
+                  .replace(/\n/g, '\n')
+            );
             out.push('"');
             return out;
             
