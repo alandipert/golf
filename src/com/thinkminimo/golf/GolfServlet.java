@@ -606,11 +606,13 @@ public class GolfServlet extends HttpServlet {
       result = result.replaceAll(pat2, "$1$3");
     } else if (pathInfo.endsWith(".html")) {
       String tmp = result.substring(0, result.indexOf('>'));
-      if (tmp.contains("class="))
-        result = result.replaceFirst("^(.*class=.)", "$1" + className + " ");
+      if (tmp.matches("class\\s*=\\s*"))
+        result = 
+          result.replaceFirst("^(.*class\\s*=\\s*.)", "$1" + className + " ");
       else
         result = 
-          result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"" + className + "\"");
+          result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"component " + 
+              className + "\"");
     }
 
     return result;

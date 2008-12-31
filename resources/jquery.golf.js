@@ -110,33 +110,10 @@ jQuery.golf = {
     },
   },
 
-  attrList: function(node, attrName) {
-    var attr = jQuery(node).attr(attrName);
-    var klasses = Array();
-    if (attr)
-      klasses = attr.split(/\s+/);
-    var ret = Array();
-    for (i in klasses)
-      if (klasses[i])
-        ret.push(klasses[i]);
-    return ret;
-  },
- 
-  classes: function(node) {
-    return jQuery.golf.attrList(node, "class");
-  },
-
   index: function(idx, node) {
-    var klasses = jQuery.golf.classes(node);
+    idx.push(node);
 
-    // no uniqueness of (class,node) tuples enforced here (TODO?)
-    for (var i in klasses) {
-      if ( ! idx[klasses[i]] ) 
-        idx[klasses[i]] = [];
-      idx[klasses[i]].push(node);
-    }
-
-    jQuery(node).children().each(function(i) {
+    jQuery(node).children().each(function() {
       jQuery.golf.index(idx, this); 
     });
   },
@@ -177,18 +154,30 @@ jQuery.golf = {
     try {
       jQuery.golf.controllers[theController](b, argv);
     } catch (x) {
-      alert("can't load the controller for [" + theController + "]");
+      throw "can't load the controller for [" + theController + "]";
     }
   },
 
   Component: function(callback, name, argv) {
     var _index = [];
 
-    var $ = function(klass) {
-      if (typeof(klass) == "string")
-        return jQuery(_index[klass] ? _index[klass] : []);  
-      else
-        return jQuery(klass);
+    var $ = function(selector) {
+      if (typeof(selector) != "string")
+        throw "selector must be a string";
+
+      var res = jQuery(selector, $.root).get();
+      var tmp = [];
+
+      for (i = 0; i < res.length; i++) {
+        for(j = 0; j < _index.length; j++) {
+          if (res[i] == _index[j]) {
+            tmp.push(res[i]);
+          }
+        }
+      }
+      res = tmp;
+
+      return jQuery(res);
     };
 
     $.argv = argv;
@@ -238,10 +227,13 @@ jQuery.golf = {
           });
       });
 
-      jQuery.golf.index(_index, p);
       frag.appendChild(p);
 
       callback(frag);
+
+      jQuery.golf.index(_index, p);
+
+      $.root = p.parentNode;
 
       hlr.get(cmp.js, function(result) {
         if (hlr === $)
