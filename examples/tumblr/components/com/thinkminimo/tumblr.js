@@ -1,0 +1,1 @@
+$("contents").golf($.argv.content);
