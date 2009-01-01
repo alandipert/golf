@@ -1,0 +1,42 @@
+.component {
+}
+
+a {
+  display:            block;
+  text-decoration:    none;
+  float:              left;
+  color:              inherit;
+  margin:             0 auto;
+}
+
+a:hover {
+  color:              #fff;
+  background:         #08c;
+}
+
+ul {
+  display:            block;
+  list-style-type:    none;
+  line-height:        normal;
+  margin:             0 auto;
+  padding:            0;
+}
+
+li {
+  display:            block;
+  float:              left;
+  padding:            0;
+  margin:             0 auto;
+  background-color:   #ff9933;
+}
+
+.selected a:hover {
+  color:              inherit;
+  background:         inherit;
+  cursor:             inherit;
+}
+
+.selected {
+  background:         white;
+  color:              red;
+}

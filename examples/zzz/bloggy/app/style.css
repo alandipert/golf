@@ -1,0 +1,35 @@
+body {
+  background: white;
+  color: black;
+  font-family: sans-serif;
+  font-size: 12pt;
+}
+
+a {
+  color: black;
+  text-decoration: none;
+}
+
+.clickable {
+  cursor: pointer;
+  cursor: hand;
+}
+
+.button {
+  padding: .25em;
+  color: white;
+  background: orange;
+}
+
+.org-golfscript-test .clickme {
+  font-size: 24pt;
+  background: red;
+  color: white;
+}
+
+.org-golfscript-test .nested {
+  padding: 2em;
+}
+
+.org-golfscript-test .thanks {
+}

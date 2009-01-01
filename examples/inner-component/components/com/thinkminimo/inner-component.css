@@ -1,0 +1,16 @@
+
+.contents-container {
+  list-style-type: none;
+  padding: 25px;
+}
+
+.contents-component {
+  padding: 2px;
+  margin: 2px auto;
+}
+
+.contents-component > div {
+  float: left;
+  margin: 0 auto;
+  padding: 2px;
+}
