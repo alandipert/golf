@@ -279,7 +279,6 @@ public class GolfServlet extends HttpServlet {
     else
       ret = URLConnection.guessContentTypeFromName(file);
 
-    Log.info("XXXXXXXXXX [" + file + "][" + ret + "]");
     return (ret == null ? "text/plain" : ret);
   }
 
@@ -587,32 +586,50 @@ public class GolfServlet extends HttpServlet {
    * Process html/css file for service, inserting component class name, etc.
    *
    * @param   context       the golf context for this request
-   * @param   component     the component css/html text
-   * @param   klass         the component class name
+   * @param   text          the component css/html text
+   * @param   klass         the text class name
    * @return                the processed css/html text
    */
-  private String processComponent(GolfContext context, String component) {
-    String pathInfo   = context.params.path;
-    String className  =  pathInfo.replaceFirst("^/components/", "");
+  private String processComponent(GolfContext context, String text) {
+    String path       = context.params.path;
+    String className  = path.replaceFirst("^/components/", "");
     className         = className.replaceFirst("\\.(html|css)$", "");
     className         = className.replace('/', '-');
-    String result     = component;
+    String result     = text;
 
-    String pat1       = "(^|\\}[\\s]*)(.*\\{)";
-    String pat2       = "((^|\\})[^\\{]*)\\.component([^a-zA-Z-_\\{]*\\{)";
+    if (path.endsWith(".css")) {
+      // Localize this css file by inserting the unique component css class
+      // in the beginning of every selector. Also remove extra whitespace and
+      // comments, etc.
 
-    if (pathInfo.endsWith(".css")) {
-      result = result.replaceAll(pat1, "$1." + className + " $2");
-      result = result.replaceAll(pat2, "$1$3");
-    } else if (pathInfo.endsWith(".html")) {
+      // remove newlines
+      result = result.replaceAll("[\\r\\n\\s]+", " ");
+      // remove comments
+      result = result.replaceAll("/\\*.*\\*/", "");
+      // this is bad but fuckit
+      result = 
+        result.replaceAll("(^|\\})\\s*([^{]*[^{\\s])*\\s*\\{", "$1 ." + 
+            className + " $2 {");
+      result = result.trim();
+    } else if (path.endsWith(".html")) {
+      // Add the unique component css class to the component outermost
+      // element.
+
+      // the first opening html tag
       String tmp = result.substring(0, result.indexOf('>'));
-      if (tmp.matches("class\\s*=\\s*"))
+      Log.info("tmp=|" + tmp + "|=");
+
+      if (tmp.matches(".*['\"\\s]class\\s*=\\s*['\"].*")) {
+        Log.info("yes match");
         result = 
-          result.replaceFirst("^(.*class\\s*=\\s*.)", "$1" + className + " ");
-      else
+          result.replaceFirst("^(.*class\\s*=\\s*.)", "$1component " + 
+              className + " ");
+      } else {
+        Log.info("no match");
         result = 
           result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"component " + 
               className + "\"");
+      }
     }
 
     return result;
