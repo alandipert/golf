@@ -154,7 +154,7 @@ jQuery.golf = {
     try {
       jQuery.golf.controllers[theController](b, argv);
     } catch (x) {
-      throw "can't load the controller for [" + theController + "]";
+      throw "can't load the controller for [" + theController + "]: " + x;
     }
   },
 
