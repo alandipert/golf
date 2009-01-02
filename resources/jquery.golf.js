@@ -82,9 +82,9 @@ jQuery.golf = {
       case 'string':
             out.push('"');
             out.push(
-              nVal.replace(/(["\\])/g, '\$1')
-                  .replace(/\r/g, '')
-                  .replace(/\n/g, '\n')
+              inVal.replace(/(["\\])/g, '\$1')
+                   .replace(/\r/g, '')
+                   .replace(/\n/g, '\n')
             );
             out.push('"');
             return out;
