@@ -168,8 +168,8 @@ jQuery.golf = {
       var res = jQuery(selector, $.root).get();
       var tmp = [];
 
-      for (i = 0; i < res.length; i++) {
-        for(j = 0; j < _index.length; j++) {
+      for (var i = 0; i < res.length; i++) {
+        for (var j = 0; j < _index.length; j++) {
           if (res[i] == _index[j]) {
             tmp.push(res[i]);
           }
