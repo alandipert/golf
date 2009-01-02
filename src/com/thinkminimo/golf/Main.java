@@ -69,11 +69,16 @@ public class Main
         String docRoot    = apps.get(app);
 
         String golfPath   = "/" + app;
+        String staticPath = golfPath + "/static";
         String golfRoot   = docRoot;
 
         Context cx1 = new Context(contexts, golfPath, Context.SESSIONS);
         cx1.setResourceBase(golfRoot);
         cx1.addServlet(new ServletHolder(new GolfServlet()), "/*");
+
+        Context cx2 = new Context(contexts, staticPath, Context.SESSIONS);
+        cx2.setResourceBase(golfRoot);
+        cx2.addServlet(new ServletHolder(new DefaultServlet()), "/*");
       }
       
       HandlerList handlers = new HandlerList();

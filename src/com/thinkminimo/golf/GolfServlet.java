@@ -10,6 +10,7 @@ import javax.servlet.*;
 import javax.servlet.http.*;
 
 import org.mortbay.log.Log;
+import org.mortbay.jetty.servlet.DefaultServlet;
 
 import com.gargoylesoftware.htmlunit.*;
 import com.gargoylesoftware.htmlunit.html.*;
@@ -115,6 +116,8 @@ public class GolfServlet extends HttpServlet {
     public String               servletURL  = null;
     /** the faked URI fragment */
     public String               urlHash     = null;
+    /** the request path info */
+    public String               pathInfo    = null;
     /** FIXME which browser is the client using? FIXME */
     public BrowserVersion       browser     = BrowserVersion.FIREFOX_2;
     /** whether or not this is a request for a static resource */
@@ -171,6 +174,7 @@ public class GolfServlet extends HttpServlet {
 
       urlHash    = request.getPathInfo();
       servletURL = request.getRequestURL().toString();
+      pathInfo   = urlHash;
       
       if (urlHash != null && urlHash.length() > 0) {
         urlHash    = urlHash.replaceFirst("/", "");
@@ -199,7 +203,7 @@ public class GolfServlet extends HttpServlet {
     throws IOException, ServletException
   {
     GolfContext   context         = new GolfContext(request, response);
-    PrintWriter   out             = response.getWriter();
+    PrintWriter   out             = null;
     String        result          = null;
 
     logRequest(context);
@@ -209,7 +213,7 @@ public class GolfServlet extends HttpServlet {
     // info.
 
     try {
-      if (!request.getPathInfo().endsWith("/"))
+      if (!context.pathInfo.endsWith("/"))
         throw new RedirectException(
             request.getRequestURL().append('/').toString());
 
@@ -223,6 +227,7 @@ public class GolfServlet extends HttpServlet {
         result = preprocess(doDynamicResourceGet(context), context, false);
       }
 
+      out = response.getWriter();
       out.println(result);
     }
 
@@ -255,7 +260,7 @@ public class GolfServlet extends HttpServlet {
           clients.put(context.session, new StoredJSVM(context.client, context.golfNum));
       }
         
-      out.close();
+      if (out != null) out.close();
     }
   }
 
@@ -352,7 +357,7 @@ public class GolfServlet extends HttpServlet {
    * @param     request   the http request object
    */
   private synchronized void cachePage(GolfContext context) throws IOException {
-    String pathInfo = context.request.getPathInfo();
+    String pathInfo = context.pathInfo;
 
     if (cachedPages.get(pathInfo) == null) {
       // FIXME: probably want a cached page for each user agent
@@ -503,7 +508,7 @@ public class GolfServlet extends HttpServlet {
    */
   private String doDynamicResourceGet(GolfContext context) throws Exception {
 
-    String      pathInfo  = context.request.getPathInfo();
+    String      pathInfo  = context.pathInfo;
     String      result    = null;
     HtmlPage    page      = null;
 
@@ -652,8 +657,9 @@ public class GolfServlet extends HttpServlet {
 
       if (pathInfo.startsWith("/components/")) 
         result = processComponent(context, result);
-    } catch (Exception e) { /* no problem */ }
+    } catch (Exception e) {}
 
+    /*
     // otherwise just the basename
     if (result == null) {
       try {
@@ -661,8 +667,9 @@ public class GolfServlet extends HttpServlet {
 
         if (path.length > 0)
           result = getGolfResourceAsString(path[path.length - 1]);
-      } catch (Exception e) { /* no problem */ }
+      } catch (Exception e) {}
     }
+    */
 
     if (result == null)
       throw new FileNotFoundException("static resource "+pathInfo+" not found");
