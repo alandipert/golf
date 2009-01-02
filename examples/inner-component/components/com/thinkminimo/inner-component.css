@@ -1,4 +1,12 @@
 
+/*
+ * The magic "component" class selector always styles the component's
+ * outermost element.
+ */
+.main {
+  padding: 10px;
+}
+
 .contents-container {
   list-style-type: none;
   padding: 25px;
