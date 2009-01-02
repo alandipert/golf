@@ -482,6 +482,10 @@ public class GolfServlet extends HttpServlet {
       }
     });
 
+    // set the time a script is allowed to run for before being cut off
+    context.client.setJavaScriptTimeout(5000);
+
+    // the blank skeleton html template
     String newHtml = getGolfResourceAsString("new.html");
 
     // do not pass query string to the app, as those parameters are meant
