@@ -21,12 +21,15 @@ Architecture
 Golf applications are form the user interface for web services APIs. A golf application is not complete, as such. In
 order to be useful, golf applications must interact with a separate backend service, usually via a RESTful API.
 
-The golf application architecture is modular, with the following demarcations, proceeding from most to least general:
+Golf applications are written in an MVC framework provided by the golf javascript runtime environment. Models and
+controllers are defined in javascript, and components form the views in which content is presented to the user and in
+which the user interacts with the application.
 
-* Application
-* Screen
-* Component
-* Element
+The golf application architecture is modular, with the following demarcations (proceeding from most to least general):
+
+* Application (Controller)
+* Screen (Model)
+* Component (View)
 
 The Application and Screen layers are particular to the application, and the Component and Element layers are general
 and reusable across applications. We'll get into this a bit more deeply later, but first it's necessary to describe
@@ -49,4 +52,35 @@ is written as though it were the entire document. This is possible because golf 
     $(".myclass")
 
 in your javascript transformation will only return elements from within the component, and not from any other, or even
-another instance of this component. 
+another instance of this component.
+
+###Example Component
+
+Let's take a quick look at a simple component, just to solidify the concepts here.
+
+_hello.html_
+
+    <div>
+        <h1 class="big_title">Here's some title text!</h1>
+        <div class="hide_show">Button</div>
+    </div>
+
+_hello.js_
+
+    $(".hide_show").click(function() {
+        $(".big_title").toggle();
+        $(".hide_show").text($(".hide_show").text() == "hide" ? "show" : "hide");
+    });
+
+    $(".big_title").text("Hello World");
+    $(".hide_show").text("hide");
+
+_hello.css_
+
+    h1 {
+        color: #FCFCFC;
+    }
+
+    .hide_show {
+        background-color: orange;
+    }
