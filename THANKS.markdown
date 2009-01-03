@@ -3,20 +3,12 @@ Thanks!
 
 Golf uses a number of opensource projects internally:
 
-* [Jetty][1]
-* [HtmlUnit][2]
-* [jQuery][3]
-* [jQuery History Plugin][4]
-* [XMLBuilder][5]
-* [Ant][6]
-* [JetS3t][7]
+* [Jetty](http://www.mortbay.org/jetty/)
+* [HtmlUnit](http://htmlunit.sourceforge.net/)
+* [jQuery](http://jquery.com)
+* [jQuery History Plugin](http://plugins.jquery.com/node/1773)
+* [XMLBuilder](http://code.google.com/p/java-xmlbuilder/)
+* [Ant](http://ant.apache.org)
+* [JetS3t](https://jets3t.dev.java.net/)
 
 Thanks for making your software useful and free.
-
-[1] http://www.mortbay.org/jetty/             "Jetty"
-[2] http://htmlunit.sourceforge.net/          "HtmlUnit"
-[3] http://jquery.com                         "jQuery"
-[4] http://plugins.jquery.com/node/1773       "jQuery History"
-[5] http://code.google.com/p/java-xmlbuilder/ "XMLBuilder"
-[6] http://ant.apache.org                     "Ant"
-[7] https://jets3t.dev.java.net/              "JetS3t"
