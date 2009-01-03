@@ -96,4 +96,9 @@ What happens when the component is instantiated is this: First, the HTML and jav
 AJAX. Then the HTML template is inserted into the DOM and a &lt;link&gt; tag is created in the document head to 
 load the CSS for the component. Then the javascript transformation is run, replacing the dummy content with real
 content and setting up the dynamic behaviors. Don't worry if this is vague or unclear to you at this point; it'll
-become natural as we go along.
+become natural as we go along. The main point to understand here is the structure of the component, and the
+relationship between the three parts, the HTML template, the javascript transformation, and the CSS.
+
+Note that this little fragment of HTML, javascript, and CSS is completely atomic. Because of the magical sandboxing
+of the golf runtime, it can be inserted anywhere in the document as a little self-contained widget, complete with its
+own internal dynamic behaviors, styles, and interfaces.
