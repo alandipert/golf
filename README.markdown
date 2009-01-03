@@ -114,7 +114,7 @@ This component would be instantiated in the application by doing something
 like this (assuming that the files are located in the 
 _components/com/thinkminimo/_ directory relative to the approot):
 
-    var newguy = new Component("com.thinkminimo.hello", { username: "bob" });
+    new Component("com.thinkminimo.hello", elem, { username: "bob" });
 
 What happens when the component is instantiated is this: First, the HTML
 and javascript files are fetched using AJAX. Then the HTML template is
@@ -158,12 +158,12 @@ _controller.js:_
 
         home: function(base, argv) {
             base.empty();
-            base.append(new Component("com.thinkminimo.hello", { username: argv[1] }));
+            new Component("com.thinkminimo.hello", base, { username: argv[1] });
         },
 
         contact: function(base, argv) {
             base.empty();
-            base.append(new Component("com.thinkminomo.contact"));
+            new Component("com.thinkminomo.contact", base);
         },
 
     };
