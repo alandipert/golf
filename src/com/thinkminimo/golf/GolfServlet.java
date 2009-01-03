@@ -218,17 +218,14 @@ public class GolfServlet extends HttpServlet {
             request.getRequestURL().append('/').toString());
 
       if (context.isStatic) {
-        // static resource
-        response.setContentType(mimeType(context, context.params.path));
-        result = doStaticResourceGet(context);
+        doStaticResourceGet(context);
+        return;
       } else {
-        // dynamic page (golf proxy stuff)
         response.setContentType("text/html");
-        result = preprocess(doDynamicResourceGet(context), context, false);
+        out = response.getWriter();
+        out.println(preprocess(doDynamicResourceGet(context), context, false));
+        out.close();
       }
-
-      out = response.getWriter();
-      out.println(result);
     }
 
     catch (RedirectException r) {
@@ -245,6 +242,7 @@ public class GolfServlet extends HttpServlet {
 
     catch (Exception x) {
       // send a 500 INTERNAL SERVER ERROR
+      //x.printStackTrace();
       log(context, LOG_INFO, "500 INTERNAL SERVER ERROR");
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
@@ -257,34 +255,11 @@ public class GolfServlet extends HttpServlet {
         if (stored != null)
           stored.golfNum = context.golfNum;
         else
-          clients.put(context.session, new StoredJSVM(context.client, context.golfNum));
+          clients.put(context.session, 
+              new StoredJSVM(context.client, context.golfNum));
       }
-        
       if (out != null) out.close();
     }
-  }
-
-  /**
-   * Figure out the mime type based on the path.
-   *
-   * @param       context     the golf request context
-   * @param       path        the requested resource path
-   * @return                  the mime type
-   */
-  public static String mimeType(final GolfContext context, final String path) {
-    String ret;
-    String file = path.trim();
-
-    if (context.isJSONP || file.endsWith(".js"))
-      ret = "text/javascript";
-    else if (file.endsWith(".html"))
-      ret = "text/html";
-    else if (file.endsWith(".css"))
-      ret = "text/css";
-    else
-      ret = URLConnection.guessContentTypeFromName(file);
-
-    return (ret == null ? "text/plain" : ret);
   }
 
   /**
@@ -470,7 +445,7 @@ public class GolfServlet extends HttpServlet {
    * @return                the resulting page
    */
   private synchronized HtmlPage initClient(final GolfContext context) 
-    throws IOException {
+    throws FileNotFoundException, IOException {
     HtmlPage result;
 
     log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
@@ -486,7 +461,8 @@ public class GolfServlet extends HttpServlet {
     context.client.setJavaScriptTimeout(5000);
 
     // the blank skeleton html template
-    String newHtml = getGolfResourceAsString("new.html");
+    String newHtml = 
+      (new GolfResource(getServletContext(), "new.html")).toString();
 
     // do not pass query string to the app, as those parameters are meant
     // only for the golf container itself.
@@ -626,113 +602,42 @@ public class GolfServlet extends HttpServlet {
 
       // the first opening html tag
       String tmp = result.substring(0, result.indexOf('>'));
-      Log.info("tmp=|" + tmp + "|=");
 
-      if (tmp.matches(".*['\"\\s]class\\s*=\\s*['\"].*")) {
-        Log.info("yes match");
+      // add the component magic classes to the tag
+      if (tmp.matches(".*['\"\\s]class\\s*=\\s*['\"].*"))
         result = 
           result.replaceFirst("^(.*class\\s*=\\s*.)", "$1component " + 
               className + " ");
-      } else {
-        Log.info("no match");
+      else
         result = 
           result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"component " + 
               className + "\"");
-      }
     }
 
     return result;
   }
 
   /**
-   * Fetch a static resource as a String.
+   * Handle a request for a static resource.
    *
    * @param   context       the golf context for this request
-   * @return                the resource as a String or null if not found
    */
-  private String doStaticResourceGet(GolfContext context) 
-    throws FileNotFoundException {
-    String pathInfo = context.params.path;
-    String result  = null;
+  private void doStaticResourceGet(GolfContext context) 
+    throws FileNotFoundException, IOException {
+    String        path    = context.params.path;
 
-    // prefer the full path
-    try {
-      result = getGolfResourceAsString(pathInfo);
+    GolfResource res = new GolfResource(getServletContext(), path);
+    Log.info("mime type is " + res.getMimeType());
+    context.response.setContentType(res.getMimeType());
 
-      if (pathInfo.startsWith("/components/")) 
-        result = processComponent(context, result);
-    } catch (Exception e) {}
-
-    /*
-    // otherwise just the basename
-    if (result == null) {
-      try {
-        String path[] = pathInfo.split("//*");
-
-        if (path.length > 0)
-          result = getGolfResourceAsString(path[path.length - 1]);
-      } catch (Exception e) {}
+    if (res.getMimeType().startsWith("text/")) {
+      PrintWriter out = context.response.getWriter();
+      out.println(path.startsWith("/components/") ? 
+          processComponent(context, res.toString()) : res.toString());
+    } else {
+      OutputStream out = context.response.getOutputStream();
+      out.write(res.toByteArray());
     }
-    */
-
-    if (result == null)
-      throw new FileNotFoundException("static resource "+pathInfo+" not found");
-
-    return result;
-  }
-
-  /**
-   * Retrieves a static golf resource from the system.
-   * <p>
-   * Otherwise, resources are served from 2 places. When a static resource is 
-   * requested with a relative path, those places are searched in the 
-   * following order:
-   * <ol>
-   *  <li>the approot
-   *  <li>the jarfile resources.
-   * </ol>
-   *
-   * @param     name      the name of the resource (may or may not contain '/')
-   * @return              the resource as a stream
-   */
-  private InputStream getGolfResourceAsStream(String name) throws IOException {
-    InputStream is = null;
-
-    name = name.replaceFirst("/", "");
-
-    // from the filesystem
-    try {
-      String realPath = getServletContext().getRealPath(name);
-      File theFile = new File(realPath);
-      if (theFile != null && theFile.exists())
-        is = new FileInputStream(theFile);
-    } catch (Exception x) { /* no worries */ }
-
-    // from the jarfile resource
-    if (is == null) 
-      is = getClass().getClassLoader().getResourceAsStream(name);
-
-    if (is == null)
-      throw new FileNotFoundException("File not found (" + name + ")");
-
-    return is;
-  }
-
-  /**
-   * Returns a resource as a string.
-   *
-   * @param     name        the name of the resource
-   * @return                the resource as a string
-   */
-  private String getGolfResourceAsString(String name) throws IOException {
-    InputStream     is  = getGolfResourceAsStream(name);
-    BufferedReader  sr  = new BufferedReader(new InputStreamReader(is));
-    String          ret = "";
-
-    for (String s=""; (s = sr.readLine()) != null; )
-      ret = ret + s + "\n";
-
-    return ret;
   }
 
   /**
