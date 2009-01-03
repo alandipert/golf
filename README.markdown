@@ -13,57 +13,73 @@ Getting Started With Golf
 
 3. Access the application: point your browser to <http://hostname:port/appname/>.
 
-There are some example apps in the examples/ directory to see how everything works and enjoy. Especially interesting
-is the behavior of these DHTML applications in a browser with javascript disabled. Try it in lynx and see the app
-the way the googlebot does!
+There are some example apps in the examples/ directory to see how
+everything works and enjoy. Especially interesting is the behavior of
+these DHTML applications in a browser with javascript disabled. Try it
+in lynx and see the app the way the googlebot does!
 
 Architecture
 ------------
 
-Golf applications are form the user interface for web services APIs. A golf application is not complete, as such. In
-order to be useful, golf applications must interact with a separate backend service, usually via a RESTful API.
+Golf applications are form the user interface for web services APIs. A
+golf application is not complete, as such. In order to be useful, golf
+applications must interact with a separate backend service, usually via
+a RESTful API.
 
-Golf applications are written in an MVC framework provided by the golf javascript runtime environment. Models and
-controllers are defined in javascript, and components form the views in which content is presented to the user and in
-which the user interacts with the application.
+Golf applications are written in an MVC framework provided by the golf
+javascript runtime environment. Models and controllers are defined in
+javascript, and components form the views in which content is presented
+to the user and in which the user interacts with the application.
 
-The golf application architecture is modular, with the following demarcations (proceeding from most to least general):
+The golf application architecture is modular, with the following
+demarcations (proceeding from most to least general):
 
-* Application (Controller)
-* Screen (Model)
-* Component (View)
+* Application (Controller) * Screen (Model) * Component (View)
 
-The Application and Screen layers are particular to the application, and the Component and Element layers are general
-and reusable across applications. We'll get into this a bit more deeply later, but first it's necessary to describe
-golf's component structure in greater detail.
+The Application and Screen layers are particular to the application,
+and the Component and Element layers are general and reusable across
+applications. We'll get into this a bit more deeply later, but first
+it's necessary to describe golf's component structure in greater detail.
 
-> __Note:__ golf applications make heavy use of javascript at all levels. However, don't worry that this will make your
-> applications any less accessible to clients who do not have javascript! The golf application server transparently
-> proxies DHTML behaviors, AJAX, etc., so you can simply concentrate on making a great user interface and not be bogged
-> down in accessibility details. Try the examples and see for yourself...
+> __Note:__ golf applications make heavy use of javascript at all
+> levels. However, don't worry that this will make your applications
+> any less accessible to clients who do not have javascript! The golf
+> application server transparently proxies DHTML behaviors, AJAX, etc.,
+> so you can simply concentrate on making a great user interface and not
+> be bogged down in accessibility details. Try the examples and see for
+> yourself...
 
 Components
 ----------
 
-In golf, screens are constructed of components. Components are similar to what would be called "partials" in
-Rails---independent HTML fragments that can be inserted into the page during construction. You can think of golf
-components as the elementary particles that make up the user interface. No content smaller than a full component can 
-be added to a screen (although there are certain exceptions to this rule), and no content smaller than a full
-component can be removed. All of the HTML elements in a component are under the exclusive control of that component.
-No other component can access them. Communication between components occurs through a system of custom events,
-forming a tight internal API and facilitating a modular, reusable structure.
+In golf, screens are constructed of components. Components are similar
+to what would be called "partials" in Rails---independent HTML fragments
+that can be inserted into the page during construction. You can think
+of golf components as the elementary particles that make up the user
+interface. No content smaller than a full component can be added to
+a screen (although there are certain exceptions to this rule), and no
+content smaller than a full component can be removed. All of the HTML
+elements in a component are under the exclusive control of that component.
+No other component can access them. Communication between components
+occurs through a system of custom events, forming a tight internal API
+and facilitating a modular, reusable structure.
 
-Components consist of three parts: an HTML template, a javascript transformation, and a CSS file. Each of these files
-is written as though it were the entire document. This is possible because golf carefully sandboxes the HTML, javascript, and CSS, and restricts any effects and access to the component itself. For example, doing
+Components consist of three parts: an HTML template, a javascript
+transformation, and a CSS file. Each of these files is written as though
+it were the entire document. This is possible because golf carefully
+sandboxes the HTML, javascript, and CSS, and restricts any effects and
+access to the component itself. For example, doing
 
     $(".myclass")
 
-in your javascript transformation will only return elements from within the component, and not from any other, or even
-another instance of this component.
+in your javascript transformation will only return elements from within
+the component, and not from any other, or even another instance of
+this component.
 
 ###Example Component
 
-Let's take a quick look at a simple component, just to solidify the concepts here.
+Let's take a quick look at a simple component, just to solidify the
+concepts here.
 
 _hello.html:_
 
@@ -92,13 +108,20 @@ _hello.css:_
         background-color: orange;
     }
 
-What happens when the component is instantiated is this: First, the HTML and javascript files are fetched using
-AJAX. Then the HTML template is inserted into the DOM and a &lt;link&gt; tag is created in the document head to 
-load the CSS for the component. Then the javascript transformation is run, replacing the dummy content with real
-content and setting up the dynamic behaviors. Don't worry if this is vague or unclear to you at this point; it'll
-become natural as we go along. The main point to understand here is the structure of the component, and the
-relationship between the three parts, the HTML template, the javascript transformation, and the CSS.
+What happens when the component is instantiated is this: First, the HTML
+and javascript files are fetched using AJAX. Then the HTML template is
+inserted into the DOM and a &lt;link&gt; tag is created in the document
+head to load the CSS for the component. Then the javascript transformation
+is run, replacing the dummy content with real content and setting up
+the dynamic behaviors. Don't worry if this is vague or unclear to you
+at this point; it'll become natural as we go along. The main point to
+understand here is the structure of the component, and the relationship
+between the three parts, the HTML template, the javascript transformation,
+and the CSS.
 
-Note that this little fragment of HTML, javascript, and CSS is completely atomic. Because of the magical sandboxing
-of the golf runtime, it can be inserted anywhere in the document as a little independent, self-contained widget,
-complete with its own internal dynamic behaviors, styles, and interfaces. Just instantiate it, insert it into the DOM, and let it go. Fire and forget, basically. That's the goal of components.
+Note that this little fragment of HTML, javascript, and CSS is completely
+atomic. Because of the magical sandboxing of the golf runtime, it can be
+inserted anywhere in the document as a little independent, self-contained
+widget, complete with its own internal dynamic behaviors, styles, and
+interfaces. Just instantiate it, insert it into the DOM, and let it
+go. Fire and forget, basically. That's the goal of components.
