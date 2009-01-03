@@ -58,14 +58,14 @@ another instance of this component.
 
 Let's take a quick look at a simple component, just to solidify the concepts here.
 
-_hello.html_
+_hello.html:_
 
     <div>
         <h1 class="big_title">Here's some title text!</h1>
         <div class="hide_show">Button</div>
     </div>
 
-_hello.js_
+_hello.js:_
 
     $(".hide_show").click(function() {
         $(".big_title").toggle();
@@ -75,7 +75,7 @@ _hello.js_
     $(".big_title").text("Hello World");
     $(".hide_show").text("hide");
 
-_hello.css_
+_hello.css:_
 
     h1 {
         color: #FCFCFC;
@@ -84,3 +84,8 @@ _hello.css_
     .hide_show {
         background-color: orange;
     }
+
+What happens when the component is instantiated is this: First, the HTML and javascript files are fetched using
+AJAX. Then the HTML template is inserted into the DOM and a <link> tag is created in the document head to load the 
+CSS for the component. Then the javascript transformation is run, replacing the dummy content with real content, and
+setting up the dynamic behaviors.
