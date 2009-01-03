@@ -148,16 +148,18 @@ a simple example controller, and hopefully make the idea more concrete.
 
 _controller.js:_
 
+    var Component = jQuery.golf.Component;
+
     jQuery.golf.actions = {
 
         home: function(base, argv) {
             base.empty();
-            base.golf("com.thinkminimo.hello", { username: argv[1] });
+            base.append(new Component("com.thinkminimo.hello", { username: argv[1] }));
         },
 
         contact: function(base, argv) {
             base.empty();
-            base.golf("com.thinkminomo.contact");
+            base.append(new Component("com.thinkminomo.contact"));
         },
 
     };
