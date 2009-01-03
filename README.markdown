@@ -14,3 +14,16 @@ Getting Started With Golf
 3. Access the application: point your browser to <http://hostname:port/appname/>.
 
 There are some example apps in the examples/ directory to see how everything works and enjoy.
+
+Architecture
+------------
+
+Golf applications are form the user interface for web services APIs. A golf application is not complete, as such. In
+order to be useful, golf applications must interact with a separate backend service, usually via a RESTful API.
+
+The golf application architecture is modular, with the following demarcations, proceeding from most to least general:
+
+* Application
+* Screen
+* Component
+* Element
