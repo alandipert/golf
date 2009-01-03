@@ -110,6 +110,11 @@ _hello.css:_
         background-color: orange;
     }
 
+This component would be instantiated in the application by doing something
+like this:
+
+    var newguy = new Component("com.thinkminimo.hello", { username: "bob" });
+
 What happens when the component is instantiated is this: First, the HTML
 and javascript files are fetched using AJAX. Then the HTML template is
 inserted into the DOM and a &lt;link&gt; tag is created in the document
@@ -128,8 +133,8 @@ widget, complete with its own internal dynamic behaviors, styles, and
 interfaces. Just instantiate it, insert it into the DOM, and let it
 go. Fire and forget, basically. That's the goal of components.
 
-Controller
-----------
+Controllers
+-----------
 
 The controller is the entry point of the application. That is to say,
 when a URL is requested by the client, that request is delegated to one
