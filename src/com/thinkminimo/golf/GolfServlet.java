@@ -21,9 +21,9 @@ import com.gargoylesoftware.htmlunit.javascript.*;
  */
 public class GolfServlet extends HttpServlet {
   
-  public static final int LOG_DEBUG = 0;
-  public static final int LOG_INFO  = 1;
-  public static final int LOG_WARN  = 2;
+  public static final int LOG_DEBUG = 1;
+  public static final int LOG_INFO  = 2;
+  public static final int LOG_WARN  = 3;
 
   /**
    * Each client in proxy mode has one of these stored javascript
