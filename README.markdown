@@ -111,7 +111,8 @@ _hello.css:_
     }
 
 This component would be instantiated in the application by doing something
-like this:
+like this (assuming that the files are located in the 
+_components/com/thinkminimo_ directory):
 
     var newguy = new Component("com.thinkminimo.hello", { username: "bob" });
 
