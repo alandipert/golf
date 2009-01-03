@@ -86,6 +86,6 @@ _hello.css:_
     }
 
 What happens when the component is instantiated is this: First, the HTML and javascript files are fetched using
-AJAX. Then the HTML template is inserted into the DOM and a <link> tag is created in the document head to load the 
-CSS for the component. Then the javascript transformation is run, replacing the dummy content with real content, and
-setting up the dynamic behaviors.
+AJAX. Then the HTML template is inserted into the DOM and a &lt;link&gt; tag is created in the document head to 
+load the CSS for the component. Then the javascript transformation is run, replacing the dummy content with real
+content and setting up the dynamic behaviors.
