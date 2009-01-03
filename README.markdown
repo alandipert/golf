@@ -13,7 +13,9 @@ Getting Started With Golf
 
 3. Access the application: point your browser to <http://hostname:port/appname/>.
 
-There are some example apps in the examples/ directory to see how everything works and enjoy.
+There are some example apps in the examples/ directory to see how everything works and enjoy. Especially interesting
+is the behavior of these DHTML applications in a browser with javascript disabled. Try it in lynx and see the app
+the way the googlebot does!
 
 Architecture
 ------------
@@ -34,6 +36,11 @@ The golf application architecture is modular, with the following demarcations (p
 The Application and Screen layers are particular to the application, and the Component and Element layers are general
 and reusable across applications. We'll get into this a bit more deeply later, but first it's necessary to describe
 golf's component structure in greater detail.
+
+> __Note:__ golf applications make heavy use of javascript at all levels. However, don't worry that this will make your
+> applications any less accessible to clients who do not have javascript! The golf application server transparently
+> proxies DHTML behaviors, AJAX, etc., so you can simply concentrate on making a great user interface and not be bogged
+> down in accessibility details. Try the examples and see for yourself...
 
 Components
 ----------
