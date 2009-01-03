@@ -37,6 +37,10 @@ Components
 
 In golf, screens are constructed of components. Components are similar to what would be called "partials" in
 Rails---independent HTML fragments that can be inserted into the page during construction. You can think of golf
-components as the elementary particles that make up the user interface.
+components as the elementary particles that make up the user interface. No content smaller than a full component can 
+be added to a screen (although there are certain exceptions to this rule), and no content smaller than a full
+component can be removed. All of the HTML elements in a component are under the exclusive control of that component.
+No other component can access them. Communication between components occurs through a system of custom events,
+forming a tight internal API and facilitating the modular, reusable component structure.
 
 Components consist of three parts: an HTML template, a javascript transformation, and a CSS file. 
