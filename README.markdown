@@ -80,7 +80,7 @@ _hello.css_
     1 h1 {
     2     color: #FCFCFC;
     3 }
-
-    .hide_show {
-        background-color: orange;
-    }
+    4
+    5 .hide_show {
+    6     background-color: orange;
+    7 }
