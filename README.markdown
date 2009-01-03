@@ -100,5 +100,5 @@ become natural as we go along. The main point to understand here is the structur
 relationship between the three parts, the HTML template, the javascript transformation, and the CSS.
 
 Note that this little fragment of HTML, javascript, and CSS is completely atomic. Because of the magical sandboxing
-of the golf runtime, it can be inserted anywhere in the document as a little self-contained widget, complete with its
-own internal dynamic behaviors, styles, and interfaces.
+of the golf runtime, it can be inserted anywhere in the document as a little independent, self-contained widget,
+complete with its own internal dynamic behaviors, styles, and interfaces. Just instantiate it, insert it into the DOM, and let it go. Fire and forget, basically. That's the goal of components.
