@@ -168,4 +168,4 @@ path elements passed in the URI.
 > Note: URIs will be parsed by the golf runtime. Golf expects a URL of
 > the form _http://host.com:port/app/action/arg1/arg2/.../argN/_. This
 > request will be delegated to the _action_ with the argv argument set
-> to _[arg1, arg2, ..., argN]_.
+> to _\[arg1, arg2, ..., argN\]_.
