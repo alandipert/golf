@@ -41,6 +41,12 @@ components as the elementary particles that make up the user interface. No conte
 be added to a screen (although there are certain exceptions to this rule), and no content smaller than a full
 component can be removed. All of the HTML elements in a component are under the exclusive control of that component.
 No other component can access them. Communication between components occurs through a system of custom events,
-forming a tight internal API and facilitating the modular, reusable component structure.
+forming a tight internal API and facilitating a modular, reusable structure.
 
-Components consist of three parts: an HTML template, a javascript transformation, and a CSS file. 
+Components consist of three parts: an HTML template, a javascript transformation, and a CSS file. Each of these files
+is written as though it were the entire document. This is possible because golf carefully sandboxes the HTML, javascript, and CSS, and restricts any effects and access to the component itself. For example, doing
+
+    $(".myclass")
+
+in your javascript transformation will only return elements from within the component, and not from any other, or even
+another instance of this component. 
