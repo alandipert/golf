@@ -126,15 +126,43 @@ widget, complete with its own internal dynamic behaviors, styles, and
 interfaces. Just instantiate it, insert it into the DOM, and let it
 go. Fire and forget, basically. That's the goal of components.
 
-Controllers
------------
+Controller
+----------
 
-Controllers are the entry points of the application. That is to say, when
+The controller is the entry point of the application. That is to say, when
 a URL is requested by the client, that request is delegated to one of the
-application's controllers for servicing. The controllers form the bridge
+controller's _actions_ for servicing. The controller forms the bridge
 between the models and the views, i.e. hooking the content and business
 logic in the backend application interface to the components in the 
 frontend user interface. 
 
+When the client requests a URL, it will be of the form:
+
+    http://host.com:port/app/action/arg1/.../argN/?param1=value1&...&paramN=valueN
+
 Later on we'll see a number of default controller behaviors that are
 included in the golf runtime to make your job a lot easier.
+
+###Example Controller
+
+Again, the best way to illustrate the concept is probably just to present
+a simple example controller, and hopefully make the idea more concrete.
+
+_controller.js:_
+
+    jQuery.golf.controllers = {
+
+        home: function(base, argv) {
+            base.empty();
+            base.golf("com.thinkminimo.hello", { username: argv[1] });
+        },
+
+        contact: function(base, argv) {
+            base.empty();
+            base.golf("com.thinkminomo.contact");
+        },
+
+    };
+
+Here we have two controllers defined: _home_ and _contact_. Incidentally,
+the _home_ controller is the default.
