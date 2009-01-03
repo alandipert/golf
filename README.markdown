@@ -177,3 +177,10 @@ path elements passed in the URI.
 > the form _http://host.com:port/app/action/arg1/arg2/.../argN/_. This
 > request will be delegated to the _action_ with the argv argument set
 > to _\[arg1, arg2, ..., argN\]_.
+
+Glosssary
+=========
+
+Here's a rundown of the golf jargon you might have seen:
+
+__approot:__ The base directory of your golf application.
