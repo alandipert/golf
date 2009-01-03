@@ -60,26 +60,26 @@ Let's take a quick look at a simple component, just to solidify the concepts her
 
 _hello.html_
 
-    <div>
-        <h1 class="big_title">Here's some title text!</h1>
-        <div class="hide_show">Button</div>
-    </div>
+    1 <div>
+    2     <h1 class="big_title">Here's some title text!</h1>
+    3     <div class="hide_show">Button</div>
+    4 </div>
 
 _hello.js_
 
-    $(".hide_show").click(function() {
-        $(".big_title").toggle();
-        $(".hide_show").text($(".hide_show").text() == "hide" ? "show" : "hide");
-    });
-
-    $(".big_title").text("Hello World");
-    $(".hide_show").text("hide");
+    1 $(".hide_show").click(function() {
+    2     $(".big_title").toggle();
+    3     $(".hide_show").text($(".hide_show").text() == "hide" ? "show" : "hide");
+    4 });
+    5
+    6 $(".big_title").text("Hello World");
+    7 $(".hide_show").text("hide");
 
 _hello.css_
 
-    h1 {
-        color: #FCFCFC;
-    }
+    1 h1 {
+    2     color: #FCFCFC;
+    3 }
 
     .hide_show {
         background-color: orange;
