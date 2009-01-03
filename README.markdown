@@ -97,7 +97,7 @@ _hello.js:_
         $(".hide_show").text($(".hide_show").text() == "hide" ? "show" : "hide");
     });
     
-    $(".big_title").text("Hello, " + $.argv.username);
+    $(".big_title").text("Hello, " + $.argv.username + "!");
     $(".hide_show").text("hide");
 
 _hello.css:_
