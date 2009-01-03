@@ -148,8 +148,6 @@ a simple example controller, and hopefully make the idea more concrete.
 
 _controller.js:_
 
-    var Component = jQuery.golf.Component;
-
     jQuery.golf.actions = {
 
         home: function(base, argv) {
