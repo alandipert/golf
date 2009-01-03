@@ -136,28 +136,6 @@ bridge between the models and the views, i.e. hooking the content and
 business logic in the backend application interface to the components
 in the frontend user interface.
 
-In order to understand the function of the controller it is necessary
-to take a look at the URL-parsing convention used by the golf runtime
-to route requests to actions.
-
-###How URLs Are Parsed
-
-When the client requests a URL, it will be of the form:
-
-    http://host.com:port/app/action/arg1/.../argN/?param1=value1&...&paramN=valueN
-
-First of all, for now, completely disregard the query string (everything
-after the '?').
-
-So for example, consider the "blog" application running on
-www.example.com, port 8080. This application might have a number of
-screens, corresponding to various functionality the application
-provides. It might have a login screen where users can authenticate,
-a "home" screen that displays a number of recent posts, and a
-"create post" screen where authors can write their posts.
-
-In this scheme 
-
 Later on we'll see a number of default controller behaviors that are
 included in the golf runtime to make your job a lot easier.
 
@@ -183,4 +161,11 @@ _controller.js:_
     };
 
 Here we have two controllers defined: _home_ and _contact_. Incidentally,
-the _home_ controller is the default.
+the _home_ controller is the default. The _base_ argument is the
+jQuery-wrapped document body, and the _argv_ argument is the list of
+path elements passed in the URI.
+
+> Note: URIs will be parsed by the golf runtime. Golf expects a URL of
+> the form _http://host.com:port/app/action/arg1/arg2/.../argN/_. This
+> request will be delegated to the _action_ with the argv argument set
+> to _[arg1, arg2, ..., argN]_.
