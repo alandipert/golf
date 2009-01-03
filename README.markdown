@@ -34,7 +34,9 @@ to the user and in which the user interacts with the application.
 The golf application architecture is modular, with the following
 demarcations (proceeding from most to least general):
 
-* Application (Controller) * Screen (Model) * Component (View)
+* Application (Controller)
+* Screen (Model)
+* Component (View)
 
 The Application and Screen layers are particular to the application,
 and the Component and Element layers are general and reusable across
