@@ -126,7 +126,8 @@ widget, complete with its own internal dynamic behaviors, styles, and
 interfaces. Just instantiate it, insert it into the DOM, and let it
 go. Fire and forget, basically. That's the goal of components.
 
-###Controllers
+Controllers
+-----------
 
 Controllers are the entry points of the application. That is to say, when
 a URL is requested by the client, that request is delegated to one of the
