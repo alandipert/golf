@@ -125,3 +125,15 @@ inserted anywhere in the document as a little independent, self-contained
 widget, complete with its own internal dynamic behaviors, styles, and
 interfaces. Just instantiate it, insert it into the DOM, and let it
 go. Fire and forget, basically. That's the goal of components.
+
+###Controllers
+
+Controllers are the entry points of the application. That is to say, when
+a URL is requested by the client, that request is delegated to one of the
+application's controllers for servicing. The controllers form the bridge
+between the models and the views, i.e. hooking the content and business
+logic in the backend application interface to the components in the 
+frontend user interface. 
+
+Later on we'll see a number of default controller behaviors that are
+included in the golf runtime to make your job a lot easier.
