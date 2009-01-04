@@ -114,7 +114,7 @@ This component would be instantiated in the application by doing something
 like this (assuming that the files are located in the 
 _components/com/thinkminimo/_ directory relative to the approot):
 
-    new Component("com.thinkminimo.hello", elem, { username: "bob" });
+    new Component("com.thinkminimo.hello", base, { username: "bob" });
 
 What happens when the component is instantiated is this: First, the HTML
 and javascript files are fetched using AJAX. Then the HTML template is
