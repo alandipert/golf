@@ -98,7 +98,7 @@ public class GolfServlet extends HttpServlet {
         session     = request.getParameter("session");
         golf        = request.getParameter("golf");
         js          = request.getParameter("js");
-        jsonp       = request.getParameter("jsonp");
+        jsonp       = request.getParameter("callback");
         path        = request.getParameter("path");
         mock        = request.getParameter("mock");
       }
@@ -130,6 +130,8 @@ public class GolfServlet extends HttpServlet {
     public boolean              hasEvent    = false;
     /** whether or not client mode is disabled */
     public boolean              proxyonly   = false;
+    /** whether or not to run in dev mode, i.e. no caching etc */
+    public boolean              devMode     = true;
     /** the jsvm for this request */
     public WebClient            client      = null;
     /** recognized http request query string parameters */
@@ -199,7 +201,7 @@ public class GolfServlet extends HttpServlet {
    * @param       request     the http request object
    * @param       response    the http response object
    */
-  public void service(HttpServletRequest request, HttpServletResponse response)
+  public void doGet(HttpServletRequest request, HttpServletResponse response)
     throws IOException, ServletException
   {
     GolfContext   context         = new GolfContext(request, response);
@@ -458,7 +460,7 @@ public class GolfServlet extends HttpServlet {
     });
 
     // set the time a script is allowed to run for before being cut off
-    context.client.setJavaScriptTimeout(5000);
+    context.client.setJavaScriptTimeout(10000);
 
     // the blank skeleton html template
     String newHtml = 
@@ -560,6 +562,9 @@ public class GolfServlet extends HttpServlet {
         result = cached;
       else
         throw new Exception("cached page should exist but was not found");
+
+      if (context.devMode)
+        cachedPages.remove(pathInfo);
     }
 
     context.golfNum++;
