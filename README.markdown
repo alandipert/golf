@@ -1,15 +1,15 @@
 Getting Started With Golf
 =========================
 
-1. Compile golf.jar:
+1. Compile Golf.jar:
         
-        $ cd <golf directory>
+        $ cd <Golf directory>
         $ ant
 
 2. Start the server:
 
-        $ cd <golf directory>
-        $ ./golf-start.sh -p <port> <appname>@<path/to/approot> [<appname2>@<path/to/approot2> ...] 
+        $ cd <Golf directory>
+        $ ./Golf-start.sh -p <port> <appname>@<path/to/approot> [<appname2>@<path/to/approot2> ...] 
 
 3. Access the application: point your browser to <http://hostname:port/appname/>.
 
@@ -18,46 +18,52 @@ everything works and enjoy. Especially interesting is the behavior of
 these DHTML applications in a browser with javascript disabled. Try it
 in lynx and see the app the way the googlebot does!
 
-Architecture
-------------
-
-Golf applications are form the user interface for web services APIs. A
-golf application is not complete, as such. In order to be useful, golf
+Golf applications form the user interface for web services APIs. A
+Golf application is not complete, as such. In order to be useful, Golf
 applications must interact with a separate backend service, usually via
 a RESTful API.
 
-Golf applications are written in an MVC framework provided by the golf
-javascript runtime environment. Models and controllers are defined in
-javascript, and components form the views in which content is presented
-to the user and in which the user interacts with the application.
+Introduction
+------------
 
-The golf application architecture is modular, with the following
-demarcations (proceeding from most to least general):
+Golf applications form the user interface for web services APIs. A
+Golf application is not complete, as such. In order to be useful, Golf
+applications must interact with a separate backend service, usually via a
+RESTful API. Golf applications are responsive, fully dynamic "2.0" style
+interfaces. They are also, however, real HTML documents, as well---fully
+accessible to non-javascript browsers and search engine spiders.
 
-* Application (Controller)
-* Screen (Model)
-* Component (View)
+Golf applications can be developed rapidly and naturally due to the
+extreme simplicity of the architecture. A proper separation of content
+and presentation is required, which encourages good application design
+from the beginning. Finally, the Golf component architecture facilitates
+easy reusability of your view elements.
 
-The Application and Screen layers are particular to the application,
-and the Component and Element layers are general and reusable across
-applications. We'll get into this a bit more deeply later, but first
-it's necessary to describe golf's component structure in greater detail.
+Golf applications must be served (at least partly---we'll see why later)
+by the Golf application server. The Golf application server provides
+three primary services:
 
-> __Note:__ golf applications make heavy use of javascript at all
-> levels. However, don't worry that this will make your applications
-> any less accessible to clients who do not have javascript! The golf
-> application server transparently proxies DHTML behaviors, AJAX, etc.,
-> so you can simply concentrate on making a great user interface and not
-> be bogged down in accessibility details. Try the examples and see for
-> yourself...
+1. __clientside MVC framework:__ a javascript MVC framework with
+   template-based views and ActiveRecord style models, and a javascript
+   controller with actions implementing callbacks corresponding to an action
+   lifecycle (allowing the controller to save and restore its state when
+   invoked or destroyed)
+2. __zero-configuration Cloudfront caching:__ an optional, fully automatic
+   and transparent AWS Cloudfront caching of 99% of the Golf application
+   (clients use JSONP to fetch UI elements from Cloudfront---we'll see
+   how later)
+3. a serverside javascript proxy which enables fully dynamic AJAX DHTML
+   Golf apps to work reliably and transparently in non-javascript browsers
+   (googlebot, for example), with zero redundant code or special effort
+   required (easier to show than tell, so check out the demo!)
 
 Components
 ----------
 
-In golf, screens are constructed of components. Components are similar
+In Golf, screens are constructed of components. Components are similar
 to what would be called "partials" in Rails---independent HTML fragments
 that can be inserted into the page during construction. You can think
-of golf components as the elementary particles that make up the user
+of Golf components as the elementary particles that make up the user
 interface. No content smaller than a full component can be added to
 a screen (although there are certain exceptions to this rule), and no
 content smaller than a full component can be removed. All of the HTML
@@ -68,7 +74,7 @@ and facilitating a modular, reusable structure.
 
 Components consist of three parts: an HTML template, a javascript
 transformation, and a CSS file. Each of these files is written as though
-it were the entire document. This is possible because golf carefully
+it were the entire document. This is possible because Golf carefully
 sandboxes the HTML, javascript, and CSS, and restricts any effects and
 access to the component itself. For example, doing
 
@@ -128,7 +134,7 @@ between the three parts, the HTML template, the javascript transformation,
 and the CSS.
 
 Note that this little fragment of HTML, javascript, and CSS is completely
-atomic. Because of the magical sandboxing of the golf runtime, it can be
+atomic. Because of the magical sandboxing of the Golf runtime, it can be
 inserted anywhere in the document as a little independent, self-contained
 widget, complete with its own internal dynamic behaviors, styles, and
 interfaces. Just instantiate it, insert it into the DOM, and let it
@@ -145,7 +151,7 @@ business logic in the backend application interface to the components
 in the frontend user interface.
 
 Later on we'll see a number of default controller behaviors that are
-included in the golf runtime to make your job a lot easier.
+included in the Golf runtime to make your job a lot easier.
 
 ###Example Controller
 
@@ -173,7 +179,7 @@ the _home_ controller is the default. The _base_ argument is the
 jQuery-wrapped document body, and the _argv_ argument is the list of
 path elements passed in the URI.
 
-> Note: URIs will be parsed by the golf runtime. Golf expects a URL of
+> Note: URIs will be parsed by the Golf runtime. Golf expects a URL of
 > the form _http://host.com:port/app/action/arg1/arg2/.../argN/_. This
 > request will be delegated to the _action_ with the argv argument set
 > to _\[arg1, arg2, ..., argN\]_.
@@ -181,6 +187,6 @@ path elements passed in the URI.
 Glosssary
 =========
 
-Here's a rundown of the golf jargon you might have seen:
+Here's a rundown of the Golf jargon you might have seen:
 
-__approot:__ The base directory of your golf application.
+__approot:__ The base directory of your Golf application.
