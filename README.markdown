@@ -80,26 +80,22 @@ manner similar to XSLT transforms, but in javascript using jQuery. This
 provides what clientside XSLT lacks: integration with the rest of the
 javascript browser environment, simplicity, and ease of use.
 
-Components consist of three parts: an HTML template, a javascript
-transformation, and a CSS file.
+Components consist of three parts:
 
-* __The HTML and CSS files__ form a template
-perhaps including dummy content, even. Any graphic designer can
-create the template using standard HTML authoring tools with no
-need to know anything about golf or javascript, etc. Templates can
-be taken directly out of Dreamweaver with no substantial 
-modifications necessary.
+* __An HTML template:__ This forms the structure of the component,
+  where all the DOM elements are specified.
 
-* __The javascript file__ uses the power of jQuery to transform the HTML
-template into the final document by replacing dummy content with
-real content, inserting nested components, and attaching dynamic
-behaviors.
+* __A javascript transformation:__ This script runs when the
+  component is instantiated. It removes any dummy content from
+  the HTML template, inserts the actual content, and attaches
+  dynamic behaviors to DOM elements inside the component.
 
-Each of these files is written as
-though it were the entire document, with no external coupling. This
-is possible because Golf carefully sandboxes the HTML, javascript, and
-CSS, and restricts any effects and access to the component itself. For
-example, doing
+* __A CSS file:__ Provides styling attributes via standard CSS.
+
+The component code is effectively restricted to operating only
+within itself. Using jQuery's $ selector returns matching elements
+_within the component only_, as do selectors in the CSS file.
+Specifically, doing something like this,
 
     $(".myclass")
 
@@ -115,8 +111,8 @@ when the component is used in another application.
 
 ###Example Component
 
-Let's take a quick look at a simple component, just to solidify the
-concepts here. Consider the three parts of a _Hello_ component, below. In
+Let's take a quick look at a simple example, just to solidify the
+concepts. Consider the three parts of a _hello_ component, below. In
 particular note the use of dummy content in the HTML template, and the
 javascript events that are used to add dynamic behaviors.
 
