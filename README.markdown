@@ -193,12 +193,11 @@ _controller.js:_
 
     };
 
-Here we have one controller action defined: _home_ (_home_ is,
-incidentally, the default action, as well). The _savedState_ argument
-is an object that is maintained by the runtime at the application scope
-where the component's state can be stored between invocations, _base_
-is the jQuery-wrapped document body, and _argv_ is the list of path
-elements (see note below) passed in the URI.
+Here we have one controller action defined: _home_. The _savedState_
+argument is an object that is maintained by the runtime at the application
+scope where the component's state can be stored between invocations,
+_base_ is the jQuery-wrapped document body, and _argv_ is the list of
+path elements (see note below) passed in the URI.
 
 > Note: URIs will be parsed by the Golf runtime. Golf expects a URL of
 > the form _http://host.com:port/app/action/arg1/arg2/.../argN/_. This
