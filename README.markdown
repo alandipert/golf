@@ -227,6 +227,52 @@ path elements (see note below) passed in the URI.
 > request will be delegated to the _action_ with the argv argument set
 > to _\[arg1, arg2, ..., argN\]_.
 
+Golf Applications
+-----------------
+
+A golf application consists of a number of components, a controller.js
+file, and some resources (images, supplementary CSS files, etc.) One
+of the goals of Golf was to simplify application development, and so
+the directory structure that is required is quite simple. Your
+application has an "approot"; the outermost directory containing all
+application resources and files. 
+
+There are two requirements with respect to the structure of your
+approot:
+
+1. Components are placed in a directory named _components_ in the
+   approot.
+2. The _controller.js_ file is placed directly in the approot.
+
+And that's it! Whew! So for our example application we might have the
+following (minimal) structure:
+
+    hello/
+      |
+      +- components/
+      |    |
+      |    +- com/
+      |         |
+      |         +- example/
+      |              |
+      |              +- hello.html
+      |              +- hello.css
+      |              +- hello.js
+      |
+      +- controller.js
+
+Note the structure of the components directory. This illustrates the
+namespacing scheme. Same as Java, basically, this component would be
+instantiated as "com.example.hello".
+
+###Application Resources
+
+Static resources can be included with your application, as well. Any
+resource can be referenced by path, relative to the approot. Thus, if
+you want to include some images, for example, you can create an "images"
+directory in your approot and then reference images as 
+_images/myimage.jpg_, etc.
+
 Glosssary
 =========
 
