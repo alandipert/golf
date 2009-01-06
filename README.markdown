@@ -15,13 +15,8 @@ Getting Started With Golf
 
 There are some example apps in the examples/ directory to see how
 everything works and enjoy. Especially interesting is the behavior of
-these DHTML applications in a browser with javascript disabled. Try it
-in lynx and see the app the way the googlebot does!
-
-Golf applications form the user interface for web services APIs. A
-Golf application is not complete, as such. In order to be useful, Golf
-applications must interact with a separate backend service, usually via
-a RESTful API.
+these DHTML applications in a browser with javascript disabled. (Try it
+in lynx and see the app the way googlebot does...)
 
 Introduction
 ------------
@@ -30,18 +25,21 @@ Golf applications form the user interface for web services APIs. A
 Golf application is not complete, as such. In order to be useful, Golf
 applications must interact with a separate backend service, usually via a
 RESTful API. Golf applications are responsive, fully dynamic "2.0" style
-interfaces. They are also, however, real HTML documents, as well---fully
+interfaces. They are, at the same time, real HTML documents---fully
 accessible to non-javascript browsers and search engine spiders.
 
 Golf applications can be developed rapidly and naturally due to the
 extreme simplicity of the architecture. A proper separation of content
-and presentation is required, which encourages good application design
+and presentation is built-in, which encourages good application design
 from the beginning. Finally, the Golf component architecture facilitates
 easy reusability of your view elements.
 
+The Golf Application Server
+---------------------------
+
 Golf applications must be served (at least partly---we'll see why later)
-by the Golf application server. The application server provides three
-primary services:
+by the Golf application server. The application server performs three
+primary functions:
 
 * __Clientside MVC framework:__ A javascript MVC framework with
   template-based views and ActiveRecord style models, controller actions
@@ -57,18 +55,14 @@ primary services:
   which enables fully dynamic AJAX DHTML Golf apps to work reliably and
   transparently in non-javascript browsers (googlebot, for example),
   with zero redundant code or special effort required. (Easier to show
-  than tell, so check out the demo!)
-
-> __Note:__ Golf uses jQuery extensively. You may have a hard time
-> understanding the examples in this document without at least a 
-> working knowledge of jQuery scripting. Sorry!
+  than tell, so check out the demo...)
 
 Components
 ----------
 
 In Golf, everything is constructed of components. Components are similar
 to what would be called "partials" in Rails---independent interface
-"units" that can be inserted into the page. Pages are made up of a single
+units that can be inserted into the page. Pages are made up of a single
 outermost component and possibly multiple internal nested components. You
 can think of Golf components as the elementary particles that make up the
 user interface. No content smaller than a full component can be added to a
@@ -86,12 +80,22 @@ manner similar to XSLT transforms, but in javascript using jQuery. This
 provides what clientside XSLT lacks: integration with the rest of the
 javascript browser environment, simplicity, and ease of use.
 
-Components consist of three parts: an HTML template, a javascript
-transformation, and a CSS file. Each of these files is written as
-though it were the entire document, with no external coupling. This
-is possible because Golf carefully sandboxes the HTML, javascript, and
-CSS, and restricts any effects and access to the component itself. For
-example, doing
+Components consist of three parts:
+
+* __An HTML template:__ This forms the structure of the component,
+  where all the DOM elements are specified.
+
+* __A javascript transformation:__ This script runs when the
+  component is instantiated. It removes any dummy content from
+  the HTML template, inserts the actual content, and attaches
+  dynamic behaviors to DOM elements inside the component.
+
+* __A CSS file:__ Provides styling attributes via standard CSS.
+
+The component code is effectively restricted to operating only
+within itself. Using jQuery's $ selector returns matching elements
+_within the component only_, as do selectors in the CSS file.
+Specifically, doing something like this,
 
     $(".myclass")
 
@@ -101,10 +105,14 @@ this component. You can write your component javascript behaviors in
 a free and natural way, without worries that you will be running amok
 when the component is used in another application.
 
+> __Note:__ Golf uses jQuery extensively. You may have a hard time
+> understanding the examples in this document without at least a 
+> working knowledge of jQuery scripting. Sorry!
+
 ###Example Component
 
-Let's take a quick look at a simple component, just to solidify the
-concepts here. Consider the three parts of a _Hello_ component, below. In
+Let's take a quick look at a simple example, just to solidify the
+concepts. Consider the three parts of a _hello_ component, below. In
 particular note the use of dummy content in the HTML template, and the
 javascript events that are used to add dynamic behaviors.
 
@@ -145,17 +153,17 @@ instantiated in the application by doing something like this:
 where the arguments are the component name, the DOM element to append the
 component to, and any configuration parameters the component requires.
 
-What happens when the component is instantiated is this: First,
-the HTML and javascript files are fetched using JSONP (either from
-Cloudfront or from the application server itself). Then the HTML
-template is inserted into the DOM and a &lt;link&gt; tag is created in
-the document head to load the CSS (from Cloudfront or the application
-server) for the component. Then the javascript transformation is run,
-replacing the dummy content with real content and setting up the dynamic
-behaviors. Don't worry if this is vague or unclear to you at this point;
-it'll become natural as we go along. The main point to understand here
-is the structure of the component, and the relationship between the three
-parts, the HTML template, the javascript transformation, and the CSS.
+###Component Instances
+
+What happens when the component is instantiated is this:
+
+1. HTML and javascript files are fetched dynamically using AJAX
+2. HTML is parsed and inserted into the DOM
+3. a &lt;link&gt; tag is appended to the document head to load the
+   CSS file
+4. The javascript transform is run. Content is inserted into the
+   component, nested components are instantiated, and dynamic
+   behaviors are attached to the component's DOM elements.
 
 Keep in mind that this little fragment of HTML, javascript, and CSS is
 completely atomic. Because of the sandboxing done in the Golf runtime,
@@ -218,6 +226,52 @@ path elements (see note below) passed in the URI.
 > the form _http://host.com:port/app/action/arg1/arg2/.../argN/_. This
 > request will be delegated to the _action_ with the argv argument set
 > to _\[arg1, arg2, ..., argN\]_.
+
+Golf Applications
+-----------------
+
+A golf application consists of a number of components, a controller.js
+file, and some resources (images, supplementary CSS files, etc.) One
+of the goals of Golf was to simplify application development, and so
+the directory structure that is required is quite simple. Your
+application has an "approot"; the outermost directory containing all
+application resources and files. 
+
+There are two requirements with respect to the structure of your
+approot:
+
+1. Components are placed in a directory named _components_ in the
+   approot.
+2. The _controller.js_ file is placed directly in the approot.
+
+And that's it! Whew! So for our example application we might have the
+following (minimal) structure:
+
+    hello/
+      |
+      +- components/
+      |    |
+      |    +- com/
+      |         |
+      |         +- example/
+      |              |
+      |              +- hello.html
+      |              +- hello.css
+      |              +- hello.js
+      |
+      +- controller.js
+
+Note the structure of the components directory. This illustrates the
+namespacing scheme. Same as Java, basically, this component would be
+instantiated as "com.example.hello".
+
+###Application Resources
+
+Static resources can be included with your application, as well. Any
+resource can be referenced by path, relative to the approot. Thus, if
+you want to include some images, for example, you can create an "images"
+directory in your approot and then reference images as 
+_images/myimage.jpg_, etc.
 
 Glosssary
 =========

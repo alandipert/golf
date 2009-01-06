@@ -86,8 +86,6 @@ public class GolfServlet extends HttpServlet {
       public String       path        = null; 
       /** whether or not to use mockup mode */
       public String       mock        = null; 
-      /** the ec2 instance ID */
-      public String       instance    = null; 
 
       /**
        * Constructor.
