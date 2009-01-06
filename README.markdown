@@ -89,12 +89,16 @@ example, doing
 
 in your javascript transformation will only return elements from within
 the component, and not from any other, or even another instance of
-this component.
+this component. You can write your component javascript behaviors in
+a free and natural way, without worries that you will be running amok
+when the component is used in another application.
 
 ###Example Component
 
 Let's take a quick look at a simple component, just to solidify the
-concepts here.
+concepts here. Consider the three parts of a _Hello_ component, below. In
+particular note the use of dummy content in the HTML template, and the
+javascript events that are used to add dynamic behaviors.
 
 _hello.html:_
 
@@ -123,11 +127,13 @@ _hello.css:_
         background-color: orange;
     }
 
-This component would be instantiated in the application by doing something
-like this (assuming that the files are located in the 
-_components/com/thinkminimo/_ directory relative to the approot):
+In this component we have a simple heading and a button to toggle the
+visibility of the heading text. This component would be instantiated in the application by doing something like this:
 
-    new Component("com.thinkminimo.hello", base, { username: "bob" });
+    new Component("hello", base, { username: "bob" });
+
+where the arguments are the component name, the DOM element to append the
+component to, and any configuration parameters the component requires.
 
 What happens when the component is instantiated is this: First, the HTML
 and javascript files are fetched using AJAX. Then the HTML template is
@@ -140,12 +146,13 @@ understand here is the structure of the component, and the relationship
 between the three parts, the HTML template, the javascript transformation,
 and the CSS.
 
-Note that this little fragment of HTML, javascript, and CSS is completely
-atomic. Because of the magical sandboxing of the Golf runtime, it can be
-inserted anywhere in the document as a little independent, self-contained
-widget, complete with its own internal dynamic behaviors, styles, and
-interfaces. Just instantiate it, insert it into the DOM, and let it
-go. Fire and forget, basically. That's the goal of components.
+Keep in mind that this little fragment of HTML, javascript, and CSS is
+completely atomic. Because of the sandboxing done in the Golf runtime,
+it can be inserted anywhere in the document as a little independent,
+self-contained widget, complete with its own internal dynamic behaviors,
+styles, and interfaces. Just instantiate it, insert it into the DOM,
+and let it go. Fire and forget, basically. That's the overall goal
+of components.
 
 Controllers
 -----------
@@ -157,8 +164,13 @@ bridge between the models and the views, i.e. hooking the content and
 business logic in the backend application interface to the components
 in the frontend user interface.
 
-Later on we'll see a number of default controller behaviors that are
-included in the Golf runtime to make your job a lot easier.
+Each application has a _controller.js_ file where the actions are defined.
+Actions must implement the controller lifecycle callbacks _onCreate_
+and _onDestroy_. These callbacks allow the action to save and restore
+its state when it is created or destroyed. LAter on we'll see why this
+is important, but for now we can relax and move along.  Also, later on
+we'll see a number of default controller behaviors that are included in
+the Golf runtime to make your job a lot easier.
 
 ###Example Controller
 
@@ -169,22 +181,23 @@ _controller.js:_
 
     jQuery.golf.actions = {
 
-        home: function(base, argv) {
-            base.empty();
-            new Component("com.thinkminimo.hello", base, { username: argv[1] });
-        },
+        home: {
+            onCreate: function(savedState, prev, base, argv) {
+                base.empty();
+                new Component("hello", base, { username: argv[1] });
+            },
 
-        contact: function(base, argv) {
-            base.empty();
-            new Component("com.thinkminomo.contact", base);
+            onDestroy: function(savedState, next) {
+            },
         },
 
     };
 
-Here we have two controllers defined: _home_ and _contact_. Incidentally,
-the _home_ controller is the default. The _base_ argument is the
-jQuery-wrapped document body, and the _argv_ argument is the list of
-path elements passed in the URI.
+Here we have one controller action defined: _home_ (_home_ is,
+incidentally, the default action, as well). The _savedState_ argument is
+an object that is maintained by the runtime at the application scope,
+_base_ is the jQuery-wrapped document body, and _argv_ is the list of
+path elements (see note below) passed in the URI.
 
 > Note: URIs will be parsed by the Golf runtime. Golf expects a URL of
 > the form _http://host.com:port/app/action/arg1/arg2/.../argN/_. This
