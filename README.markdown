@@ -74,10 +74,11 @@ can think of Golf components as the elementary particles that make up the
 user interface. No content smaller than a full component can be added to a
 page (although there are certain exceptions to this rule), and no content
 smaller than a full component can be removed from it. Additionally,
-all of the HTML elements in a component are under the exclusive control
-of that component; No other component can access them. Communication
-between components occurs through a system of custom events, forming a
-tight internal API and facilitating a modular, reusable structure.
+components are effectively opaque---no other component can access any
+of its internal HTML elements, nor can they access the internal nested
+components. Communication between components occurs through a system of
+custom events, forming a tight internal API and facilitating a modular,
+reusable structure.
 
 Components consist of three parts: an HTML template, a javascript
 transformation, and a CSS file. Each of these files is written as
