@@ -80,6 +80,12 @@ components. Communication between components occurs through a system of
 custom events, forming a tight internal API and facilitating a modular,
 reusable structure.
 
+The interface, or page, is composed of multiple components, and this
+composition is done on the client. The dynamic views are created in a
+manner similar to XSLT transforms, but in javascript using jQuery. This
+provides what clientside XSLT lacks: integration with the rest of the
+javascript browser environment, simplicity, and ease of use.
+
 Components consist of three parts: an HTML template, a javascript
 transformation, and a CSS file. Each of these files is written as
 though it were the entire document, with no external coupling. This
