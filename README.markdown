@@ -55,14 +55,14 @@ primary functions:
   which enables fully dynamic AJAX DHTML Golf apps to work reliably and
   transparently in non-javascript browsers (googlebot, for example),
   with zero redundant code or special effort required. (Easier to show
-  than tell, so check out the demo!)
+  than tell, so check out the demo...)
 
 Components
 ----------
 
 In Golf, everything is constructed of components. Components are similar
 to what would be called "partials" in Rails---independent interface
-"units" that can be inserted into the page. Pages are made up of a single
+units that can be inserted into the page. Pages are made up of a single
 outermost component and possibly multiple internal nested components. You
 can think of Golf components as the elementary particles that make up the
 user interface. No content smaller than a full component can be added to a
@@ -81,7 +81,21 @@ provides what clientside XSLT lacks: integration with the rest of the
 javascript browser environment, simplicity, and ease of use.
 
 Components consist of three parts: an HTML template, a javascript
-transformation, and a CSS file. Each of these files is written as
+transformation, and a CSS file.
+
+* __The HTML and CSS files__ form a template
+perhaps including dummy content, even. Any graphic designer can
+create the template using standard HTML authoring tools with no
+need to know anything about golf or javascript, etc. Templates can
+be taken directly out of Dreamweaver with no substantial 
+modifications necessary.
+
+* __The javascript file__ uses the power of jQuery to transform the HTML
+template into the final document by replacing dummy content with
+real content, inserting nested components, and attaching dynamic
+behaviors.
+
+Each of these files is written as
 though it were the entire document, with no external coupling. This
 is possible because Golf carefully sandboxes the HTML, javascript, and
 CSS, and restricts any effects and access to the component itself. For
