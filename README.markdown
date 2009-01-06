@@ -46,13 +46,12 @@ primary services:
 * __Clientside MVC framework:__ A javascript MVC framework with
   template-based views and ActiveRecord style models, controller actions
   implementing callbacks corresponding to an action lifecycle (allowing
-  the controller to save and restore its state when invoked or destroyed),
-  and models based on the ActiveRecord pattern.
+  the controller to save and restore its state when invoked or destroyed).
 
 * __Zero-configuration Cloudfront caching:__ An optional, fully automatic
-  and transparent AWS Cloudfront caching of 99% of the Golf application
-  (clients use JSONP to fetch UI elements from Cloudfront---we'll see
-  how later).
+  and transparent AWS Cloudfront caching of 99% of the Golf application,
+  including dynamic content (clients use JSONP to fetch UI elements from
+  Cloudfront---we'll see how later).
 
 * __DHTML accessibility proxy:__ A serverside javascript proxy
   which enables fully dynamic AJAX DHTML Golf apps to work reliably and
@@ -60,26 +59,31 @@ primary services:
   with zero redundant code or special effort required. (Easier to show
   than tell, so check out the demo!)
 
+> __Note:__ Golf uses jQuery extensively. You may have a hard time
+> understanding the examples in this document without at least a 
+> working knowledge of jQuery scripting. Sorry!
+
 Components
 ----------
 
-In Golf, screens are constructed of components. Components are similar
-to what would be called "partials" in Rails---independent HTML fragments
-that can be inserted into the page during construction. You can think
-of Golf components as the elementary particles that make up the user
-interface. No content smaller than a full component can be added to
-a screen (although there are certain exceptions to this rule), and no
-content smaller than a full component can be removed. All of the HTML
-elements in a component are under the exclusive control of that component.
+In Golf, everything is constructed of components. Components are similar
+to what would be called "partials" in Rails---independent interface
+"units" that can be inserted into the page during construction. You can
+think of Golf components as the elementary particles that make up the
+user interface. No content smaller than a full component can be added
+to a page (although there are certain exceptions to this rule), and
+no content smaller than a full component can be removed. All of the HTML
+elements in a component are under the exclusive control of that component;
 No other component can access them. Communication between components
 occurs through a system of custom events, forming a tight internal API
 and facilitating a modular, reusable structure.
 
 Components consist of three parts: an HTML template, a javascript
-transformation, and a CSS file. Each of these files is written as though
-it were the entire document. This is possible because Golf carefully
-sandboxes the HTML, javascript, and CSS, and restricts any effects and
-access to the component itself. For example, doing
+transformation, and a CSS file. Each of these files is written as
+though it were the entire document, with no external coupling. This
+is possible because Golf carefully sandboxes the HTML, javascript, and
+CSS, and restricts any effects and access to the component itself. For
+example, doing
 
     $(".myclass")
 
