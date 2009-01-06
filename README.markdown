@@ -43,22 +43,22 @@ Golf applications must be served (at least partly---we'll see why later)
 by the Golf application server. The application server provides three
 primary services:
 
-* __clientside MVC framework:__ a javascript MVC framework with
-  template-based views and ActiveRecord style models, and a javascript
-  controller with actions implementing callbacks corresponding to an action
-  lifecycle (allowing the controller to save and restore its state when
-  invoked or destroyed)
+* __Clientside MVC framework:__ A javascript MVC framework with
+  template-based views and ActiveRecord style models, controller actions
+  implementing callbacks corresponding to an action lifecycle (allowing
+  the controller to save and restore its state when invoked or destroyed),
+  and models based on the ActiveRecord pattern.
 
-* __zero-configuration Cloudfront caching:__ an optional, fully automatic
+* __Zero-configuration Cloudfront caching:__ An optional, fully automatic
   and transparent AWS Cloudfront caching of 99% of the Golf application
   (clients use JSONP to fetch UI elements from Cloudfront---we'll see
-  how later)
+  how later).
 
-* __DHTML accessibility proxy:__ a serverside javascript proxy
+* __DHTML accessibility proxy:__ A serverside javascript proxy
   which enables fully dynamic AJAX DHTML Golf apps to work reliably and
-  transparently in non-javascript browsers (googlebot, for example), with
-  zero redundant code or special effort required (easier to show than tell,
-  so check out the demo!)
+  transparently in non-javascript browsers (googlebot, for example),
+  with zero redundant code or special effort required. (Easier to show
+  than tell, so check out the demo!)
 
 Components
 ----------
