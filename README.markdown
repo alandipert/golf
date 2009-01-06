@@ -38,8 +38,8 @@ The Golf Application Server
 ---------------------------
 
 Golf applications must be served (at least partly---we'll see why later)
-by the Golf application server. The application server provides three
-primary services:
+by the Golf application server. The application server performs three
+primary functions:
 
 * __Clientside MVC framework:__ A javascript MVC framework with
   template-based views and ActiveRecord style models, controller actions
