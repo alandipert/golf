@@ -34,7 +34,8 @@ and presentation is built-in, which encourages good application design
 from the beginning. Finally, the Golf component architecture facilitates
 easy reusability of your view elements.
 
-###The Golf Application Server
+The Golf Application Server
+---------------------------
 
 Golf applications must be served (at least partly---we'll see why later)
 by the Golf application server. The application server provides three
