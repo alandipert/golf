@@ -157,13 +157,13 @@ component to, and any configuration parameters the component requires.
 
 What happens when the component is instantiated is this:
 
-# HTML and javascript files are fetched dynamically using AJAX
-# HTML is parsed and inserted into the DOM
-# a &lt;link&gt; tag is appended to the document head to load the
-  CSS file
-# The javascript transform is run. Content is inserted into the
-  component, nested components are instantiated, and dynamic
-  behaviors are attached to the component's DOM elements.
+1. HTML and javascript files are fetched dynamically using AJAX
+2. HTML is parsed and inserted into the DOM
+3. a &lt;link&gt; tag is appended to the document head to load the
+   CSS file
+4. The javascript transform is run. Content is inserted into the
+   component, nested components are instantiated, and dynamic
+   behaviors are attached to the component's DOM elements.
 
 Keep in mind that this little fragment of HTML, javascript, and CSS is
 completely atomic. Because of the sandboxing done in the Golf runtime,
