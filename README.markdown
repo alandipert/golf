@@ -15,13 +15,8 @@ Getting Started With Golf
 
 There are some example apps in the examples/ directory to see how
 everything works and enjoy. Especially interesting is the behavior of
-these DHTML applications in a browser with javascript disabled. Try it
-in lynx and see the app the way the googlebot does!
-
-Golf applications form the user interface for web services APIs. A
-Golf application is not complete, as such. In order to be useful, Golf
-applications must interact with a separate backend service, usually via
-a RESTful API.
+these DHTML applications in a browser with javascript disabled. (Try it
+in lynx and see the app the way googlebot does...)
 
 Introduction
 ------------
@@ -30,14 +25,16 @@ Golf applications form the user interface for web services APIs. A
 Golf application is not complete, as such. In order to be useful, Golf
 applications must interact with a separate backend service, usually via a
 RESTful API. Golf applications are responsive, fully dynamic "2.0" style
-interfaces. They are also, however, real HTML documents, as well---fully
+interfaces. They are, at the same time, real HTML documents---fully
 accessible to non-javascript browsers and search engine spiders.
 
 Golf applications can be developed rapidly and naturally due to the
 extreme simplicity of the architecture. A proper separation of content
-and presentation is required, which encourages good application design
+and presentation is built-in, which encourages good application design
 from the beginning. Finally, the Golf component architecture facilitates
 easy reusability of your view elements.
+
+###The Golf Application Server
 
 Golf applications must be served (at least partly---we'll see why later)
 by the Golf application server. The application server provides three
@@ -58,10 +55,6 @@ primary services:
   transparently in non-javascript browsers (googlebot, for example),
   with zero redundant code or special effort required. (Easier to show
   than tell, so check out the demo!)
-
-> __Note:__ Golf uses jQuery extensively. You may have a hard time
-> understanding the examples in this document without at least a 
-> working knowledge of jQuery scripting. Sorry!
 
 Components
 ----------
@@ -100,6 +93,10 @@ the component, and not from any other, or even another instance of
 this component. You can write your component javascript behaviors in
 a free and natural way, without worries that you will be running amok
 when the component is used in another application.
+
+> __Note:__ Golf uses jQuery extensively. You may have a hard time
+> understanding the examples in this document without at least a 
+> working knowledge of jQuery scripting. Sorry!
 
 ###Example Component
 
