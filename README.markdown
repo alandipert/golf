@@ -153,17 +153,17 @@ instantiated in the application by doing something like this:
 where the arguments are the component name, the DOM element to append the
 component to, and any configuration parameters the component requires.
 
-What happens when the component is instantiated is this: First,
-the HTML and javascript files are fetched using JSONP (either from
-Cloudfront or from the application server itself). Then the HTML
-template is inserted into the DOM and a &lt;link&gt; tag is created in
-the document head to load the CSS (from Cloudfront or the application
-server) for the component. Then the javascript transformation is run,
-replacing the dummy content with real content and setting up the dynamic
-behaviors. Don't worry if this is vague or unclear to you at this point;
-it'll become natural as we go along. The main point to understand here
-is the structure of the component, and the relationship between the three
-parts, the HTML template, the javascript transformation, and the CSS.
+###Component Instances
+
+What happens when the component is instantiated is this:
+
+# HTML and javascript files are fetched dynamically using AJAX
+# HTML is parsed and inserted into the DOM
+# a &lt;link&gt; tag is appended to the document head to load the
+  CSS file
+# The javascript transform is run. Content is inserted into the
+  component, nested components are instantiated, and dynamic
+  behaviors are attached to the component's DOM elements.
 
 Keep in mind that this little fragment of HTML, javascript, and CSS is
 completely atomic. Because of the sandboxing done in the Golf runtime,
