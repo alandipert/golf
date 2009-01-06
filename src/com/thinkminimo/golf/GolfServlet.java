@@ -69,7 +69,7 @@ public class GolfServlet extends HttpServlet {
      * Parsed request parameters. This encapsulates the request parameters
      * in case it is necessary to change the query string later.
      */
-    public class GolfParams {
+    public class GolfParams {
       /** the event to proxy in proxy mode ("click", etc.) */
       public String       event       = null;
       /** the element to fire the event on (identified by golfId) */
@@ -86,6 +86,8 @@ public class GolfServlet extends HttpServlet {
       public String       path        = null; 
       /** whether or not to use mockup mode */
       public String       mock        = null; 
+      /** the ec2 instance ID */
+      public String       instance    = null; 
 
       /**
        * Constructor.
@@ -101,6 +103,7 @@ public class GolfServlet extends HttpServlet {
         jsonp       = request.getParameter("callback");
         path        = request.getParameter("path");
         mock        = request.getParameter("mock");
+        instance    = request.getParameter("instance");
       }
     }
 
@@ -130,8 +133,6 @@ public class GolfServlet extends HttpServlet {
     public boolean              hasEvent    = false;
     /** whether or not client mode is disabled */
     public boolean              proxyonly   = false;
-    /** whether or not to run in dev mode, i.e. no caching etc */
-    public boolean              devMode     = true;
     /** the jsvm for this request */
     public WebClient            client      = null;
     /** recognized http request query string parameters */
@@ -194,6 +195,36 @@ public class GolfServlet extends HttpServlet {
   /** htmlunit webclients for proxy-mode sessions */
   private ConcurrentHashMap<String, StoredJSVM> clients =
     new ConcurrentHashMap<String, StoredJSVM>();
+
+  /** whether or not to run in dev mode, i.e. no caching etc */
+  private boolean devMode = true;
+
+  /** the ec2 instance ID */
+  private String instance = null;
+
+  /** the amazon web services private key */
+  private String awsPrivate = null;
+
+  /** the amazon web services public key */
+  private String awsPublic = null;
+
+  /**
+   * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
+   */
+  public void init(ServletConfig config) {
+    String d = config.getInitParameter("devmode");
+
+    if (d != null && d.equals("true"))
+      devMode = true;
+    else if (d != null && d.equals("false"))
+      devMode = false;
+    instance    = config.getInitParameter("instanceid");
+    awsPrivate  = config.getInitParameter("awsprivate");
+    awsPublic   = config.getInitParameter("awspublic");
+
+    Log.info("Hitting the links in " + (devMode ? "development" : "production")
+        + " mode...");
+  }
 
   /**
    * Serve http requests!
@@ -459,7 +490,7 @@ public class GolfServlet extends HttpServlet {
       }
     });
 
-    // set the time a script is allowed to run for before being cut off
+    // if this isn't long enough it'll timeout before all ajax is complete
     context.client.setJavaScriptTimeout(10000);
 
     // the blank skeleton html template
@@ -474,6 +505,7 @@ public class GolfServlet extends HttpServlet {
       new URL(context.servletURL + "#" + context.urlHash)
     );
 
+    // run it through htmlunit
     result = (HtmlPage) context.client.loadWebResponseInto(
       response,
       context.client.getCurrentWindow()
@@ -563,7 +595,7 @@ public class GolfServlet extends HttpServlet {
       else
         throw new Exception("cached page should exist but was not found");
 
-      if (context.devMode)
+      if (devMode)
         cachedPages.remove(pathInfo);
     }
 

@@ -28,16 +28,31 @@ import org.mortbay.thread.BoundedThreadPool;
 public class Main
 {
   public static void main(String[] args) {
-    // default port to listen on
-    Integer port = 8080;
+
+    Integer   port          = 8080;
+    String    instance      = null;
+    String    warfile       = null;
+    String    awsPublic     = null;
+    String    awsPrivate    = null;
 
     HashMap<String, String> apps = new HashMap<String, String>();
 
     // parse command line parameters
-    Getopt g = new Getopt("golf", args, "p:h");
+    Getopt g = new Getopt("golf", args, "a:hn:o:p:");
     int c;
     while ((c = g.getopt()) != -1) {
       switch (c) {
+        case 'a':
+          String[] awsKeys = g.getOptarg().split(":", 2);
+          awsPublic   = awsKeys[0];
+          awsPrivate  = awsKeys[1];
+          break;
+        case 'n':
+          instance = g.getOptarg();
+          break;
+        case 'o':
+          warfile = g.getOptarg();
+          break;
         case 'p':
           port = Integer.valueOf(g.getOptarg());
           break;
@@ -99,7 +114,9 @@ public class Main
 
   private static void usage() {
     System.out.println(
-        "Usage: java -jar golf.jar [-p port] [name@docroot]* name@docroot");
+        "Usage: java -jar golf.jar [-p port] [-n instanceID]\n" +
+        "                          [-a publickey:privatekey]\n" +
+        "                          [-o warfile] [name@docroot]* name@docroot");
     System.exit(1);
   }
 }
