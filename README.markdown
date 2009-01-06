@@ -68,15 +68,16 @@ Components
 
 In Golf, everything is constructed of components. Components are similar
 to what would be called "partials" in Rails---independent interface
-"units" that can be inserted into the page during construction. You can
-think of Golf components as the elementary particles that make up the
-user interface. No content smaller than a full component can be added
-to a page (although there are certain exceptions to this rule), and
-no content smaller than a full component can be removed. All of the HTML
-elements in a component are under the exclusive control of that component;
-No other component can access them. Communication between components
-occurs through a system of custom events, forming a tight internal API
-and facilitating a modular, reusable structure.
+"units" that can be inserted into the page. Pages are made up of a single
+outermost component and possibly multiple internal nested components. You
+can think of Golf components as the elementary particles that make up the
+user interface. No content smaller than a full component can be added to a
+page (although there are certain exceptions to this rule), and no content
+smaller than a full component can be removed from it. Additionally,
+all of the HTML elements in a component are under the exclusive control
+of that component; No other component can access them. Communication
+between components occurs through a system of custom events, forming a
+tight internal API and facilitating a modular, reusable structure.
 
 Components consist of three parts: an HTML template, a javascript
 transformation, and a CSS file. Each of these files is written as
