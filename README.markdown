@@ -154,6 +154,10 @@ styles, and interfaces. Just instantiate it, insert it into the DOM,
 and let it go. Fire and forget, basically. That's the overall goal
 of components.
 
+> __Note:__ Despite the heavy use of javascript when constructing the
+> views, they are still fully accessible to webcrawlers and browsers
+> without javascript support. Just try the demo and see.
+
 Controllers
 -----------
 
@@ -171,10 +175,6 @@ its state when it is created or destroyed. LAter on we'll see why this
 is important, but for now we can relax and move along.  Also, later on
 we'll see a number of default controller behaviors that are included in
 the Golf runtime to make your job a lot easier.
-
-> __Note:__ Despite the heavy use of javascript when constructing the
-> views, they are still fully accessible to webcrawlers and browsers
-> without javascript support. Just try the demo and see.
 
 ###Example Controller
 
