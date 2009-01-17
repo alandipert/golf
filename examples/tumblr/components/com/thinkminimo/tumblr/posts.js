@@ -1,4 +1,4 @@
-var apiURL = "http://"+$.argv.username+".tumblr.com/api/read/json";
+var apiURL = "http://"+argv.username+".tumblr.com/api/read/json";
 //var apiURL = "http://sites.alan-dev/tumblr.php";
 
 var gotPosts = function(data) {
