@@ -1,5 +1,8 @@
 package com.thinkminimo.golf;
 
+import org.json.JSONStringer;
+import org.json.JSONException;
+
 import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
 import org.mozilla.javascript.*;
@@ -80,10 +83,10 @@ public class GolfServlet extends HttpServlet {
       public String       golf        = null;
       /** if set to the value of "false", client mode is disabled */
       public String       js          = null; 
-      /** set to the requested callback function name for JSONP services */
-      public String       jsonp       = null; 
       /** the path of the static resource requested */
       public String       path        = null; 
+      /** the name of the component */
+      public String       component   = null; 
       /** whether or not to use mockup mode */
       public String       mock        = null; 
 
@@ -98,8 +101,8 @@ public class GolfServlet extends HttpServlet {
         session     = request.getParameter("session");
         golf        = request.getParameter("golf");
         js          = request.getParameter("js");
-        jsonp       = request.getParameter("callback");
         path        = request.getParameter("path");
+        component   = request.getParameter("component");
         mock        = request.getParameter("mock");
         instance    = request.getParameter("instance");
       }
@@ -121,12 +124,6 @@ public class GolfServlet extends HttpServlet {
     public String               pathInfo    = null;
     /** FIXME which browser is the client using? FIXME */
     public BrowserVersion       browser     = BrowserVersion.FIREFOX_2;
-    /** whether or not this is a request for a static resource */
-    public boolean              isStatic    = false;
-    /** whether or not this is a request for JSONP services */
-    public boolean              isJSONP     = false;
-    /** whether or not to render a component in mockup mode */
-    public boolean              isMock      = false;
     /** whether or not this is an event proxy request */
     public boolean              hasEvent    = false;
     /** whether or not client mode is disabled */
@@ -155,16 +152,6 @@ public class GolfServlet extends HttpServlet {
       }
 
       session = params.session;
-
-      if (params.path != null)
-        isStatic = true;
-
-      if (params.jsonp != null)
-        isJSONP = true;
-
-      if (params.mock != null && (params.mock.equalsIgnoreCase("true") 
-            || params.js.equalsIgnoreCase("yes") || params.js.equals("1")))
-        isMock = true;
 
       if (params.event != null && params.target != null)
         hasEvent = true;
@@ -209,7 +196,9 @@ public class GolfServlet extends HttpServlet {
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
    */
-  public void init(ServletConfig config) {
+  public void init(ServletConfig config) throws ServletException {
+    super.init(config);
+
     String d = config.getInitParameter("devmode");
 
     if (d != null && d.equals("true"))
@@ -234,7 +223,6 @@ public class GolfServlet extends HttpServlet {
     throws IOException, ServletException
   {
     GolfContext   context         = new GolfContext(request, response);
-    PrintWriter   out             = null;
     String        result          = null;
 
     logRequest(context);
@@ -248,15 +236,12 @@ public class GolfServlet extends HttpServlet {
         throw new RedirectException(
             request.getRequestURL().append('/').toString());
 
-      if (context.isStatic) {
+      if (context.params.component != null)
+        doComponentGet(context);
+      else if (context.params.path != null)
         doStaticResourceGet(context);
-        return;
-      } else {
-        response.setContentType("text/html");
-        out = response.getWriter();
-        out.println(preprocess(doDynamicResourceGet(context), context, false));
-        out.close();
-      }
+      else
+        doDynamicResourceGet(context);
     }
 
     catch (RedirectException r) {
@@ -289,7 +274,6 @@ public class GolfServlet extends HttpServlet {
           clients.put(context.session, 
               new StoredJSVM(context.client, context.golfNum));
       }
-      if (out != null) out.close();
     }
   }
 
@@ -516,9 +500,8 @@ public class GolfServlet extends HttpServlet {
    * Fetch a dynamic resource as a String.
    *
    * @param   context       the golf context for this request
-   * @return                the resource as a String or null if not found
    */
-  private String doDynamicResourceGet(GolfContext context) throws Exception {
+  private void doDynamicResourceGet(GolfContext context) throws Exception {
 
     String      pathInfo  = context.pathInfo;
     String      result    = null;
@@ -599,55 +582,119 @@ public class GolfServlet extends HttpServlet {
 
     context.golfNum++;
 
-    return (result == null ? page.asXml() : result);
+    result = (result == null ? page.asXml() : result);
+
+    context.response.setContentType("text/html");
+
+    PrintWriter out = context.response.getWriter();
+    out.println(preprocess(result, context, false));
+    out.close();
   }
 
   /**
-   * Process html/css file for service, inserting component class name, etc.
+   * Handle a request for a component's html/js/css.
+   *
+   * @param   context       the golf context for this request
+   */
+  private void doComponentGet(GolfContext context) 
+      throws FileNotFoundException, IOException, JSONException {
+    String classPath = context.params.component;
+    String className = classPath.replace('.', '-');
+    String path      = "/components/" + classPath.replace('.', '/');
+
+
+    String html = path + ".html";
+    String css  = path + ".css";
+    String js   = path + ".js";
+
+    GolfResource htmlRes = new GolfResource(getServletContext(), html);
+    GolfResource cssRes  = new GolfResource(getServletContext(), css);
+    GolfResource jsRes   = new GolfResource(getServletContext(), js);
+
+    String htmlStr = 
+      processComponentHtml(context, htmlRes.toString(), className);
+    String cssStr = 
+      processComponentCss(context, cssRes.toString(), className);
+    String jsStr = jsRes.toString();
+
+    String json = new JSONStringer()
+      .object()
+        .key("name")
+        .value(classPath)
+        .key("html")
+        .value(htmlStr)
+        .key("css")
+        .value(cssStr)
+        .key("js")
+        .value(jsStr)
+      .endObject()
+      .toString();
+
+    json = "jQuery.golf.doJSONP(" + json + ");";
+
+    context.response.setContentType("text/javascript");
+
+    context.response.getWriter().println(json);
+  }
+
+  /**
+   * Process html file for service, inserting component class name, etc.
    *
    * @param   context       the golf context for this request
    * @param   text          the component css/html text
-   * @param   klass         the text class name
+   * @param   className     the text class name
    * @return                the processed css/html text
    */
-  private String processComponent(GolfContext context, String text) {
+  private String processComponentHtml(GolfContext context, String text, 
+      String className) {
+    String path   = context.params.path;
+    String result = text;
+
+    // Add the unique component css class to the component outermost
+    // element.
+
+    // the first opening html tag
+    String tmp = result.substring(0, result.indexOf('>'));
+
+    // add the component magic classes to the tag
+    if (tmp.matches(".*['\"\\s]class\\s*=\\s*['\"].*"))
+      result = 
+        result.replaceFirst("^(.*class\\s*=\\s*.)", "$1component " + 
+            className + " ");
+    else
+      result = 
+        result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"component " + 
+            className + "\"");
+
+    return result;
+  }
+
+  /**
+   * Process css file for service, inserting component class name, etc.
+   *
+   * @param   context       the golf context for this request
+   * @param   text          the component css/html text
+   * @param   className     the text class name
+   * @return                the processed css/html text
+   */
+  private String processComponentCss(GolfContext context, String text,
+      String className) {
     String path       = context.params.path;
-    String className  = path.replaceFirst("^/components/", "");
-    className         = className.replaceFirst("\\.(html|css)$", "");
-    className         = className.replace('/', '-');
     String result     = text;
 
-    if (path.endsWith(".css")) {
-      // Localize this css file by inserting the unique component css class
-      // in the beginning of every selector. Also remove extra whitespace and
-      // comments, etc.
+    // Localize this css file by inserting the unique component css class
+    // in the beginning of every selector. Also remove extra whitespace and
+    // comments, etc.
 
-      // remove newlines
-      result = result.replaceAll("[\\r\\n\\s]+", " ");
-      // remove comments
-      result = result.replaceAll("/\\*.*\\*/", "");
-      // this is bad but fuckit
-      result = 
-        result.replaceAll("(^|\\})\\s*([^{]*[^{\\s])*\\s*\\{", "$1 ." + 
-            className + " $2 {");
-      result = result.trim();
-    } else if (path.endsWith(".html")) {
-      // Add the unique component css class to the component outermost
-      // element.
-
-      // the first opening html tag
-      String tmp = result.substring(0, result.indexOf('>'));
-
-      // add the component magic classes to the tag
-      if (tmp.matches(".*['\"\\s]class\\s*=\\s*['\"].*"))
-        result = 
-          result.replaceFirst("^(.*class\\s*=\\s*.)", "$1component " + 
-              className + " ");
-      else
-        result = 
-          result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"component " + 
-              className + "\"");
-    }
+    // remove newlines
+    result = result.replaceAll("[\\r\\n\\s]+", " ");
+    // remove comments
+    result = result.replaceAll("/\\*.*\\*/", "");
+    // this is bad but fuckit
+    result = 
+      result.replaceAll("(^|\\})\\s*([^{]*[^{\\s])*\\s*\\{", "$1 ." + 
+          className + " $2 {");
+    result = result.trim();
 
     return result;
   }
@@ -658,8 +705,8 @@ public class GolfServlet extends HttpServlet {
    * @param   context       the golf context for this request
    */
   private void doStaticResourceGet(GolfContext context) 
-    throws FileNotFoundException, IOException {
-    String        path    = context.params.path;
+      throws FileNotFoundException, IOException, JSONException {
+    String path = context.params.path;
 
     GolfResource res = new GolfResource(getServletContext(), path);
     Log.info("mime type is " + res.getMimeType());
@@ -667,8 +714,7 @@ public class GolfServlet extends HttpServlet {
 
     if (res.getMimeType().startsWith("text/")) {
       PrintWriter out = context.response.getWriter();
-      out.println(path.startsWith("/components/") ? 
-          processComponent(context, res.toString()) : res.toString());
+      out.println(res.toString());
     } else {
       OutputStream out = context.response.getOutputStream();
       out.write(res.toByteArray());

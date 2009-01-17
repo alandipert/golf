@@ -95,20 +95,50 @@ jQuery.golf = {
     }
   },
 
-  cache: { 
-    enable: true,
-    data: {},
-    get: function(url, callback) {
-      if (callback) {
-        callback(this.data[url]);
-      } else {
-        return this.data[url];
-      }
-    },
-    set: function(url, data) {
-      this.data[url] = data;
-    },
+  getComponent: function(name, callback) {
+    if (! jQuery.golf.doJSONP(name, callback)) {
+      var script  = document.createElement("SCRIPT");
+      script.type = "text/javascript";
+      script.src  = "?component="+name;
+      jQuery("head").append(script);
+    }
   },
+
+  doJSONP: (function() {
+    var listeners = {};
+    var cache = {};
+    return function(obj, callback) {
+      if (typeof(obj) == "string") {
+        // register the callback (obj == e.g. "com.minimo.mycomponent")
+        if (cache[obj]) {
+          // already have cached response, no need to get via JSONP
+          callback(cache[obj]);
+          return true;
+        } 
+        
+        if (listeners[obj])
+          listeners[obj].push(callback);
+        else
+          listeners[obj] = [callback];
+
+        return false;
+      } else {
+        // call the previously registered listener (callback param isn't used)
+        if (!cache[obj.name]) {
+          cache[obj.name] = obj;
+          // seeing comp for first time ==> need to add css to <head>
+          if (obj.css.replace(/^\s+|\s+$/g, '').length > 3)
+            jQuery("head").append("<style type='text/css'>"+obj.css+"</style>");
+        }
+        if (listeners[obj.name]) {
+          // call all the listeners' callbacks
+          for (var i = 0; i < listeners[obj.name].length; i++) {
+            listeners[obj.name][i](obj);
+          }
+        }
+      }
+    };
+  })(),
 
   index: function(idx, node) {
     idx.push(node);
@@ -118,20 +148,14 @@ jQuery.golf = {
     });
   },
 
-  doCall: function($) {
+  doCall: function($, argv) {
     eval($.js);
   },
     
   onLoad: function() {
     if (urlHash && !location.hash)
       location.href = servletURL + "#" + urlHash;
-
-    jQuery.ajaxSetup({
-      type:     "GET",
-      dataType: "text",
-      async:    serverside ? false : true,
-    });
-
+    jQuery.ajaxSetup({ async: serverside ? false : true });
     jQuery.history.init(jQuery.golf.onHistoryChange);
   },
 
@@ -180,38 +204,12 @@ jQuery.golf = {
       return jQuery(res);
     };
 
-    $.argv = argv;
+    jQuery.extend($, jQuery);
 
     $.component = name;
 
-    //$.get = serverside ? jQuery.get : jQuery.getJSON;
-    $.get = jQuery.get;
-
-    $.bind = function(eventName, callback) {
-      return jQuery(document).bind(eventName, callback);
-    };
-
-    $.trigger = function(eventName, argv) {
-      return jQuery(document).trigger(eventName, argv);
-    };
-
-    name = name ? name.replace(/\./g, "/") : "";
-    name = "?path=/components/" + name;
-
-    // absolute paths to the component html and js files
-    var cmp = { html: name + ".html", js: name + ".js", css: name + ".css" };
-
-    var hlr = (jQuery.golf.cache.enable && 
-      jQuery.golf.cache.get(cmp.html)) ? jQuery.golf.cache : $;
-      
-    hlr.get(cmp.html, function(result) {
-      if (hlr === $) {
-        jQuery.golf.cache.set(cmp.html, result);
-        jQuery("head").append("<link rel=\"stylesheet\" type=\"text/css\" " +
-          "href=\"" + cmp.css + "\" />");
-      }
-
-      var p     = jQuery(result).get()[0];
+    jQuery.golf.getComponent(name, function(cmp) {
+      var p     = jQuery(cmp.html).get()[0];
       var frag  = document.createDocumentFragment();
 
       jQuery("a[href^='#']", p).each(function() { 
@@ -234,14 +232,9 @@ jQuery.golf = {
       jQuery.golf.index(_index, p);
 
       $.root = p.parentNode;
+      $.js   = String(cmp.js);
 
-      hlr.get(cmp.js, function(result) {
-        if (hlr === $)
-          jQuery.golf.cache.set(cmp.js, result);
-
-        $.js = result;
-        jQuery.golf.doCall($);
-      });
+      jQuery.golf.doCall($, argv);
     });
   },
 };
