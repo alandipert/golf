@@ -7,6 +7,22 @@ jQuery.fn.golf = function(name, argv) {
   return this;
 };
 
+jQuery.fn.golfAfter = function(name, argv) {
+  var parentElem = this;
+  new jQuery.golf.Component(function(comp) {
+    parentElem.after(comp);
+  }, name, argv);
+  return this;
+};
+
+jQuery.fn.golfBefore = function(name, argv) {
+  var parentElem = this;
+  new jQuery.golf.Component(function(comp) {
+    parentElem.before(comp);
+  }, name, argv);
+  return this;
+};
+
 jQuery.golf = {
   toJSON: function(inVal) {
     return jQuery.golf._json_encode(inVal).join('');
@@ -97,10 +113,22 @@ jQuery.golf = {
 
   getComponent: function(name, callback) {
     if (! jQuery.golf.doJSONP(name, callback)) {
-      var script  = document.createElement("SCRIPT");
-      script.type = "text/javascript";
-      script.src  = "?component="+name;
-      jQuery("head").append(script);
+      var url = "?component="+name;
+
+      if (serverside) {
+        jQuery.ajax({
+          async:      false,
+          type:       "GET",
+          url:        url,
+          dataType:   "text",
+          success:    function(data) { eval(data); },
+        });
+      } else {
+        var script  = document.createElement("SCRIPT");
+        script.type = "text/javascript";
+        script.src  = url;
+        jQuery("head").append(script);
+      }
     }
   },
 
@@ -159,27 +187,73 @@ jQuery.golf = {
     jQuery.history.init(jQuery.golf.onHistoryChange);
   },
 
-  onHistoryChange: function(hash) {
-    // urls always end in '/', so there's an extra blank arg
-    hash = hash.replace(/\/$/, "");
-    var argv = hash.split("/");
-    jQuery.golf.controller(argv);
-  },
+  onHistoryChange: (function() {
+    var lastHash = "";
+    return function(hash) {
+      if (!hash && !lastHash)
+        hash = "home/";
 
-  controller: function(argv) {
-    var theController = argv.shift();
+      if (hash && hash != lastHash) {
+        lastHash = hash;
+        // urls always end in '/', so there's an extra blank arg
+        hash = hash.replace(/\/$/, "");
+        var argv = hash.split("/");
+        jQuery.golf.controller(argv);
+      }
+    };
+  })(),
 
-    if (!theController)
-      theController = "home";
+  errors: [],
 
-    var b = jQuery(document.body);
+  controller: function(argv, b) {
+    if (!argv || argv.length == 0) argv = ["home"];
+
+    var theController = argv[0];
+
+    jQuery.golf.errors = [];
+
+    if (!b) b = jQuery(document.body);
     b.empty();
 
+    var handled = false;
+
     try {
-      jQuery.golf.controllers[theController](b, argv);
+      for (var i in jQuery.golf.controllers) {
+        var pat = new RegExp("^"+i+"$");
+        if (theController.match(pat)) {
+          if (! jQuery.golf.controllers[i](argv, b)) throw null;
+          handled = true;
+        }
+      }
+      if (!handled) throw null;
     } catch (x) {
-      throw "can't load the controller for [" + theController + "]: " + x;
+      if (x) jQuery.golf.errors.push(x);
+      try  {
+        jQuery.golf.controllers.defaultAction(argv, b);
+      } catch (xx) {
+        if (x)  alert("Exception doing '"+theController+"' action: "+x);
+        if (xx) alert("Exception doing default action: "+xx);
+      }
     }
+  },
+
+  prepare: function(p) {
+    var pp = jQuery("<div/>");
+    pp.append(p);
+    p = pp;
+    jQuery("a[href^='#']", p).each(function() { 
+      var base = this.href.replace(/#.*$/, "");
+      var hash = this.href.replace(/^.*#/, "");
+      this.href = base + hash;
+
+      // only in client mode, otherwise makes redundant <a> tag wrappers
+      if (!serverside)
+        jQuery(this).click(function() {
+          jQuery.history.load(hash);
+          return false;
+        });
+    });
+    return jQuery(p.children());
   },
 
   Component: function(callback, name, argv) {
@@ -187,7 +261,7 @@ jQuery.golf = {
 
     var $ = function(selector) {
       if (typeof(selector) != "string")
-        throw "selector must be a string";
+        return jQuery(selector);
 
       var res = jQuery(selector, $.root).get();
       var tmp = [];
@@ -207,23 +281,13 @@ jQuery.golf = {
     jQuery.extend($, jQuery);
 
     $.component = name;
+    $.package   = name.replace(/\.[^.]*$/, "");
 
     jQuery.golf.getComponent(name, function(cmp) {
       var p     = jQuery(cmp.html).get()[0];
       var frag  = document.createDocumentFragment();
 
-      jQuery("a[href^='#']", p).each(function() { 
-        var base = this.href.replace(/#.*$/, "");
-        var hash = this.href.replace(/^.*#/, "");
-        this.href = base + hash;
-
-        // only in client mode, otherwise makes redundant <a> tag wrappers
-        if (!serverside)
-          jQuery(this).click(function() {
-            jQuery.history.load(hash);
-            return false;
-          });
-      });
+      jQuery.golf.prepare(p);
 
       frag.appendChild(p);
 
