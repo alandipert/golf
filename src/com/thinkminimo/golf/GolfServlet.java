@@ -3,6 +3,11 @@ package com.thinkminimo.golf;
 import org.json.JSONStringer;
 import org.json.JSONException;
 
+import org.jets3t.service.S3Service;
+import org.jets3t.service.model.S3Bucket;
+import org.jets3t.service.impl.rest.httpclient.RestS3Service;
+import org.jets3t.service.security.AWSCredentials;
+
 import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
 import org.mozilla.javascript.*;
@@ -197,6 +202,7 @@ public class GolfServlet extends HttpServlet {
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
    */
   public void init(ServletConfig config) throws ServletException {
+    // tricky little bastard
     super.init(config);
 
     String d = config.getInitParameter("devmode");
@@ -211,6 +217,23 @@ public class GolfServlet extends HttpServlet {
 
     Log.info("Hitting the links in " + (devMode ? "development" : "production")
         + " mode...");
+
+    try {
+      String awsAccessKey = "0SFXC5HPSE5X6G94QFR2";
+      String awsSecretKey = "x2PD9iVs+g6528piSLovvU2hTReX6rGcO0vJ5DIC";
+
+      AWSCredentials awsCredentials = 
+        new AWSCredentials(awsAccessKey, awsSecretKey);
+
+      S3Service s3Service = new RestS3Service(awsCredentials);
+
+      S3Bucket[] myBuckets = s3Service.listAllBuckets();
+      System.out.println("How many buckets to I have in S3?");
+      for (S3Bucket i : myBuckets)
+        System.out.println("...." + i.getName()+"....");
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   /**
