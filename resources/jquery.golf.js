@@ -198,41 +198,63 @@ jQuery.golf = {
         // urls always end in '/', so there's an extra blank arg
         hash = hash.replace(/\/$/, "");
         var argv = hash.split("/");
-        jQuery.golf.controller(argv);
+        jQuery.golf.route(argv);
       }
     };
   })(),
 
   errors: [],
 
-  controller: function(argv, b) {
+  route: function(argv, b) {
     if (!argv || argv.length == 0) argv = ["home"];
 
-    var theController = argv[0];
+    var theName         = argv.shift();
+    var actionBaseName  = "jQuery.golf.controllers";
+    var theErrorName    = "errorAction";
+    var theDefaultName  = "defaultAction";
+
+    var theAction       = null;
+
+    var defaultAction   = jQuery.golf.controllers.defaultAction;
+    var errorAction     = jQuery.golf.controllers.errorAction;
+    var fullName        = actionBaseName+"['"+theName+"']";
+    var fullErrorName   = actionBaseName+"."+theErrorName;
+    var fullDefaultName = actionBaseName+"."+theDefaultName;
 
     jQuery.golf.errors = [];
 
     if (!b) b = jQuery(document.body);
     b.empty();
 
-    var handled = false;
-
     try {
       for (var i in jQuery.golf.controllers) {
-        var pat = new RegExp("^"+i+"$");
-        if (theController.match(pat)) {
-          if (! jQuery.golf.controllers[i](argv, b)) throw null;
-          handled = true;
+        var pat       = new RegExp("^"+i+"$");
+        var match     = theName.match(pat);
+
+        if (match) {
+          theAction = jQuery.golf.controllers[i];
+          if (theAction(argv, b, match))
+            theAction = null;
+          else
+            break;
         }
       }
-      if (!handled) throw null;
+      if (!theAction)
+        defaultAction(argv, b, [theName]);
     } catch (x) {
-      if (x) jQuery.golf.errors.push(x);
+      if (!theAction)
+        x = "Exception: <em>"+x+"</em> :: "+fullDefaultName+" :: "+fullName;
+      else
+        x = "Exception: <em>"+x+"</em> :: "+fullName;
+
       try  {
-        jQuery.golf.controllers.defaultAction(argv, b);
-      } catch (xx) {
-        if (x)  alert("Exception doing '"+theController+"' action: "+x);
-        if (xx) alert("Exception doing default action: "+xx);
+        argv.unshift(x);
+        errorAction(argv, b, [theName]);
+      } catch (y) {
+        x = "Exception: <em>"+y+"</em> :: "+fullErrorName+"<br/>"+x;
+        b = jQuery(document.body);
+        b.empty();
+        b.append("<div class='error'><h1>oops!</h1><p>"+x+"</p></div>");
       }
     }
   },
