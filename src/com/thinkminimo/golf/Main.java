@@ -29,7 +29,7 @@ import org.mortbay.thread.BoundedThreadPool;
 
 public class Main
 {
-  public static void main(String[] args) {
+  public static void main(String[] argv) {
 
     Integer   port          = 8080;
     String    instance      = null;
@@ -40,7 +40,7 @@ public class Main
     HashMap<String, String> apps = new HashMap<String, String>();
 
     // parse command line parameters
-    Getopt g = new Getopt("golf", args, "a:hn:o:p:");
+    Getopt g = new Getopt("golf", argv, "a:hn:o:p:");
     int c;
     while ((c = g.getopt()) != -1) {
       switch (c) {
@@ -66,8 +66,8 @@ public class Main
       }
     }
 
-    for (int i=g.getOptind(); i<args.length; i++) {
-      String newApp[] = args[i].split("@", 2);
+    for (int i=g.getOptind(); i<argv.length; i++) {
+      String newApp[] = argv[i].split("@", 2);
       apps.put(newApp[0], newApp[1]);
     }
 
