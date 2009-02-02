@@ -190,7 +190,7 @@ jQuery.golf = {
   onHistoryChange: (function() {
     var lastHash = "";
     return function(hash) {
-      if (!hash && !lastHash)
+      if (!hash)
         hash = "home/";
 
       if (hash && hash != lastHash) {
@@ -260,9 +260,6 @@ jQuery.golf = {
   },
 
   prepare: function(p) {
-    var pp = jQuery("<div/>");
-    pp.append(p);
-    p = pp;
     jQuery("a[href^='#']", p).each(function() { 
       var base = this.href.replace(/#.*$/, "");
       var hash = this.href.replace(/^.*#/, "");
@@ -270,19 +267,23 @@ jQuery.golf = {
 
       // only in client mode, otherwise makes redundant <a> tag wrappers
       if (!serverside)
+        jQuery(this).unbind("click");
         jQuery(this).click(function() {
           jQuery.history.load(hash);
           return false;
         });
     });
-    return jQuery(p.children());
+    return jQuery(p);
   },
 
   Component: function(callback, name, argv) {
     var _index = [];
 
     var $ = function(selector) {
-      if (typeof(selector) != "string")
+      var isHtml = /^[^<]*(<(.|\s)+>)[^>]*$/;
+
+      // if it's not a CSS selector then passthru to jQ
+      if (typeof(selector) != "string" || selector.match(isHtml))
         return jQuery(selector);
 
       var res = jQuery(selector, $.root).get();
