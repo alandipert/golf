@@ -1,6 +1,6 @@
 jQuery.golf.controllers = {
 
-  home: function(b, argv) {
+  'home': function(argv, b, match) {
     b.golf("com.thinkminimo.hello");
   },
 
