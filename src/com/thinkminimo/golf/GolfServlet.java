@@ -229,12 +229,14 @@ public class GolfServlet extends HttpServlet {
 
     catch (RedirectException r) {
       // send a 302 FOUND
+      logResponse(context, 302);
       log(context, LOG_INFO, "302 FOUND ["+r.getMessage()+"]");
       context.response.sendRedirect(r.getMessage());
     }
 
     catch (FileNotFoundException e) {
       // send a 404 NOT FOUND
+      logResponse(context, 404);
       log(context, LOG_INFO, "404 NOT FOUND");
       errorPage(context, HttpServletResponse.SC_NOT_FOUND, e);
     }
@@ -242,6 +244,7 @@ public class GolfServlet extends HttpServlet {
     catch (Exception x) {
       // send a 500 INTERNAL SERVER ERROR
       //x.printStackTrace();
+      logResponse(context, 500);
       log(context, LOG_INFO, "500 INTERNAL SERVER ERROR");
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
@@ -552,6 +555,7 @@ public class GolfServlet extends HttpServlet {
     PrintWriter out = context.response.getWriter();
     out.println(html);
     out.close();
+    logResponse(context, 200);
   }
 
   /**
@@ -670,7 +674,6 @@ public class GolfServlet extends HttpServlet {
     String path = context.path;
 
     GolfResource res = new GolfResource(getServletContext(), path);
-    Log.info("mime type is " + res.getMimeType());
     context.response.setContentType(res.getMimeType());
 
     if (res.getMimeType().startsWith("text/")) {
@@ -717,6 +720,28 @@ public class GolfServlet extends HttpServlet {
    */
   private void logRequest(GolfContext context) {
     String method = context.request.getMethod();
+    String scheme = context.request.getScheme();
+    String server = context.request.getServerName();
+    int    port   = context.request.getServerPort();
+    String uri    = context.request.getRequestURI();
+    String query  = context.request.getQueryString();
+    String host   = context.request.getRemoteHost();
+    String sid    = context.request.getSession().getId();
+
+    String line   = method + " " + (scheme != null ? scheme + ":" : "") +
+      "//" + (server != null ? server + ":" + port : "") +
+      uri + (query != null ? "?" + query : "") + " " + host;
+
+    log(context, LOG_INFO, line);
+  }
+
+  /**
+   * Logs a http servlet response.
+   *
+   * @param     context     the golf context for this request
+   */
+  private void logResponse(GolfContext context, int status) {
+    String method = String.valueOf(status);
     String scheme = context.request.getScheme();
     String server = context.request.getServerName();
     int    port   = context.request.getServerPort();
