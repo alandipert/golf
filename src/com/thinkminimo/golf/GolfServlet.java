@@ -489,7 +489,7 @@ public class GolfServlet extends HttpServlet {
 
     if (! session.isNew()) {
       if (context.force != null && context.force.equals("yes"))
-        session.setAttribute("golf", "1");
+        session.setAttribute("golf", "0");
 
       int seq;
       
