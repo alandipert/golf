@@ -342,6 +342,8 @@ public class GolfServlet extends HttpServlet {
   private WebClient getClientInstance(final GolfContext context) {
     WebClient client = clientPool.get(context.browser);
 
+    client = null; // FIXME
+
     if (client == null) {
       log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
 
