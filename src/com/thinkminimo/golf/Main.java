@@ -93,9 +93,9 @@ public class Main
         cx1.setResourceBase(golfRoot);
         cx1.addServlet(new ServletHolder(new GolfServlet()), "/*");
 
-        Context cx2 = new Context(contexts, staticPath, Context.SESSIONS);
-        cx2.setResourceBase(golfRoot);
-        cx2.addServlet(new ServletHolder(new DefaultServlet()), "/*");
+        //Context cx2 = new Context(contexts, staticPath, Context.SESSIONS);
+        //cx2.setResourceBase(golfRoot);
+        //cx2.addServlet(new ServletHolder(new DefaultServlet()), "/*");
       }
       
       HandlerList handlers = new HandlerList();

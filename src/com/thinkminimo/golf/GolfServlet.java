@@ -10,7 +10,7 @@ import org.jets3t.service.security.AWSCredentials;
 
 import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.HashMap;
+import java.util.*;
 import org.mozilla.javascript.*;
 
 import java.net.*;
@@ -37,9 +37,8 @@ public class GolfServlet extends HttpServlet {
   /**
    * Each client in proxy mode has one of these stored javascript
    * virtual machines (JSVMs). They're linked to the last used golfNum
-   * to provide a way of checking for stale sessions, since sessions
-   * are created in a weird way after the second, and not the first
-   * request.
+   * to provide a way of checking for stale sessions, since session ids
+   * are likely to be present in the google index.
    */
   private class StoredJSVM {
     /** sequence number, see GolfServlet.golfNum */
@@ -103,7 +102,7 @@ public class GolfServlet extends HttpServlet {
     /** FIXME which browser is the client using? FIXME */
     public BrowserVersion       browser     = BrowserVersion.FIREFOX_2;
     /** the jsvm for this request */
-    public WebClient            client      = null;
+    public StoredJSVM           client      = null;
 
     /**
      * Constructor.
@@ -113,6 +112,8 @@ public class GolfServlet extends HttpServlet {
      */
     public GolfContext(HttpServletRequest request, 
         HttpServletResponse response) {
+      String sid = request.getSession().getId();
+
       this.request     = request;
       this.response    = response;
 
@@ -122,16 +123,22 @@ public class GolfServlet extends HttpServlet {
       this.js          = request.getParameter("js");
       this.path        = request.getParameter("path");
       this.component   = request.getParameter("component");
+      this.urlHash    = request.getPathInfo();
+      this.servletURL = request.getRequestURL().toString();
+      this.pathInfo   = this.urlHash;
 
-      urlHash    = request.getPathInfo();
-      servletURL = request.getRequestURL().toString();
-      pathInfo   = urlHash;
-      
       if (urlHash != null && urlHash.length() > 0) {
         urlHash    = urlHash.replaceFirst("/", "");
         servletURL = servletURL.replaceFirst("\\Q"+urlHash+"\\E$", "");
       } else {
         urlHash    = "";
+      }
+
+      this.client = mClients.get(sid);
+
+      if (this.client == null) {
+        this.client = new StoredJSVM((WebClient) null, golfNum());
+        mClients.put(sid, this.client);
       }
     }
 
@@ -144,7 +151,6 @@ public class GolfServlet extends HttpServlet {
         return Integer.valueOf(
             (String) this.request.getSession().getAttribute("golf"));
       } catch (Exception e) {
-        e.printStackTrace();
         return 0;
       }
     }
@@ -155,18 +161,14 @@ public class GolfServlet extends HttpServlet {
   }
 
   /** htmlunit webclients for proxy-mode sessions */
-  private ConcurrentHashMap<String, StoredJSVM> clients =
+  private ConcurrentHashMap<String, StoredJSVM> mClients =
     new ConcurrentHashMap<String, StoredJSVM>();
 
   /** the amazon web services private key */
-  private String awsPrivate = null;
+  private String mAwsPrivate = null;
 
   /** the amazon web services public key */
-  private String awsPublic = null;
-
-  /** htmlunit webclients for proxy-mode sessions */
-  private HashMap<BrowserVersion, WebClient> clientPool =
-    new HashMap<BrowserVersion, WebClient>();
+  private String mAwsPublic = null;
 
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
@@ -175,8 +177,8 @@ public class GolfServlet extends HttpServlet {
     // tricky little bastard
     super.init(config);
 
-    //awsPrivate  = config.getInitParameter("awsprivate");
-    //awsPublic   = config.getInitParameter("awspublic");
+    //mAwsPrivate  = config.getInitParameter("awsprivate");
+    //mAwsPublic   = config.getInitParameter("awspublic");
 
     //try {
     //  String awsAccessKey = "0SFXC5HPSE5X6G94QFR2";
@@ -219,25 +221,25 @@ public class GolfServlet extends HttpServlet {
         throw new RedirectException(
             request.getRequestURL().append('/').toString());
 
-      if (context.component != null)
+      if (context.component != null) {
         doComponentGet(context);
-      else if (context.path != null)
+      } else if (context.path != null) {
         doStaticResourceGet(context);
-      else
+      } else {
         doDynamicResourceGet(context);
+      }
     }
 
     catch (RedirectException r) {
       // send a 302 FOUND
       logResponse(context, 302);
-      log(context, LOG_INFO, "302 FOUND ["+r.getMessage()+"]");
+      log(context, LOG_INFO, "302 ---to--> "+r.getMessage());
       context.response.sendRedirect(r.getMessage());
     }
 
     catch (FileNotFoundException e) {
       // send a 404 NOT FOUND
       logResponse(context, 404);
-      log(context, LOG_INFO, "404 NOT FOUND");
       errorPage(context, HttpServletResponse.SC_NOT_FOUND, e);
     }
 
@@ -245,7 +247,6 @@ public class GolfServlet extends HttpServlet {
       // send a 500 INTERNAL SERVER ERROR
       //x.printStackTrace();
       logResponse(context, 500);
-      log(context, LOG_INFO, "500 INTERNAL SERVER ERROR");
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
   }
@@ -342,15 +343,15 @@ public class GolfServlet extends HttpServlet {
     }
   }
 
-  private WebClient getClientInstance(final GolfContext context) {
-    WebClient client = clientPool.get(context.browser);
+  private HtmlPage renderPage(final GolfContext context) 
+      throws FileNotFoundException, IOException, MalformedURLException {
+    String      sid     = context.request.getSession().getId();
+    HtmlPage    result  = null;
 
-    client = null; // FIXME
-
-    if (client == null) {
+    if (context.client.client == null) {
       log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
 
-      client = new WebClient(context.browser);
+      WebClient client = new WebClient(context.browser);
 
       // write any alert() calls to the log
       client.setAlertHandler(new AlertHandler() {
@@ -362,39 +363,36 @@ public class GolfServlet extends HttpServlet {
       // if this isn't long enough it'll timeout before all ajax is complete
       client.setJavaScriptTimeout(10000);
 
-      clientPool.put(context.browser, client);
+      context.client.client = client;
+
+      // the blank skeleton html template
+      String newHtml = 
+        (new GolfResource(getServletContext(), "new.html")).toString();
+
+      // do not pass query string to the app, as those parameters are meant
+      // only for the golf container itself.
+
+      StringWebResponse response = new StringWebResponse(
+        preprocess(newHtml, context, true),
+        new URL(context.servletURL + "#" + context.urlHash)
+      );
+
+      // run it through htmlunit
+      result = (HtmlPage) context.client.client.loadWebResponseInto(
+        response,
+        context.client.client.getCurrentWindow()
+      );
+    } else {
+      String script = "jQuery.golf.onHistoryChange('"+context.urlHash+"')";
+
+      result = 
+        (HtmlPage) context.client.client.getCurrentWindow().getEnclosedPage();
+
+      context.client.client.getJavaScriptEngine()
+        .execute(result, script, "GolfServlet", 0);
     }
 
-    return client;
-  }
-
-  /**
-   * Initializes a client JSVM for proxy mode.
-   *
-   * @param     context     the golf request context
-   * @return                the resulting page
-   */
-  private HtmlPage initClient(final GolfContext context) 
-    throws FileNotFoundException, IOException {
-    HtmlPage result;
-
-    // the blank skeleton html template
-    String newHtml = 
-      (new GolfResource(getServletContext(), "new.html")).toString();
-
-    // do not pass query string to the app, as those parameters are meant
-    // only for the golf container itself.
-
-    StringWebResponse response = new StringWebResponse(
-      preprocess(newHtml, context, true),
-      new URL(context.servletURL + "#" + context.urlHash)
-    );
-
-    // run it through htmlunit
-    result = (HtmlPage) context.client.loadWebResponseInto(
-      response,
-      context.client.getCurrentWindow()
-    );
+    context.client.golfNum++;
 
     return result;
   }
@@ -408,7 +406,7 @@ public class GolfServlet extends HttpServlet {
 
     //if (context.hasEvent()) {
     //  StoredJSVM  jsvm = 
-    //    (context.session == null) ? null : clients.get(context.session);
+    //    (context.session == null) ? null : mClients.get(context.session);
     //  
     //  if (jsvm != null) {
     //    // do have a stored jsvm
@@ -459,14 +457,12 @@ public class GolfServlet extends HttpServlet {
     //  result            = page.asXml();
     //}
 
-    context.client    = getClientInstance(context);
-    HtmlPage  page    = initClient(context);
-    context.client    = null;
-    String html       = page.asXml();
+    HtmlPage  page    = renderPage(context);
+    String    html    = page.asXml();
 
     context.golfNum(context.golfNum()+1);
 
-    sendResponse(context, preprocess(html, context, false), "text/html");
+    sendResponse(context, preprocess(html, context, false), "text/html", false);
   }
 
   /**
@@ -479,7 +475,7 @@ public class GolfServlet extends HttpServlet {
     String html = 
       (new GolfResource(getServletContext(), "new.html")).toString();
 
-    sendResponse(context, preprocess(html, context, false), "text/html");
+    sendResponse(context, preprocess(html, context, false), "text/html", true);
   }
 
   /**
@@ -546,12 +542,16 @@ public class GolfServlet extends HttpServlet {
       (new GolfResource(getServletContext(), "jsdetect.html")).toString();
     jsDetectHtml = jsDetectHtml.replaceAll("__SESSION__", session.getId());
 
-    sendResponse(context, jsDetectHtml, "text/html");
+    sendResponse(context, jsDetectHtml, "text/html", false);
   }
 
   private void sendResponse(GolfContext context, String html, 
-      String contentType) throws IOException {
+      String contentType, boolean canCache) throws IOException {
     context.response.setContentType(contentType);
+
+    if (canCache)
+      setCachable(context);
+
     PrintWriter out = context.response.getWriter();
     out.println(html);
     out.close();
@@ -599,7 +599,7 @@ public class GolfServlet extends HttpServlet {
 
     json = "jQuery.golf.doJSONP(" + json + ");";
 
-    sendResponse(context, json, "text/javascript");
+    sendResponse(context, json, "text/javascript", true);
   }
 
   /**
@@ -664,6 +664,13 @@ public class GolfServlet extends HttpServlet {
     return result;
   }
 
+  private void setCachable(GolfContext context) {
+    long currentTime = System.currentTimeMillis();
+    long later       = 24*60*60*1000; // a day (milliseconds)
+    context.response.setDateHeader("Expires", currentTime + later);
+    context.response.setHeader("Cache-Control", "max-age=3600,public");
+  }
+
   /**
    * Handle a request for a static resource.
    *
@@ -673,8 +680,13 @@ public class GolfServlet extends HttpServlet {
       throws FileNotFoundException, IOException, JSONException {
     String path = context.path;
 
+    if (! path.startsWith("/"))
+      path = "/" + path;
+
     GolfResource res = new GolfResource(getServletContext(), path);
+
     context.response.setContentType(res.getMimeType());
+    setCachable(context);
 
     if (res.getMimeType().startsWith("text/")) {
       PrintWriter out = context.response.getWriter();
@@ -683,6 +695,8 @@ public class GolfServlet extends HttpServlet {
       OutputStream out = context.response.getOutputStream();
       out.write(res.toByteArray());
     }
+
+    logResponse(context, 200);
   }
 
   /**
@@ -694,8 +708,9 @@ public class GolfServlet extends HttpServlet {
    */
   private String fmtLogMsg(GolfContext context, String s) {
     String sid = context.request.getSession().getId();
+    String ip  = context.request.getRemoteHost();
     return (sid != null ? "[" + sid.toUpperCase().replaceAll(
-          "(...)(?=...)", "$1.") + "] " : "") + s;
+          "(...)(?=...)", "$1.") + "] " : "") + ip + "\n" + s;
   }
 
   /**
@@ -720,19 +735,23 @@ public class GolfServlet extends HttpServlet {
    */
   private void logRequest(GolfContext context) {
     String method = context.request.getMethod();
-    String scheme = context.request.getScheme();
-    String server = context.request.getServerName();
-    int    port   = context.request.getServerPort();
-    String uri    = context.request.getRequestURI();
     String query  = context.request.getQueryString();
     String host   = context.request.getRemoteHost();
     String sid    = context.request.getSession().getId();
 
-    String line   = method + " " + (scheme != null ? scheme + ":" : "") +
-      "//" + (server != null ? server + ":" + port : "") +
-      uri + (query != null ? "?" + query : "") + " " + host;
+    String line   = method + " /" + (query != null ? "?" + query : "");
 
     log(context, LOG_INFO, line);
+
+    //System.out.println("|||||||||||");
+    //Enumeration headerNames = context.request.getHeaderNames();
+    //while(headerNames.hasMoreElements()) {
+    //  String headerName = (String)headerNames.nextElement();
+    //  System.out.println("||||||||||| " + headerName + ": "
+    //    + context.request.getHeader(headerName));
+    //}
+    //System.out.println("|||||||||||");
+
   }
 
   /**
@@ -742,17 +761,11 @@ public class GolfServlet extends HttpServlet {
    */
   private void logResponse(GolfContext context, int status) {
     String method = String.valueOf(status);
-    String scheme = context.request.getScheme();
-    String server = context.request.getServerName();
-    int    port   = context.request.getServerPort();
-    String uri    = context.request.getRequestURI();
     String query  = context.request.getQueryString();
     String host   = context.request.getRemoteHost();
     String sid    = context.request.getSession().getId();
 
-    String line   = method + " " + (scheme != null ? scheme + ":" : "") +
-      "//" + (server != null ? server + ":" + port : "") +
-      uri + (query != null ? "?" + query : "") + " " + host;
+    String line   = method + " /" + (query != null ? "?" + query : "");
 
     log(context, LOG_INFO, line);
   }
