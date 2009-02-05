@@ -36,13 +36,13 @@ public class GolfServlet extends HttpServlet {
 
   /**
    * Each client in proxy mode has one of these stored javascript
-   * virtual machines (JSVMs). They're linked to the last used golfNum
+   * virtual machines (JSVMs). They're linked to the last used seqNum
    * to provide a way of checking for stale sessions, since session ids
    * are likely to be present in the google index.
    */
   private class StoredJSVM {
-    /** sequence number, see GolfServlet.golfNum */
-    public int golfNum;
+    /** sequence number */
+    public int seqNum;
     /** stored JSVM */
     public WebClient client;
 
@@ -50,11 +50,11 @@ public class GolfServlet extends HttpServlet {
      * Constructor.
      *
      * @param       client      the JSVM
-     * @param       golfNum     the sequence number
+     * @param       seqNum     the sequence number
      */
-    StoredJSVM(WebClient client, int golfNum) {
+    StoredJSVM(WebClient client, int seqNum) {
       this.client = client;
-      this.golfNum = golfNum;
+      this.seqNum = seqNum;
     }
   }
 
@@ -88,6 +88,8 @@ public class GolfServlet extends HttpServlet {
     public String               js          = null;
     /** force javascript enable/disable flag */
     public String               force       = null;
+    /** golf seq # */
+    public String               golf        = null;
     /** static content request relative to approot */
     public String               path        = null;
     /** component request in java 'dot' format e.g. 'com.example.blog' */
@@ -120,6 +122,7 @@ public class GolfServlet extends HttpServlet {
       this.event       = request.getParameter("event");
       this.target      = request.getParameter("target");
       this.force       = request.getParameter("force");
+      this.golf        = request.getParameter("golf");
       this.js          = request.getParameter("js");
       this.path        = request.getParameter("path");
       this.component   = request.getParameter("component");
@@ -137,7 +140,7 @@ public class GolfServlet extends HttpServlet {
       this.client = mClients.get(sid);
 
       if (this.client == null) {
-        this.client = new StoredJSVM((WebClient) null, golfNum());
+        this.client = new StoredJSVM((WebClient) null, sessionSeq());
         mClients.put(sid, this.client);
       }
     }
@@ -146,7 +149,7 @@ public class GolfServlet extends HttpServlet {
       return (this.event != null && this.target != null);
     }
 
-    public int golfNum() {
+    public int sessionSeq() {
       try {
         return Integer.valueOf(
             (String) this.request.getSession().getAttribute("golf"));
@@ -155,8 +158,20 @@ public class GolfServlet extends HttpServlet {
       }
     }
 
-    public void golfNum(int num) {
+    public void sessionSeq(int num) {
       this.request.getSession().setAttribute("golf", String.valueOf(num));
+    }
+
+    public int urlSeq() {
+      try {
+        return Integer.valueOf(this.golf);
+      } catch (Exception e) {
+        return 0;
+      }
+    }
+
+    public void urlSeq(int num) {
+      this.golf = String.valueOf(num);
     }
   }
 
@@ -263,7 +278,7 @@ public class GolfServlet extends HttpServlet {
 
     HttpSession   session   = context.request.getSession();
     String        sid       = session.getId();
-    int           golfNum   = context.golfNum();
+    int           sessionSeq   = context.sessionSeq();
 
     // pattern that should match the wrapper links added for proxy mode
     String pat1 = 
@@ -286,7 +301,7 @@ public class GolfServlet extends HttpServlet {
 
     // increment the golf sequence numbers in the event proxy links
     page = page.replaceAll( pat1, "$1 rel=\"nofollow\" $2;jsessionid=" + sid +
-        "$3" + golfNum);
+        "$3" + sessionSeq);
 
     if (!((String) session.getAttribute("js")).equals("yes") && !server) {
       // proxy mode only, so remove all javascript except on serverside
@@ -392,7 +407,7 @@ public class GolfServlet extends HttpServlet {
         .execute(result, script, "GolfServlet", 0);
     }
 
-    context.client.golfNum++;
+    context.client.seqNum++;
 
     return result;
   }
@@ -411,7 +426,7 @@ public class GolfServlet extends HttpServlet {
     //  if (jsvm != null) {
     //    // do have a stored jsvm
 
-    //    // if golfNums don't match then this is a stale session
+    //    // if seqNum don't match then this is a stale session
     //    if (context.golfNum() != jsvm.golfNum)
     //      throw new RedirectException(context.request.getRequestURI());
 
@@ -458,12 +473,24 @@ public class GolfServlet extends HttpServlet {
     //}
 
     HtmlPage  page    = renderPage(context);
-    String    html    = page.asXml();
 
-    context.golfNum(context.golfNum()+1);
+    //testWalk(page.getBody());
+
+    String    html    = page.asXml();
 
     sendResponse(context, preprocess(html, context, false), "text/html", false);
   }
+
+  //private void testWalk(HtmlElement elem) {
+  //  String tag = elem.getTagName();
+  //  String gid = elem.getAttribute("golfid");
+  //  String dat = (elem.getUserData("test") == null ? "no" : "yes");
+  //  String hlr = (elem.getEventHandler("onclick") == null ? "no" : "yes");
+  //  System.out.printf("%-20s %4s %s %s\n", tag, gid, dat, hlr);
+  //  Iterator<HtmlElement> i = elem.getChildElements().iterator();
+  //  while (i.hasNext())
+  //    testWalk(i.next());
+  //}
 
   /**
    * Send a non-proxied response.
@@ -487,23 +514,16 @@ public class GolfServlet extends HttpServlet {
 
     HttpSession session     = context.request.getSession();
     String      remoteAddr  = context.request.getRemoteAddr();
+    String      sessionAddr = (String) session.getAttribute("ipaddr");
+
 
     if (! session.isNew()) {
       if (context.force != null && context.force.equals("yes"))
-        session.setAttribute("golf", "0");
+        context.sessionSeq(0);
 
-      int seq;
+      int seq = context.sessionSeq();
       
-      try {
-        seq = Integer.valueOf((String) session.getAttribute("golf"));
-      } catch (Exception e) {
-        e.printStackTrace();
-        seq = -1;
-      }
-
-      session.setAttribute("golf", String.valueOf(++seq));
-
-      String sessionAddr = (String) session.getAttribute("ipaddr");
+      context.sessionSeq(++seq);
 
       if (sessionAddr != null && sessionAddr.equals(remoteAddr)) {
         if (seq == 1) {
@@ -535,7 +555,7 @@ public class GolfServlet extends HttpServlet {
       session = context.request.getSession(true);
     }
 
-    session.setAttribute("golf", "0");
+    context.sessionSeq(0);
     session.setAttribute("ipaddr", remoteAddr);
 
     String jsDetectHtml = 
