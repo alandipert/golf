@@ -209,8 +209,10 @@ jQuery.golf = {
   onHistoryChange: (function() {
     var lastHash = "";
     return function(hash) {
-      if (!hash)
-        hash = "home/";
+      if (!hash) {
+        jQuery.history.load("home/");
+        return;
+      }
 
       if (hash && hash != lastHash) {
         lastHash = hash;

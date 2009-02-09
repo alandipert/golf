@@ -217,8 +217,7 @@ public class GolfServlet extends HttpServlet {
 
       if (urlHash != null && urlHash.length() > 0) {
         urlHash    = urlHash.replaceFirst("/", "");
-        servletURL = response
-          .encodeURL(servletURL.replaceFirst("\\Q"+urlHash+"\\E$", ""));
+        servletURL = servletURL.replaceFirst("\\Q"+urlHash+"\\E$", "");
       } else {
         urlHash    = "";
       }
@@ -309,7 +308,8 @@ public class GolfServlet extends HttpServlet {
 
     try {
       if (!context.request.getPathInfo().endsWith("/"))
-        throw new RedirectException(context.servletURL + "/");
+        throw new RedirectException(
+            context.response.encodeURL(context.servletURL + "/"));
 
       if (context.p.getComponent() != null) {
         doComponentGet(context);
