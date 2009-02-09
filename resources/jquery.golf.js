@@ -218,6 +218,8 @@ jQuery.golf = {
         hash = hash.replace(/\/$/, "");
         var argv = hash.split("/");
         jQuery.golf.route(argv);
+        jQuery.golf.location = hash+"/";
+        alert("~~~~~~~~~~~~~~ ~~~ ~~~ "+(hash+"/")+" ~~~ ~~~ ~~~");
       }
     };
   })(),

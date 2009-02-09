@@ -43,11 +43,14 @@ public class GolfServlet extends HttpServlet {
   private class StoredJSVM {
     public int                            seqNum;
     public WebClient                      client;
-    public HashMap<String, HtmlElement>   proxyIndex;
+    public HtmlPage                       lastPage;
+    public String                         lastURL;
 
     StoredJSVM(WebClient client, int seqNum) {
-      this.client = client;
-      this.seqNum = seqNum;
+      this.client   = client;
+      this.seqNum   = seqNum;
+      this.lastPage = null;
+      this.lastURL  = null;
     }
   }
 
@@ -80,14 +83,14 @@ public class GolfServlet extends HttpServlet {
         
     }
     public void setSeq(Integer value) {
-      set("golf", value.toString());
+      set("golf", String.valueOf(value));
     }
 
     public Boolean getJs() {
       return get("js") == null ? null : Boolean.parseBoolean(get("js"));
     }
     public void setJs(boolean value) {
-      set("js", Boolean.toString(value));
+      set("js", String.valueOf(value));
     }
 
     public String getIpAddr() {
@@ -413,67 +416,86 @@ public class GolfServlet extends HttpServlet {
    * @param   context       the golf context for this request
    */
   private void doProxy(GolfContext context) throws FileNotFoundException,
-          IOException, URISyntaxException {
+          IOException, URISyntaxException, RedirectException {
     String      sid     = context.getSession().getId();
-    HtmlPage    result  = null;
+    HtmlPage    result  = context.jsvm.lastPage;
 
+    String      path    = context.request.getPathInfo().replaceFirst("^/+", "");
     String      event   = context.p.getEvent();
     String      target  = context.p.getTarget();
     WebClient   client  = context.jsvm.client;
 
-    if (event != null && target != null && client != null) {
-      String script = "jQuery(\"[golfid='"+target+"']\").click()";
+    if (result == null || !path.equals(context.jsvm.lastURL)) {
+      if (event != null && target != null && client != null) {
+        String script = "jQuery(\"[golfid='"+target+"']\").click()";
 
-      result = 
-        (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+        result = 
+          (HtmlPage) client.getCurrentWindow().getEnclosedPage();
 
-      client.getJavaScriptEngine().execute(result, script, "GolfServlet", 0);
-    } else if (client == null) {
-      log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
-      client = new WebClient(context.browser);
+        client.getJavaScriptEngine().execute(result, script, "GolfServlet", 0);
+      } else if (client == null) {
+        log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
+        client = new WebClient(context.browser);
 
-      // write any alert() calls to the log
-      client.setAlertHandler(new AlertHandler() {
-        public void handleAlert(Page page, String message) {
-          Log.info("ALERT: " + message);
-        }
-      });
+        // write any alert() calls to the log
+        client.setAlertHandler(new AlertHandler() {
+          public void handleAlert(Page page, String message) {
+            Log.info("ALERT: " + message);
+          }
+        });
 
-      // if this isn't long enough it'll timeout before all ajax is complete
-      client.setJavaScriptTimeout(JSVM_TIMEOUT);
+        // if this isn't long enough it'll timeout before all ajax is complete
+        client.setJavaScriptTimeout(JSVM_TIMEOUT);
 
-      context.jsvm.client = client;
+        context.jsvm.client = client;
 
-      // the blank skeleton html template
-      String newHtml = 
-        (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
+        // the blank skeleton html template
+        String newHtml = 
+          (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
 
-      // do not pass query string to the app, as those parameters are meant
-      // only for the golf container itself.
+        // do not pass query string to the app, as those parameters are meant
+        // only for the golf container itself.
 
-      StringWebResponse response = new StringWebResponse(
-        preprocess(newHtml, context, true),
-        new URL(context.servletURL + "#" + context.urlHash)
-      );
+        StringWebResponse response = new StringWebResponse(
+          preprocess(newHtml, context, true),
+          new URL(context.servletURL + "#" + context.urlHash)
+        );
 
-      // run it through htmlunit
-      result = (HtmlPage) context.jsvm.client.loadWebResponseInto(
-        response,
-        client.getCurrentWindow()
-      );
-    } else {
-      String script = "jQuery.golf.onHistoryChange('"+context.urlHash+"')";
-      result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
-      client.getJavaScriptEngine().execute(result, script, "GolfServlet", 0);
-    }
+        // run it through htmlunit
+        result = (HtmlPage) context.jsvm.client.loadWebResponseInto(
+          response,
+          client.getCurrentWindow()
+        );
+      } else {
+        String script = "jQuery.history.load('"+context.urlHash+"');";
+        result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+        result.executeJavaScript(script);
+      }
 
-    Iterator<HtmlAnchor> anchors = result.getAnchors().iterator();
-    while (anchors.hasNext()) {
-      HtmlAnchor a = anchors.next();
-      a.setAttribute("href", context.response.encodeURL(a.getHrefAttribute()));
+      Iterator<HtmlAnchor> anchors = result.getAnchors().iterator();
+      while (anchors.hasNext()) {
+        HtmlAnchor a = anchors.next();
+        a.setAttribute("href",context.response.encodeURL(a.getHrefAttribute()));
+      }
+
+      String loc = (String) result.executeJavaScript("jQuery.golf.location")
+                              .getJavaScriptResult();
+      
+      if (!loc.equals(path)) {
+        context.jsvm.lastPage = result;
+        context.jsvm.lastURL  = loc;
+        throw new RedirectException(
+            context.response.encodeURL(context.servletURL + loc));
+      }
     }
 
     String html = result.asXml();
+
+    if (context.jsvm.lastPage != null || context.jsvm.lastURL == null) {
+      context.jsvm.lastPage = null;
+      context.jsvm.lastURL = null;
+    }
+
     sendResponse(context, preprocess(html, context, false), "text/html", false);
   }
 
