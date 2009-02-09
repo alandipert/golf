@@ -30,40 +30,135 @@ import com.gargoylesoftware.htmlunit.javascript.*;
  */
 public class GolfServlet extends HttpServlet {
   
-  public static final int LOG_DEBUG = 1;
-  public static final int LOG_INFO  = 2;
-  public static final int LOG_WARN  = 3;
+  public static final int     LOG_DEBUG           = 1;
+  public static final int     LOG_INFO            = 2;
+  public static final int     LOG_WARN            = 3;
 
-  /**
-   * Each client in proxy mode has one of these stored javascript
-   * virtual machines (JSVMs). They're linked to the last used seqNum
-   * to provide a way of checking for stale sessions, since session ids
-   * are likely to be present in the google index.
-   */
+  public static final int     JSVM_TIMEOUT        = 10000;
+
+  public static final String  FILE_USER_AGENTS    = "user-agents.xml";
+  public static final String  FILE_NEW_HTML       = "new.html";
+  public static final String  FILE_JSDETECT_HTML  = "jsdetect.html";
+
   private class StoredJSVM {
-    /** sequence number */
-    public int seqNum;
-    /** stored JSVM */
-    public WebClient client;
+    public int                            seqNum;
+    public WebClient                      client;
+    public HashMap<String, HtmlElement>   proxyIndex;
 
-    /**
-     * Constructor.
-     *
-     * @param       client      the JSVM
-     * @param       seqNum     the sequence number
-     */
     StoredJSVM(WebClient client, int seqNum) {
       this.client = client;
       this.seqNum = seqNum;
     }
   }
 
-  /**
-   * Break out and send a redirect.
-   */
   public class RedirectException extends Exception {
     public RedirectException(String msg) {
       super(msg);
+    }
+  }
+
+  private class GolfSession {
+    private HttpSession mSess;
+
+    public GolfSession(HttpServletRequest req) { 
+      mSess = req.getSession(); 
+    }
+
+    private String get(String name) { 
+      return (String) mSess.getAttribute(name);
+    }
+
+    private void set(String name, String value) { 
+      mSess.setAttribute(name, value);
+    }
+
+    public Integer getSeq() { 
+      try { 
+        return Integer.parseInt(get("golf"));
+      } catch (NumberFormatException e) { }
+      return null;
+        
+    }
+    public void setSeq(Integer value) {
+      set("golf", value.toString());
+    }
+
+    public Boolean getJs() {
+      return get("js") == null ? null : Boolean.parseBoolean(get("js"));
+    }
+    public void setJs(boolean value) {
+      set("js", Boolean.toString(value));
+    }
+
+    public String getIpAddr() {
+      return get("ipaddr");
+    }
+    public void setIpAddr(String value) {
+      set("ipaddr", value);
+    }
+  }
+
+  private class GolfParams {
+    private String    mEvent      = null;
+    private String    mTarget     = null;
+    private Boolean   mForce      = false;
+    private Integer   mSeq        = -1;
+    private Boolean   mJs         = false;
+    private String    mPath       = null;
+    private String    mComponent  = null;
+
+    public GolfParams(HttpServletRequest req) {
+      mEvent      = req.getParameter("event");
+      mTarget     = req.getParameter("target");
+      mForce      = req.getParameter("force") == null 
+                      ? null
+                      : Boolean.parseBoolean(req.getParameter("force"));
+      mSeq        = req.getParameter("golf") == null 
+                      ? null
+                      : Integer.valueOf(req.getParameter("golf"));
+      mJs         = req.getParameter("js") == null 
+                      ? null
+                      : Boolean.parseBoolean(req.getParameter("js"));
+      mPath       = req.getParameter("path");
+      mComponent  = req.getParameter("component");
+    }
+
+    public String   getEvent()          { return mEvent; }
+    public String   getTarget()         { return mTarget; }
+    public Boolean  getForce()          { return mForce; }
+    public Integer  getSeq()            { return mSeq; }
+    public Boolean  getJs()             { return mJs; }
+    public String   getPath()           { return mPath; }
+    public String   getComponent()      { return mComponent; }
+
+    public void setEvent(String v)      { mEvent      = v; }
+    public void setTarget(String v)     { mTarget     = v; }
+    public void setForce(Boolean v)     { mForce      = v; }
+    public void setSeq(Integer v)       { mSeq        = v; }
+    public void setJs(Boolean v)        { mJs         = v; }
+    public void setPath(String v)       { mPath       = v; }
+    public void setComponent(String v)  { mComponent  = v; }
+
+    private String toQueryParam(String name, String p) {
+      return p != null ? name+"="+p : "";
+    }
+    private String toQueryParam(String name, Boolean p) {
+      return p != null ? name+"="+p.toString() : "";
+    }
+    private String toQueryParam(String name, Integer p) {
+      return p != null ? name+"="+p.toString() : "";
+    }
+
+    public String toQueryString() {
+      String result = "";
+      result += toQueryParam("event",     mEvent);
+      result += toQueryParam("target",    mTarget);
+      result += toQueryParam("force",     mForce);
+      result += toQueryParam("golf",      mSeq);
+      result += toQueryParam("js",        mJs);
+      result += toQueryParam("path",      mPath);
+      result += toQueryParam("component", mComponent);
+      return result.length() > 0 ? "?"+result : "";
     }
   }
 
@@ -73,38 +168,16 @@ public class GolfServlet extends HttpServlet {
    */
   public class GolfContext {
     
-    /** the http request */
     public HttpServletRequest   request     = null;
-    /** the http response */
     public HttpServletResponse  response    = null;
-
-    /** http query string parameters */
-
-    /** the event type (proxy mode) e.g 'click' */
-    public String               event       = null;
-    /** the target golfId (proxy mode) */
-    public String               target      = null;
-    /** javascript enable/disable flag */
-    public String               js          = null;
-    /** force javascript enable/disable flag */
-    public String               force       = null;
-    /** golf seq # */
-    public String               golf        = null;
-    /** static content request relative to approot */
-    public String               path        = null;
-    /** component request in java 'dot' format e.g. 'com.example.blog' */
-    public String               component   = null;
-
-    /** the servlet's base URL */
+    public GolfParams           p           = null;
+    public GolfSession          s           = null;
     public String               servletURL  = null;
-    /** the faked URI fragment */
     public String               urlHash     = null;
-    /** the request path info */
-    public String               pathInfo    = null;
     /** FIXME which browser is the client using? FIXME */
     public BrowserVersion       browser     = BrowserVersion.FIREFOX_2;
     /** the jsvm for this request */
-    public StoredJSVM           client      = null;
+    public StoredJSVM           jsvm        = null;
 
     /**
      * Constructor.
@@ -114,76 +187,54 @@ public class GolfServlet extends HttpServlet {
      */
     public GolfContext(HttpServletRequest request, 
         HttpServletResponse response) {
-      String sid = request.getSession().getId();
-
       this.request     = request;
       this.response    = response;
-
-      this.event       = request.getParameter("event");
-      this.target      = request.getParameter("target");
-      this.force       = request.getParameter("force");
-      this.golf        = request.getParameter("golf");
-      this.js          = request.getParameter("js");
-      this.path        = request.getParameter("path");
-      this.component   = request.getParameter("component");
-      this.urlHash    = request.getPathInfo();
-      this.servletURL = request.getRequestURL().toString();
-      this.pathInfo   = this.urlHash;
+      this.p           = new GolfParams(request);
+      this.s           = new GolfSession(request);
+      this.urlHash     = request.getPathInfo();
+      this.servletURL  = request.getRequestURL().toString()
+                          .replaceFirst(";jsessionid=.*$", "");
 
       if (urlHash != null && urlHash.length() > 0) {
         urlHash    = urlHash.replaceFirst("/", "");
-        servletURL = servletURL.replaceFirst("\\Q"+urlHash+"\\E$", "");
+        servletURL = response
+          .encodeURL(servletURL.replaceFirst("\\Q"+urlHash+"\\E$", ""));
       } else {
         urlHash    = "";
       }
 
-      this.client = mClients.get(sid);
+      this.jsvm = mJsvms.get(getSession().getId());
 
-      if (this.client == null) {
-        this.client = new StoredJSVM((WebClient) null, sessionSeq());
-        mClients.put(sid, this.client);
+      if (this.jsvm == null) {
+        this.jsvm = new StoredJSVM((WebClient) null, 0);
+        mJsvms.put(getSession().getId(), this.jsvm);
       }
     }
 
     public boolean hasEvent() {
-      return (this.event != null && this.target != null);
+      return (this.p.getEvent() != null && this.p.getTarget() != null);
     }
 
-    public int sessionSeq() {
-      try {
-        return Integer.valueOf(
-            (String) this.request.getSession().getAttribute("golf"));
-      } catch (Exception e) {
-        return 0;
-      }
+    public HttpSession getSession() {
+      HttpSession result = request.getSession();
+      return result;
     }
 
-    public void sessionSeq(int num) {
-      this.request.getSession().setAttribute("golf", String.valueOf(num));
-    }
-
-    public int urlSeq() {
-      try {
-        return Integer.valueOf(this.golf);
-      } catch (Exception e) {
-        return 0;
-      }
-    }
-
-    public void urlSeq(int num) {
-      this.golf = String.valueOf(num);
+    public HttpSession getSession(boolean create) {
+      HttpSession result = request.getSession(create);
+      return result;
     }
   }
 
   /** htmlunit webclients for proxy-mode sessions */
-  private ConcurrentHashMap<String, StoredJSVM> mClients =
+  private static ConcurrentHashMap<String, StoredJSVM> mJsvms =
     new ConcurrentHashMap<String, StoredJSVM>();
 
   /** the amazon web services private key */
-  private String mAwsPrivate = null;
+  private static String mAwsPrivate = null;
 
   /** the amazon web services public key */
-  private String mAwsPublic = null;
+  private static String mAwsPublic = null;
 
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
@@ -211,6 +262,11 @@ public class GolfServlet extends HttpServlet {
     //} catch (Exception e) {
     //  e.printStackTrace();
     //}
+
+    //GolfResource res = new GolfResource(getServletContext(), USER_AGENTS_FILE);
+    //Document agents = 
+    //  XmlUtil.buildDocument(
+    //      new StringWebResponse(res.toString(), USER_AGENTS_FILE));
   }
 
   /**
@@ -232,13 +288,12 @@ public class GolfServlet extends HttpServlet {
     // info.
 
     try {
-      if (!context.pathInfo.endsWith("/"))
-        throw new RedirectException(
-            request.getRequestURL().append('/').toString());
+      if (!context.request.getPathInfo().endsWith("/"))
+        throw new RedirectException(context.servletURL + "/");
 
-      if (context.component != null) {
+      if (context.p.getComponent() != null) {
         doComponentGet(context);
-      } else if (context.path != null) {
+      } else if (context.p.getPath() != null) {
         doStaticResourceGet(context);
       } else {
         doDynamicResourceGet(context);
@@ -260,7 +315,7 @@ public class GolfServlet extends HttpServlet {
 
     catch (Exception x) {
       // send a 500 INTERNAL SERVER ERROR
-      //x.printStackTrace();
+      x.printStackTrace();
       logResponse(context, 500);
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
@@ -275,35 +330,29 @@ public class GolfServlet extends HttpServlet {
    * @return                  the processed page html contents
    */
   private String preprocess(String page, GolfContext context, boolean server) {
-
-    HttpSession   session   = context.request.getSession();
-    String        sid       = session.getId();
-    int           sessionSeq   = context.sessionSeq();
-
-    // pattern that should match the wrapper links added for proxy mode
-    String pat1 = 
-      "(<a) (href=\")(\\?event=[a-zA-Z]+&amp;target=[0-9]+&amp;golf=)[0-9]+";
+    String        sid       = context.getSession().getId();
 
     // pattern matching all script tags (should this be removed?)
     String pat2 = 
       "<script type=\"text/javascript\"[^>]*>([^<]|//<!\\[CDATA\\[)*</script>";
 
     // document type: xhtml
-    String dtd = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" " +
+    String dtd = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n" +
       "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n";
+
+    if (!server)
+      page = page.replaceFirst("^<\\?xml [^>]+>\n", "");
 
     // robots must not index event proxy (because infinite loops, etc.)
     if (!context.hasEvent())
       page = page.replaceFirst("noindex,nofollow", "index,follow");
 
     // remove the golfid attribute as it's not necessary on the client
-    page = page.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
+    // and it is frowned upon by the w3c validator
+    if (!server)
+      page = page.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
 
-    // increment the golf sequence numbers in the event proxy links
-    page = page.replaceAll( pat1, "$1 rel=\"nofollow\" $2;jsessionid=" + sid +
-        "$3" + sessionSeq);
-
-    if (!((String) session.getAttribute("js")).equals("yes") && !server) {
+    if (! context.s.getJs().booleanValue() && !server) {
       // proxy mode only, so remove all javascript except on serverside
       page = page.replaceAll(pat2, "");
     } else {
@@ -358,31 +407,46 @@ public class GolfServlet extends HttpServlet {
     }
   }
 
-  private HtmlPage renderPage(final GolfContext context) 
-      throws FileNotFoundException, IOException, MalformedURLException {
-    String      sid     = context.request.getSession().getId();
+  /**
+   * Send a proxied response.
+   *
+   * @param   context       the golf context for this request
+   */
+  private void doProxy(GolfContext context) throws FileNotFoundException,
+          IOException, URISyntaxException {
+    String      sid     = context.getSession().getId();
     HtmlPage    result  = null;
 
-    if (context.client.client == null) {
-      log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
+    String      event   = context.p.getEvent();
+    String      target  = context.p.getTarget();
+    WebClient   client  = context.jsvm.client;
 
-      WebClient client = new WebClient(context.browser);
+    if (event != null && target != null && client != null) {
+      String script = "jQuery(\"[golfid='"+target+"']\").click()";
+
+      result = 
+        (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+
+      client.getJavaScriptEngine().execute(result, script, "GolfServlet", 0);
+    } else if (client == null) {
+      log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
+      client = new WebClient(context.browser);
 
       // write any alert() calls to the log
       client.setAlertHandler(new AlertHandler() {
         public void handleAlert(Page page, String message) {
-          log(context, LOG_INFO, "ALERT: " + message);
+          Log.info("ALERT: " + message);
         }
       });
 
       // if this isn't long enough it'll timeout before all ajax is complete
-      client.setJavaScriptTimeout(10000);
+      client.setJavaScriptTimeout(JSVM_TIMEOUT);
 
-      context.client.client = client;
+      context.jsvm.client = client;
 
       // the blank skeleton html template
       String newHtml = 
-        (new GolfResource(getServletContext(), "new.html")).toString();
+        (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
 
       // do not pass query string to the app, as those parameters are meant
       // only for the golf container itself.
@@ -393,104 +457,25 @@ public class GolfServlet extends HttpServlet {
       );
 
       // run it through htmlunit
-      result = (HtmlPage) context.client.client.loadWebResponseInto(
+      result = (HtmlPage) context.jsvm.client.loadWebResponseInto(
         response,
-        context.client.client.getCurrentWindow()
+        client.getCurrentWindow()
       );
     } else {
       String script = "jQuery.golf.onHistoryChange('"+context.urlHash+"')";
-
-      result = 
-        (HtmlPage) context.client.client.getCurrentWindow().getEnclosedPage();
-
-      context.client.client.getJavaScriptEngine()
-        .execute(result, script, "GolfServlet", 0);
+      result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+      client.getJavaScriptEngine().execute(result, script, "GolfServlet", 0);
     }
 
-    context.client.seqNum++;
+    Iterator<HtmlAnchor> anchors = result.getAnchors().iterator();
+    while (anchors.hasNext()) {
+      HtmlAnchor a = anchors.next();
+      a.setAttribute("href", context.response.encodeURL(a.getHrefAttribute()));
+    }
 
-    return result;
-  }
-
-  /**
-   * Send a proxied response.
-   *
-   * @param   context       the golf context for this request
-   */
-  private void doProxy(GolfContext context) throws Exception {
-
-    //if (context.hasEvent()) {
-    //  StoredJSVM  jsvm = 
-    //    (context.session == null) ? null : mClients.get(context.session);
-    //  
-    //  if (jsvm != null) {
-    //    // do have a stored jsvm
-
-    //    // if seqNum don't match then this is a stale session
-    //    if (context.golfNum() != jsvm.golfNum)
-    //      throw new RedirectException(context.request.getRequestURI());
-
-    //    context.client = jsvm.client;
-    //    page = (HtmlPage) context.client.getCurrentWindow().getEnclosedPage();
-    //  } else {
-    //    // don't have a stored jsvm
-
-    //    // golfNum isn't 1 so we're not coming from a fresh page, and
-    //    // there is no stored jsvm, so this must be a stale session
-    //    if (context.golfNum() != 2)
-    //      throw new RedirectException(context.request.getRequestURI());
-
-    //    // the session id was not associated with a stored jsvm, so we
-    //    // generate a new one
-    //    context.session   = generateSessionId(context);
-
-    //    // initialize up a new stored JSVM
-    //    context.client    = new WebClient(context.browser);
-    //    page              = initClient(context);
-
-    //    String thisPage = page.asXml();
-    //  }
-
-    //  // fire off the event
-    //  if (context.params.target != null) {
-    //    HtmlElement targetElem = null;
-
-    //    try {
-    //      targetElem = page.getHtmlElementByGolfId(context.params.target);
-    //    } catch (Exception e) {
-    //      log(context, LOG_INFO, "CAN'T FIRE EVENT: REDIRECTING");
-    //      throw new RedirectException(context.request.getRequestURI());
-    //    }
-
-    //    if (targetElem != null)
-    //      targetElem.fireEvent(context.params.event);
-    //  }
-    //} else {
-    //  context.client    = new WebClient(context.browser);
-    //  HtmlPage  page    = initClient(context);
-    //  context.client    = null;
-    //  result            = page.asXml();
-    //}
-
-    HtmlPage  page    = renderPage(context);
-
-    //testWalk(page.getBody());
-
-    String    html    = page.asXml();
-
+    String html = result.asXml();
     sendResponse(context, preprocess(html, context, false), "text/html", false);
   }
-
-  //private void testWalk(HtmlElement elem) {
-  //  String tag = elem.getTagName();
-  //  String gid = elem.getAttribute("golfid");
-  //  String dat = (elem.getUserData("test") == null ? "no" : "yes");
-  //  String hlr = (elem.getEventHandler("onclick") == null ? "no" : "yes");
-  //  System.out.printf("%-20s %4s %s %s\n", tag, gid, dat, hlr);
-  //  Iterator<HtmlElement> i = elem.getChildElements().iterator();
-  //  while (i.hasNext())
-  //    testWalk(i.next());
-  //}
 
   /**
    * Send a non-proxied response.
@@ -500,7 +485,7 @@ public class GolfServlet extends HttpServlet {
   private void doNoProxy(GolfContext context) throws Exception {
     // the blank skeleton html template
     String html = 
-      (new GolfResource(getServletContext(), "new.html")).toString();
+      (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
 
     sendResponse(context, preprocess(html, context, false), "text/html", true);
   }
@@ -512,37 +497,32 @@ public class GolfServlet extends HttpServlet {
    */
   private void doDynamicResourceGet(GolfContext context) throws Exception {
 
-    HttpSession session     = context.request.getSession();
+    HttpSession session     = context.getSession();
     String      remoteAddr  = context.request.getRemoteAddr();
-    String      sessionAddr = (String) session.getAttribute("ipaddr");
-
+    String      sessionAddr = context.s.getIpAddr();
 
     if (! session.isNew()) {
-      if (context.force != null && context.force.equals("yes"))
-        context.sessionSeq(0);
+      if (context.p.getForce() != null && context.p.getForce().booleanValue())
+        context.s.setSeq(0);
 
-      int seq = context.sessionSeq();
+      int seq = (context.s.getSeq() == null ? 0 : (int) context.s.getSeq());
       
-      context.sessionSeq(++seq);
+      context.s.setSeq(++seq);
 
       if (sessionAddr != null && sessionAddr.equals(remoteAddr)) {
         if (seq == 1) {
-          if (context.js != null) {
-            boolean cookies = context.request.isRequestedSessionIdFromCookie();
-
-            session.setAttribute("js", 
-                (context.js.equals("yes") && cookies ? "yes" : "no"));
+          if (context.p.getJs() != null) {
+            context.s.setJs(context.p.getJs());
 
             String uri = context.request.getRequestURI();
-
-            if (cookies)
+            if (context.request.isRequestedSessionIdFromCookie())
               uri = uri.replaceAll(";jsessionid=.*$", "");
             
             throw new RedirectException(uri);
           }
         } else if (seq >= 2) {
-          if ((String) session.getAttribute("js") != null) {
-            if (((String) session.getAttribute("js")).equals("yes"))
+          if (context.s.getJs() != null) {
+            if (context.s.getJs().booleanValue())
               doNoProxy(context);
             else
               doProxy(context);
@@ -552,17 +532,21 @@ public class GolfServlet extends HttpServlet {
       }
 
       session.invalidate();
-      session = context.request.getSession(true);
+      session = context.getSession(true);
     }
 
-    context.sessionSeq(0);
-    session.setAttribute("ipaddr", remoteAddr);
+    context.s.setSeq(0);
+    context.s.setIpAddr(remoteAddr);
 
-    String jsDetectHtml = 
-      (new GolfResource(getServletContext(), "jsdetect.html")).toString();
-    jsDetectHtml = jsDetectHtml.replaceAll("__SESSION__", session.getId());
+    String jsDetect = 
+      (new GolfResource(getServletContext(), FILE_JSDETECT_HTML)).toString();
 
-    sendResponse(context, jsDetectHtml, "text/html", false);
+    jsDetect = jsDetect.replaceAll("__HAVE_JS__", 
+        context.response.encodeURL("?js=true"));
+    jsDetect = jsDetect.replaceAll("__DONT_HAVE_JS__", 
+        context.response.encodeURL("?js=false"));
+
+    sendResponse(context, jsDetect, "text/html", false);
   }
 
   private void sendResponse(GolfContext context, String html, 
@@ -585,7 +569,7 @@ public class GolfServlet extends HttpServlet {
    */
   private void doComponentGet(GolfContext context) 
       throws FileNotFoundException, IOException, JSONException {
-    String classPath = context.component;
+    String classPath = context.p.getComponent();
     String className = classPath.replace('.', '-');
     String path      = "/components/" + classPath.replace('.', '/');
 
@@ -632,7 +616,7 @@ public class GolfServlet extends HttpServlet {
    */
   private String processComponentHtml(GolfContext context, String text, 
       String className) {
-    String path   = context.path;
+    String path   = context.p.getPath();
     String result = text;
 
     // Add the unique component css class to the component outermost
@@ -664,7 +648,7 @@ public class GolfServlet extends HttpServlet {
    */
   private String processComponentCss(GolfContext context, String text,
       String className) {
-    String path       = context.path;
+    String path       = context.p.getPath();
     String result     = text;
 
     // Localize this css file by inserting the unique component css class
@@ -698,7 +682,7 @@ public class GolfServlet extends HttpServlet {
    */
   private void doStaticResourceGet(GolfContext context) 
       throws FileNotFoundException, IOException, JSONException {
-    String path = context.path;
+    String path = context.p.getPath();
 
     if (! path.startsWith("/"))
       path = "/" + path;
@@ -727,7 +711,7 @@ public class GolfServlet extends HttpServlet {
    * @return                the formatted log message
    */
   private String fmtLogMsg(GolfContext context, String s) {
-    String sid = context.request.getSession().getId();
+    String sid = context.getSession().getId();
     String ip  = context.request.getRemoteHost();
     return (sid != null ? "[" + sid.toUpperCase().replaceAll(
           "(...)(?=...)", "$1.") + "] " : "") + ip + "\n" + s;
@@ -755,22 +739,23 @@ public class GolfServlet extends HttpServlet {
    */
   private void logRequest(GolfContext context) {
     String method = context.request.getMethod();
+    String path   = context.request.getPathInfo();
     String query  = context.request.getQueryString();
     String host   = context.request.getRemoteHost();
-    String sid    = context.request.getSession().getId();
+    String sid    = context.getSession().getId();
 
-    String line   = method + " /" + (query != null ? "?" + query : "");
+    String line   = method + " " + path + (query != null ? "?" + query : "");
 
     log(context, LOG_INFO, line);
 
-    //System.out.println("|||||||||||");
+    //System.out.println("||||||||||||||||||||||||||||||||||||||");
     //Enumeration headerNames = context.request.getHeaderNames();
     //while(headerNames.hasMoreElements()) {
     //  String headerName = (String)headerNames.nextElement();
     //  System.out.println("||||||||||| " + headerName + ": "
     //    + context.request.getHeader(headerName));
     //}
-    //System.out.println("|||||||||||");
+    //System.out.println("||||||||||||||||||||||||||||||||||||||");
 
   }
 
@@ -781,11 +766,12 @@ public class GolfServlet extends HttpServlet {
    */
   private void logResponse(GolfContext context, int status) {
     String method = String.valueOf(status);
+    String path   = context.request.getPathInfo();
     String query  = context.request.getQueryString();
     String host   = context.request.getRemoteHost();
-    String sid    = context.request.getSession().getId();
+    String sid    = context.getSession().getId();
 
-    String line   = method + " /" + (query != null ? "?" + query : "");
+    String line   = method + " " + path + (query != null ? "?" + query : "");
 
     log(context, LOG_INFO, line);
   }

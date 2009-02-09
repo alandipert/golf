@@ -1,4 +1,23 @@
 
+if (serverside) {
+  jQuery.fn.origBind = jQuery.fn.bind;
+
+  jQuery.fn.bind = (function() {
+    var lastId = 0;
+    return function(name, fn) {
+      if (name == "click") {
+        ++lastId;
+        var e = "onclick";
+        var a = "<a rel='nofollow' class='golfproxylink' href='?target="+
+          lastId+"&amp;event="+e+"'></a>";
+        jQuery(this).attr("golfid", lastId);
+        jQuery(this).wrap(a);
+      }
+      return jQuery(this).origBind(name, fn);
+    };
+  })();
+}
+
 jQuery.fn.golf = function(name, argv) {
   var parentElem = this;
   new jQuery.golf.Component(function(comp) {
@@ -261,17 +280,26 @@ jQuery.golf = {
 
   prepare: function(p) {
     jQuery("a[href^='#']", p).each(function() { 
-      var base = this.href.replace(/#.*$/, "");
-      var hash = this.href.replace(/^.*#/, "");
-      this.href = base + hash;
+      var pat   = /^(.*)(;jsessionid=[^#?\/]+)(.*)$/;
+      var sid="", match;
+
+      if (match = this.href.match(pat)) {
+        sid = match[2]+"/";
+        this.href = match[1] + match[3];
+      }
+
+      var base  = this.href.replace(/#.*$/, "");
+      var hash  = this.href.replace(/^.*#/, "");
+      this.href = base + hash + sid;
 
       // only in client mode, otherwise makes redundant <a> tag wrappers
-      if (!serverside)
+      if (!serverside) {
         jQuery(this).unbind("click");
         jQuery(this).click(function() {
           jQuery.history.load(hash);
           return false;
         });
+      }
     });
     return jQuery(p);
   },
@@ -305,7 +333,7 @@ jQuery.golf = {
 
     $.component = name;
     $.package   = name.replace(/\.[^.]*$/, "");
-
+    
     jQuery.golf.getComponent(name, function(cmp) {
       var p     = jQuery(cmp.html).get()[0];
       var frag  = document.createDocumentFragment();

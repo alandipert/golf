@@ -1,9 +1,12 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
   <head>
+    <title> </title>
     <script type="text/javascript">
-      window.location = ";jsessionid=__SESSION__?js=yes";
+      window.location = "__HAVE_JS__";
     </script>
-    <meta http-equiv="refresh" content="0;;jsessionid=__SESSION__?js=no"/>
+    <meta http-equiv="refresh" content="0;__DONT_HAVE_JS__"/>
   </head>
   <body>
     <div style="color:#222;width:20em;margin:2em auto;padding:2em;border:1px solid black;font-family:sans-serif;">
@@ -14,7 +17,7 @@
       </div>
       <p>If it takes more than a few seconds to load or if your browser
       doesn't support meta refresh please click 
-      <a href=";jsessionid=__SESSION__?js=no">here</a>.</p>
+      <a href="__DONT_HAVE_JS__">here</a>.</p>
     </div>
   </body>
 </html>
