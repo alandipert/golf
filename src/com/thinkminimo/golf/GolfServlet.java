@@ -41,16 +41,12 @@ public class GolfServlet extends HttpServlet {
   public static final String  FILE_JSDETECT_HTML  = "jsdetect.html";
 
   private class StoredJSVM {
-    public int                            seqNum;
     public WebClient                      client;
     public HtmlPage                       lastPage;
-    public String                         lastURL;
 
-    StoredJSVM(WebClient client, int seqNum) {
+    StoredJSVM(WebClient client) {
       this.client   = client;
-      this.seqNum   = seqNum;
       this.lastPage = null;
-      this.lastURL  = null;
     }
   }
 
@@ -98,6 +94,27 @@ public class GolfServlet extends HttpServlet {
     }
     public void setIpAddr(String value) {
       set("ipaddr", value);
+    }
+
+    public String getLastURL() {
+      return get("lasturl");
+    }
+    public void setLastURL(String value) {
+      set("lasturl", value);
+    }
+
+    public String getLastEvent() {
+      return get("lastevent");
+    }
+    public void setLastEvent(String value) {
+      set("lastevent", value);
+    }
+
+    public String getLastTarget() {
+      return get("lasttarget");
+    }
+    public void setLastTarget(String value) {
+      set("lasttarget", value);
     }
   }
 
@@ -209,7 +226,7 @@ public class GolfServlet extends HttpServlet {
       this.jsvm = mJsvms.get(getSession().getId());
 
       if (this.jsvm == null) {
-        this.jsvm = new StoredJSVM((WebClient) null, 0);
+        this.jsvm = new StoredJSVM((WebClient) null);
         mJsvms.put(getSession().getId(), this.jsvm);
       }
     }
@@ -425,14 +442,14 @@ public class GolfServlet extends HttpServlet {
     String      target  = context.p.getTarget();
     WebClient   client  = context.jsvm.client;
 
-    if (result == null || !path.equals(context.jsvm.lastURL)) {
+    if (result == null || !path.equals(context.s.getLastURL())) {
       if (event != null && target != null && client != null) {
         String script = "jQuery(\"[golfid='"+target+"']\").click()";
 
         result = 
           (HtmlPage) client.getCurrentWindow().getEnclosedPage();
 
-        client.getJavaScriptEngine().execute(result, script, "GolfServlet", 0);
+        result.executeJavaScript(script);
       } else if (client == null) {
         log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
         client = new WebClient(context.browser);
@@ -481,9 +498,9 @@ public class GolfServlet extends HttpServlet {
       String loc = (String) result.executeJavaScript("jQuery.golf.location")
                               .getJavaScriptResult();
       
-      if (!loc.equals(path)) {
+      if (!loc.equals(path) || context.request.getQueryString() != null) {
         context.jsvm.lastPage = result;
-        context.jsvm.lastURL  = loc;
+        context.s.setLastURL(loc);
         throw new RedirectException(
             context.response.encodeURL(context.servletURL + loc));
       }
@@ -491,9 +508,9 @@ public class GolfServlet extends HttpServlet {
 
     String html = result.asXml();
 
-    if (context.jsvm.lastPage != null || context.jsvm.lastURL == null) {
+    if (context.jsvm.lastPage != null) {
       context.jsvm.lastPage = null;
-      context.jsvm.lastURL = null;
+      context.s.setLastURL(null);
     }
 
     sendResponse(context, preprocess(html, context, false), "text/html", false);
