@@ -65,16 +65,16 @@ public class GolfAnt {
                     .replaceAll("__DEPENDENCIES.ZIP__", dep.getAbsolutePath())
                     .replaceAll("__CLASSES.ZIP__", cls.getAbsolutePath());
 
-    System.err.println(webStr);
-
     cacheString(webStr, "", web);
     cacheString(antStr, "", ant);
 
+    System.err.printf("Creating warfile...");
     Project project = new Project();
     project.init();
     project.setUserProperty("ant.file" , ant.getAbsolutePath());
     ProjectHelper.configureProject(project, ant);
     project.executeTarget("war");
+    System.err.println("done.");
   }
 
   public File cacheResource(String name, String ext, File f)
