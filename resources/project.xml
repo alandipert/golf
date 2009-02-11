@@ -1,0 +1,21 @@
+<project name="golfproject" default="war">
+  <target name="war" description="Create war file.">
+    <!-- Create application WAR file -->
+    <war destfile="__OUTFILE__" webxml="__WEB.XML__">
+      <!-- golf default resources -->
+      <zipfileset src="__RESOURCES.ZIP__"/>
+      <!-- approot -->
+      <zipfileset dir="__APPROOT__">
+        <exclude name=".git/**"/>
+        <exclude name=".gitignore"/>
+        <exclude name="**/*.swp"/>
+        <exclude name="**/*.swo"/>
+        <exclude name="**/*~"/>
+      </zipfileset>
+      <!-- classes golf depends on -->
+      <lib src="__DEPENDENCIES.ZIP__"/>
+      <!-- golf classes for servlet -->
+      <classes src="__CLASSES.ZIP__"/>
+    </war>
+  </target>
+</project>

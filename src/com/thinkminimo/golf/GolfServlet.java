@@ -245,6 +245,7 @@ public class GolfServlet extends HttpServlet {
   private static String     mAwsPrivate     = null;
   private static String     mAwsPublic      = null;
   private static int        mLogLevel       = LOG_ALL;
+  private static boolean    mDevMode        = false;
 
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
@@ -254,9 +255,11 @@ public class GolfServlet extends HttpServlet {
 
     mAwsPrivate  = config.getInitParameter("awsprivate");
     mAwsPublic   = config.getInitParameter("awspublic");
+    mDevMode     = Boolean.parseBoolean(config.getInitParameter("devmode"));
 
-    log(null, LOG_TRACE, "mAwsPrivate="+mAwsPrivate);
-    log(null, LOG_TRACE, "mAwsPublic="+mAwsPublic);
+    System.err.println("awsprivate="+mAwsPrivate);
+    System.err.println("awspublic="+mAwsPublic);
+    System.err.println("devmode="+mDevMode);
 
     /*
     try {
@@ -380,6 +383,10 @@ public class GolfServlet extends HttpServlet {
       // the url fragment (shenanigans here)
       page = page.replaceFirst("(window.urlHash +=) \"[a-zA-Z_]+\";", 
           "$1 \"" + context.urlHash + "\";");
+      
+      // import the session ID into the javascript environment
+      page = page.replaceFirst("(window.devmode +=) [a-zA-Z_]+;", 
+          "$1 \"" + Boolean.toString(mDevMode) + "\";");
     }
 
     // no dtd for serverside because it breaks the xml parser
@@ -594,7 +601,7 @@ public class GolfServlet extends HttpServlet {
       String contentType, boolean canCache) throws IOException {
     context.response.setContentType(contentType);
 
-    if (canCache)
+    if (canCache && !mDevMode)
       setCachable(context);
 
     PrintWriter out = context.response.getWriter();
