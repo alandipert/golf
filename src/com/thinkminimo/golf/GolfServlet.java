@@ -261,24 +261,19 @@ public class GolfServlet extends HttpServlet {
     System.err.println("awspublic="+mAwsPublic);
     System.err.println("devmode="+mDevMode);
 
-    /*
     try {
-      String awsAccessKey = "0SFXC5HPSE5X6G94QFR2";
-      String awsSecretKey = "x2PD9iVs+g6528piSLovvU2hTReX6rGcO0vJ5DIC";
-
       AWSCredentials awsCredentials = 
-        new AWSCredentials(awsAccessKey, awsSecretKey);
+        new AWSCredentials(mAwsPublic, mAwsPrivate);
 
       S3Service s3Service = new RestS3Service(awsCredentials);
 
       S3Bucket[] myBuckets = s3Service.listAllBuckets();
-      System.out.println("How many buckets to I have in S3?");
+      System.out.println("Buckets found:"); 
       for (S3Bucket i : myBuckets)
         System.out.println("...." + i.getName()+"....");
     } catch (Exception e) {
       throw new ServletException("problem setting up AWS", e);
     }
-    */
   }
 
   /**

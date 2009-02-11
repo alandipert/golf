@@ -18,7 +18,6 @@ public class GolfAnt {
   private String mAwsPublic   = "";
   private String mDevmode     = "";
 
-
   public void   setApproot(String s)      { mApproot = s;         }
   public String getApproot()              { return mApproot;      }
 

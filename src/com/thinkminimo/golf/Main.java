@@ -181,21 +181,56 @@ public class Main
 
   private static void usage() {
     System.out.println(
-        "Usage: java -jar golf.jar [OPTIONS]\n"+
-        "\n"+
-        "OPTIONS:\n"+
-        "     --port=PORT,    -p PORT     port for server to listen on\n"+
-        "     --appname=NAME, -a NAME     context path of servlet\n"+
-        "     --approot=DIR,  -d DIR      location of golf app directory\n"+
-        "     --help,         -h          this help info right here\n"+
-        "     --version,      -V          golf version (0.1dev)\n"+
-        "     --awsprivate=KEY            amazon aws secret access key\n"+
-        "     --awspublic=KEY             amazon aws access key ID\n"+
-        "     --displayname=NAME          display name (optional)\n"+
-        "     --description=DESC          app description (optional)\n"+
-        "     --devmode=true/false        run in development mode (or not)\n"+
-        "     --war                       create war file\n"+        
-        "\n"
+"\n"+
+"Usage: java -jar golf.jar [OPTIONS]\n"+
+"\n"+
+"OPTIONS:\n"+
+"     -p <port>\n"+
+"     --port <port>\n"+
+"         Set the port the server will listen on.\n"+
+"\n"+
+"     -a <name>\n"+
+"     --appname <name>\n"+
+"         Set the app's context path.\n"+
+"\n"+
+"     -d <path>\n"+
+"     --approot <path>\n"+
+"         The location of the golf application source directory.\n"+
+"\n"+
+"     -h\n"+
+"     --help\n"+
+"         Display this help info right here and exit.\n"+
+"\n"+
+"     -V\n"+
+"     --version\n"+
+"         Display golf application server version info and exit.\n"+
+"\n"+
+"     --awspublic <key>\n"+
+"         The amazon aws access key ID to use for cloudfront caching.\n"+
+"\n"+
+"     --awsprivate <key>\n"+
+"         The amazon aws secret access key corresponding to the aws access\n"+
+"         key ID specified with the --awspublic option.\n"+
+"\n"+
+"     --awsbucket <bucket>\n"+
+"         The amazon s3 bucket to use for cloudfront caching.\n"+
+"\n"+
+"     --displayname <name>\n"+
+"         The display name to use for deploying as a war file into a servlet\n"+
+"         container.\n"+
+"\n"+
+"     --description <description>\n"+
+"         Description of app when deploying as a war file into a servlet\n"+
+"         container.\n"+
+"\n"+
+"     --devmode <true/false>\n"+
+"         Whether to run in development mode or not. Default for war file\n"+
+"         deployment is false; default for embedded servlet container is\n"+
+"         true.\n"+
+"\n"+
+"     --war\n"+
+"         If present, create war file instead of starting embedded servlet\n"+
+"         container.\n"
     );
     System.exit(1);
   }
