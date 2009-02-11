@@ -32,6 +32,7 @@
   <property name="ant-scripts.home" value="${basedir}/ant/scripts"/>
 
   <property name="jarfile.dist"     value="${dist.home}/${app.fullname}.jar"/>
+  <property name="warfile.dist"     value="${dist.home}/${app.fullname}.war"/>
   <property name="zipfile.dist"     value="${dist.home}/${app.fullname}.zip"/>
   <property name="startscript.dist" value="${app.name}-start.sh"/>
 
@@ -82,10 +83,42 @@
 
   <target name="jar" depends="compile" 
     description="Create jar file.">
-    <!-- Create application JAR file -->
-    <jar jarfile="${jarfile.dist}"
-      basedir="${build.home}"
-      index="true">
+    <!-- Create the classes zip file -->
+    <zip destfile="${build.home}/classes.zip">
+      <fileset dir="${build.home}">
+        <exclude name="classes.zip"/>
+        <exclude name="depends.zip"/>
+        <exclude name="resources.zip"/>
+        <exclude name="**/*.swp"/>
+        <exclude name="**/*.swo"/>
+        <exclude name="**/*~"/>
+      </fileset>
+    </zip>
+    <!-- Create the zip file of classes golf depends on -->
+    <zip destfile="${build.home}/depends.zip">
+      <fileset  dir="${lib.home}">
+        <exclude name="servlet-*"/>
+        <exclude name="jetty-*"/>
+        <exclude name="ant.jar"/>
+        <exclude name="ant-*"/>
+        <exclude name="gnu-getopt.jar"/>
+      </fileset>
+    </zip>
+    <!-- Create the resources zip file -->
+    <zip destfile="${build.home}/resources.zip">
+      <fileset dir="${resources.home}">
+        <exclude name="web.xml"/>
+        <exclude name="project.xml"/>
+        <exclude name="**/.git"/>
+        <exclude name="**/.git/**"/>
+        <exclude name="**/.gitignore"/>
+        <exclude name="**/*.swp"/>
+        <exclude name="**/*.swo"/>
+        <exclude name="**/*~"/>
+      </fileset>
+    </zip>
+    <!-- Create application zip file -->
+    <jar jarfile="${jarfile.dist}" index="true">
       <manifest>
         <attribute name="Built-By"               value="${user.name}"/>
         <attribute name="Implementation-Vendor"  value="${app.vendor}"/>
@@ -93,9 +126,13 @@
         <attribute name="Implementation-Version" value="${app.version}"/>
         <attribute name="Main-Class"             value="${compile.mainclass}"/>
       </manifest>
-      <fileset          dir="${build.home}"/>
-      <fileset          dir="${resources.home}"/>
-      <zipgroupfileset  dir="${lib.home}"/>
+      <fileset dir="${build.home}">
+        <exclude name="**/*.swp"/>
+        <exclude name="**/*.swo"/>
+        <exclude name="**/*~"/>
+      </fileset>
+      <fileset dir="${resources.home}"/>
+      <zipgroupfileset dir="${lib.home}"/>
     </jar>
   </target>
 
