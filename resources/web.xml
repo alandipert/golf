@@ -15,12 +15,8 @@
       <param-value>__DEVMODE__</param-value>
     </init-param>
     <init-param>
-      <param-name>awsprivate</param-name>
-      <param-value>__AWSPRIVATE__</param-value>
-    </init-param>
-    <init-param>
-      <param-name>awspublic</param-name>
-      <param-value>__AWSPUBLIC__</param-value>
+      <param-name>cloudfrontDomain</param-name>
+      <param-value>__CLOUDFRONTDOMAIN__</param-value>
     </init-param>
   </servlet>
 

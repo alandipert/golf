@@ -132,7 +132,12 @@ jQuery.golf = {
 
   getComponent: function(name, callback) {
     if (! jQuery.golf.doJSONP(name, callback)) {
-      var url = "?component="+name;
+      var url;
+      
+      if (cloudfrontDomain.length > 0 && !serverside)
+        url = cloudfrontDomain + "/components/" + name;
+      else
+        url = "?component=" + name;
 
       if (serverside) {
         jQuery.ajax({

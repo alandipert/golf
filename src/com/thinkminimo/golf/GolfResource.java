@@ -489,18 +489,19 @@ public class GolfResource {
     InputStream in  = null;
     source = SOURCE_NONE;
 
-    path = path.replaceFirst("/", "");
+    if (context != null)
+      path = path.replaceFirst("/", "");
 
     // from the filesystem
     try {
-      String realPath = context.getRealPath(path);
+      String realPath = (context == null ?  path : context.getRealPath(path));
       File theFile = new File(realPath);
       if (theFile != null && theFile.exists())
         in = new FileInputStream(theFile);
     } catch (Exception x) { }
 
     // from the jarfile resource
-    if (in == null)
+    if (in == null && context != null)
       in = context.getClass().getClassLoader().getResourceAsStream(path);
     else
       source = SOURCE_FILE;

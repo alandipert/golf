@@ -3,11 +3,6 @@ package com.thinkminimo.golf;
 import org.json.JSONStringer;
 import org.json.JSONException;
 
-import org.jets3t.service.S3Service;
-import org.jets3t.service.model.S3Bucket;
-import org.jets3t.service.impl.rest.httpclient.RestS3Service;
-import org.jets3t.service.security.AWSCredentials;
-
 import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.*;
@@ -242,10 +237,9 @@ public class GolfServlet extends HttpServlet {
   private static ConcurrentHashMap<String, StoredJSVM> mJsvms =
     new ConcurrentHashMap<String, StoredJSVM>();
 
-  private static String     mAwsPrivate     = null;
-  private static String     mAwsPublic      = null;
   private static int        mLogLevel       = LOG_ALL;
   private static boolean    mDevMode        = false;
+  private static String     mCfDomain       = null;
 
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
@@ -253,27 +247,14 @@ public class GolfServlet extends HttpServlet {
   public void init(ServletConfig config) throws ServletException {
     super.init(config); // tricky little bastard
 
-    mAwsPrivate  = config.getInitParameter("awsprivate");
-    mAwsPublic   = config.getInitParameter("awspublic");
     mDevMode     = Boolean.parseBoolean(config.getInitParameter("devmode"));
+    mCfDomain    = config.getInitParameter("cloudfrontDomain");
 
-    System.err.println("awsprivate="+mAwsPrivate);
-    System.err.println("awspublic="+mAwsPublic);
+    if (mCfDomain == null)
+      mCfDomain = "";
+
     System.err.println("devmode="+mDevMode);
-
-    try {
-      AWSCredentials awsCredentials = 
-        new AWSCredentials(mAwsPublic, mAwsPrivate);
-
-      S3Service s3Service = new RestS3Service(awsCredentials);
-
-      S3Bucket[] myBuckets = s3Service.listAllBuckets();
-      System.out.println("Buckets found:"); 
-      for (S3Bucket i : myBuckets)
-        System.out.println("...." + i.getName()+"....");
-    } catch (Exception e) {
-      throw new ServletException("problem setting up AWS", e);
-    }
+    System.err.println("cloudfrontDomain="+mCfDomain);
   }
 
   /**
@@ -344,11 +325,18 @@ public class GolfServlet extends HttpServlet {
       "<script type=\"text/javascript\"[^>]*>([^<]|//<!\\[CDATA\\[)*</script>";
 
     // document type: xhtml
-    String dtd = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n" +
+    String dtd = 
+      "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\"\n" +
       "\"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n";
 
+    // remove xml tag (why is it even there?)
     if (!server)
       page = page.replaceFirst("^<\\?xml [^>]+>\n", "");
+
+    // cloudfront url rewrites
+    if (!server && mCfDomain.length() > 0)
+      page = page.replaceAll("(<[^>]+ (href|src)=['\"])\\?path=",
+          "$1http://" + mCfDomain + "/");
 
     // robots must not index event proxy (because infinite loops, etc.)
     if (!context.hasEvent())
@@ -372,7 +360,7 @@ public class GolfServlet extends HttpServlet {
           "$1 \"" + sid + "\";");
       
       // the servlet url (shenanigans here)
-      page = page.replaceFirst("(window.servletURL +=) \"[a-zA-Z_]+\";", 
+      page = page.replaceFirst("(window.servletUrl +=) \"[a-zA-Z_]+\";", 
           "$1 \"" + context.servletURL + "\";");
       
       // the url fragment (shenanigans here)
@@ -382,6 +370,10 @@ public class GolfServlet extends HttpServlet {
       // import the session ID into the javascript environment
       page = page.replaceFirst("(window.devmode +=) [a-zA-Z_]+;", 
           "$1 \"" + Boolean.toString(mDevMode) + "\";");
+      
+      // the cloudfront Domain
+      page = page.replaceFirst("(window.cloudfrontDomain +=) \"[a-zA-Z_]+\";", 
+          "$1 \"http://" + mCfDomain + "\";");
     }
 
     // no dtd for serverside because it breaks the xml parser
@@ -612,29 +604,37 @@ public class GolfServlet extends HttpServlet {
    */
   private void doComponentGet(GolfContext context) 
       throws FileNotFoundException, IOException, JSONException {
-    String classPath = context.p.getComponent();
-    String className = classPath.replace('.', '-');
-    String path      = "/components/" + classPath.replace('.', '/');
+    String name = context.p.getComponent();
+    String json = processComponent(getServletContext(), name, null);
+    sendResponse(context, json, "text/javascript", true);
+  }
 
+  public static String processComponent(ServletContext context, String name,
+      String cwd) throws FileNotFoundException, IOException, JSONException {
+    String className = name.replace('.', '-');
+    String path      = "/components/" + name.replace('.', '/');
+
+    if (cwd != null)
+      path = cwd + path;
 
     String html = path + ".html";
     String css  = path + ".css";
     String js   = path + ".js";
 
-    GolfResource htmlRes = new GolfResource(getServletContext(), html);
-    GolfResource cssRes  = new GolfResource(getServletContext(), css);
-    GolfResource jsRes   = new GolfResource(getServletContext(), js);
+    GolfResource htmlRes = new GolfResource(context, html);
+    GolfResource cssRes  = new GolfResource(context, css);
+    GolfResource jsRes   = new GolfResource(context, js);
 
     String htmlStr = 
-      processComponentHtml(context, htmlRes.toString(), className);
+      processComponentHtml(htmlRes.toString(), className);
     String cssStr = 
-      processComponentCss(context, cssRes.toString(), className);
+      processComponentCss(cssRes.toString(), className);
     String jsStr = jsRes.toString();
 
     String json = new JSONStringer()
       .object()
         .key("name")
-        .value(classPath)
+        .value(name)
         .key("html")
         .value(htmlStr)
         .key("css")
@@ -644,22 +644,17 @@ public class GolfServlet extends HttpServlet {
       .endObject()
       .toString();
 
-    json = "jQuery.golf.doJSONP(" + json + ");";
-
-    sendResponse(context, json, "text/javascript", true);
+    return "jQuery.golf.doJSONP(" + json + ");";
   }
 
   /**
    * Process html file for service, inserting component class name, etc.
    *
-   * @param   context       the golf context for this request
    * @param   text          the component css/html text
    * @param   className     the text class name
    * @return                the processed css/html text
    */
-  private String processComponentHtml(GolfContext context, String text, 
-      String className) {
-    String path   = context.p.getPath();
+  public static String processComponentHtml(String text, String className) {
     String result = text;
 
     // Add the unique component css class to the component outermost
@@ -684,14 +679,11 @@ public class GolfServlet extends HttpServlet {
   /**
    * Process css file for service, inserting component class name, etc.
    *
-   * @param   context       the golf context for this request
    * @param   text          the component css/html text
    * @param   className     the text class name
    * @return                the processed css/html text
    */
-  private String processComponentCss(GolfContext context, String text,
-      String className) {
-    String path       = context.p.getPath();
+  public static String processComponentCss(String text, String className) {
     String result     = text;
 
     // Localize this css file by inserting the unique component css class

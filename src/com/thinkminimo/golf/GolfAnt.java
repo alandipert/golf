@@ -14,9 +14,8 @@ public class GolfAnt {
   private String mAppname     = "";
   private String mDisplayName = "";
   private String mDescription = "";
-  private String mAwsPrivate  = "";
-  private String mAwsPublic   = "";
   private String mDevmode     = "";
+  private String mCfDomain    = "";
 
   public void   setApproot(String s)      { mApproot = s;         }
   public String getApproot()              { return mApproot;      }
@@ -30,14 +29,11 @@ public class GolfAnt {
   public void   setDescription(String s)  { mDescription = s;     }
   public String getDescription()          { return mDescription;  }
 
-  public void   setAwsPrivate(String s)   { mAwsPrivate = s;      }
-  public String getAwsPrivate()           { return mAwsPrivate;   }
-
-  public void   setAwsPublic(String s)    { mAwsPublic = s;       }
-  public String getAwsPublic()            { return mAwsPublic;    }
-
   public void   setDevmode(String s)      { mDevmode = s;         }
   public String getDevmode()              { return mDevmode;      }
+
+  public void   setCfDomain(String s)     { mCfDomain = s;        }
+  public String getCfDomain()             { return mCfDomain;     }
 
   public void doit() throws IOException {
     File    dep     = cacheResource("depends.zip",    ".zip", null);
@@ -54,8 +50,7 @@ public class GolfAnt {
     webStr =  webStr.replaceAll("__DISPLAYNAME__", mDisplayName)
                     .replaceAll("__DESCRIPTION__", mDescription)
                     .replaceAll("__DEVMODE__", mDevmode)
-                    .replaceAll("__AWSPRIVATE__", mAwsPrivate)
-                    .replaceAll("__AWSPUBLIC__", mAwsPublic);
+                    .replaceAll("__CLOUDFRONTDOMAIN__", mCfDomain);
 
     antStr =  antStr.replaceAll("__OUTFILE__", mAppname + ".war")
                     .replaceAll("__WEB.XML__", web.getAbsolutePath())
@@ -67,13 +62,11 @@ public class GolfAnt {
     cacheString(webStr, "", web);
     cacheString(antStr, "", ant);
 
-    System.err.printf("Creating warfile...");
     Project project = new Project();
     project.init();
     project.setUserProperty("ant.file" , ant.getAbsolutePath());
     ProjectHelper.configureProject(project, ant);
     project.executeTarget("war");
-    System.err.println("done.");
   }
 
   public File cacheResource(String name, String ext, File f)
@@ -122,9 +115,8 @@ public class GolfAnt {
     return s.toString();
   }
 
-  public File getTmpFile(String ext) throws IOException {
-    File tmp = new File(System.getProperty("java.io.tmpdir"));
-    File f = File.createTempFile("golf_deploy.", ext, tmp);
+  public static File getTmpFile(String ext) throws IOException {
+    File f = File.createTempFile("golf_deploy.", ext);
     f.deleteOnExit();
     return f;
   }
