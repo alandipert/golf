@@ -14,7 +14,6 @@ public class GolfAnt {
   private String mAppname     = "";
   private String mDisplayName = "";
   private String mDescription = "";
-  private String mDevmode     = "";
   private String mCfDomain    = "";
 
   public void   setApproot(String s)      { mApproot = s;         }
@@ -28,9 +27,6 @@ public class GolfAnt {
 
   public void   setDescription(String s)  { mDescription = s;     }
   public String getDescription()          { return mDescription;  }
-
-  public void   setDevmode(String s)      { mDevmode = s;         }
-  public String getDevmode()              { return mDevmode;      }
 
   public void   setCfDomain(String s)     { mCfDomain = s;        }
   public String getCfDomain()             { return mCfDomain;     }
@@ -49,7 +45,6 @@ public class GolfAnt {
 
     webStr =  webStr.replaceAll("__DISPLAYNAME__", mDisplayName)
                     .replaceAll("__DESCRIPTION__", mDescription)
-                    .replaceAll("__DEVMODE__", mDevmode)
                     .replaceAll("__CLOUDFRONTDOMAIN__", mCfDomain);
 
     antStr =  antStr.replaceAll("__OUTFILE__", mAppname + ".war")

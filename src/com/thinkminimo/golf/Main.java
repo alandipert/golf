@@ -46,37 +46,31 @@ public class Main
 {
   public static final String AWS_URL = "s3.amazonaws.com";
 
-  private Integer             mPort         = 8080;
-  private String              mAppname      = null;
-  private String              mApproot      = null;
-  private String              mAwsPublic    = "";
-  private String              mAwsPrivate   = "";
-  private String              mDisplayName  = "";
-  private String              mDescription  = "";
-  private String              mDevmode      = null;
-  private boolean             mDoWarfile    = false;
+  private static Integer             mPort         = 8080;
+  private static String              mAppname      = null;
+  private static String              mApproot      = null;
+  private static String              mAwsPublic    = "";
+  private static String              mAwsPrivate   = "";
+  private static String              mDisplayName  = "";
+  private static String              mDescription  = "";
+  private static boolean             mDoWarfile    = false;
 
-  private AWSCredentials      mAwsKeys      = null;
-  private RestS3Service       mS3svc        = null;
-  private CloudFrontService   mCfsvc        = null;
-  private S3Bucket            mBucket       = null;
-  private AccessControlList   mAcl          = null;
-  private HashMap<String, String> mApps     = new HashMap<String, String>();
+  private static AWSCredentials      mAwsKeys      = null;
+  private static RestS3Service       mS3svc        = null;
+  private static CloudFrontService   mCfsvc        = null;
+  private static S3Bucket            mBucket       = null;
+  private static AccessControlList   mAcl          = null;
+  private static HashMap<String, String> mApps     = 
+    new HashMap<String, String>();
 
-  private String              mCfDomain     = null;
+  private static String              mCfDomain     = null;
 
   public Main(String[] argv) throws Exception {
     processCommandLine(argv);
 
     if (mDoWarfile) {
-      if (mDevmode == null)
-        mDevmode = "false";
-      if (mDevmode.equalsIgnoreCase("false"))
-        doAws();
       doWarfile();
     } else {
-      if (mDevmode == null)
-        mDevmode = "true";
       doServer();
     }
     System.exit(0);
@@ -103,7 +97,6 @@ public class Main
       new LongOpt("displayname",  LongOpt.REQUIRED_ARGUMENT,  null,    3 ),
       new LongOpt("description",  LongOpt.REQUIRED_ARGUMENT,  null,    4 ),
       new LongOpt("war",          LongOpt.NO_ARGUMENT,        null,    5 ),
-      new LongOpt("devmode",      LongOpt.REQUIRED_ARGUMENT,  null,    6 ),
     };
 
     // parse command line parameters
@@ -139,9 +132,6 @@ public class Main
         case 5:
           mDoWarfile = true;
           break;
-        case 6:
-          mDevmode = g.getOptarg();
-          break;
         case 'h':
           // fall through
         case '?':
@@ -159,7 +149,7 @@ public class Main
   }
 
   private void doAws() throws Exception {
-    System.out.print("Uploading components to S3...");
+    System.out.print("Preparing S3 bucket................");
 
     mAwsKeys  = new AWSCredentials(mAwsPublic, mAwsPrivate);
     mS3svc    = new RestS3Service(mAwsKeys);
@@ -182,19 +172,21 @@ public class Main
     mBucket.setAcl(mAcl);
     mS3svc.putBucketAcl(mBucket);
 
-    File compDir = new File(mApproot + "/components/");
-    cacheComponents(compDir, "");
-
     System.out.println("done.");
 
-    System.out.print("Uploading jar resources to S3...");
+    System.out.print("Uploading components...............");
+    cacheComponentsAws();
+    cacheComponentsFile();
+    System.out.println("done.");
+
+    System.out.print("Uploading jar resources............");
     String[] resources = {"/jquery.golf.js", "/jquery.history.js", "/jquery.js",
       "/jsdetect.html", "/loading.gif", "/new.html", "/taffy.js"};
     for (String res : resources)
       cacheJarResource(res);
     System.out.println("done.");
 
-    System.out.print("Uploading resource files to S3...");
+    System.out.print("Uploading resource files...........");
     File resDir = new File(mApproot);
     String[] files = resDir.list();
     for (String f : files) {
@@ -223,14 +215,46 @@ public class Main
     System.out.println("done.");
   }
 
+  private void cacheString(String str, String key) throws Exception {
+    cacheString(str, key, null);
+  }
+
+  private void cacheString(String str, String key, String type) 
+      throws Exception {
+    S3Object obj  = new S3Object(mBucket, key, str);
+    if (type == null)
+      obj.setContentType("text/javascript");
+    else
+      obj.setContentType(type);
+    obj.setAcl(mAcl);
+    mS3svc.putObject(mBucket, obj);
+  }
+
+  private void cacheFile(File file, String key) throws Exception {
+    cacheFile(file, key, null);
+  }
+
+  private void cacheFile(File file, String key, String type)
+      throws Exception {
+    S3Object obj = new S3Object(mBucket, file);
+    obj.setKey(key);
+    if (type == null)
+      obj.setContentType(GolfResource.MimeMapping.lookup(key));
+    else
+      obj.setContentType(type);
+    obj.setAcl(mAcl);
+    mS3svc.putObject(mBucket, obj);
+  }
+
   private void doWarfile() throws Exception {
-    System.out.print("Creating warfile...");
+    doAws();
+
+    System.out.print("Creating warfile...................");
     GolfAnt gant = new GolfAnt();
     gant.setApproot(mApproot);
     gant.setAppname(mAppname);
     gant.setDisplayName(mDisplayName);
     gant.setDescription(mDescription);
-    gant.setDevmode(mDevmode);
     gant.setCfDomain(mCfDomain);
     gant.doit();
     System.out.println("done.");
@@ -252,55 +276,139 @@ public class Main
     out.close();
 
     f.deleteOnExit();
-    S3Object obj = new S3Object(mBucket, f);
-    obj.setKey(name.replaceFirst("^/*", ""));
-    obj.setContentType(GolfResource.MimeMapping.lookup(name));
-    obj.setAcl(mAcl);
-    mS3svc.putObject(mBucket, obj);
+    cacheFile(f, name.replaceFirst("^/*", ""));
   }
 
-  private void cacheComponents(File dir, String pkg) throws Exception {
-    for (String s : dir.list()) {
-      String name = (pkg.length() > 0 ? pkg + "." + s : s);
-      File f = new File(dir, s);
-      if (f.isDirectory()) {
-        cacheComponents(f, name);
-      } else {
-        if (s.endsWith(".html")) {
-          name = name.replaceFirst("\\.html$", "");
-          String key    = "components/" + name;
-          String jsonp  = 
-            GolfServlet.processComponent(null, name, mApproot);
-          S3Object obj  = new S3Object(mBucket, key, jsonp);
-          obj.setContentType("text/javascript");
-          obj.setAcl(mAcl);
-          mS3svc.putObject(mBucket, obj);
+  public static void cacheComponentsFile() throws Exception {
+    File f = new File(mApproot + "/components.js");
+    if (f.exists())
+      f.delete();
+    f.deleteOnExit();
+    PrintWriter out = new PrintWriter(new FileWriter(f));
+    out.println(getComponentsString());
+    out.close();
+  }
+
+  private void cacheComponentsAws() throws Exception {
+    cacheString(getComponentsString(), "components.js", "text/javascript");
+  }
+
+  private static String getComponentsString() throws Exception {
+    return "jQuery.golf.components = " + 
+      getComponentsJSON(null, null).toString() + ";";
+  }
+
+  private static JSONArray getComponentsJSON(String path, JSONArray json) 
+      throws Exception {
+    if (path == null) path = "";
+    if (json == null) json = new JSONArray();
+
+    File file = new File(mApproot + "/components/" + path);
+      
+    if (!file.getName().startsWith(".")) {
+      if (file.isFile()) {
+        if (path.endsWith(".html")) {
+          json.put(processComponent(path.replaceFirst("\\.html$", "")));
+        }
+      } else if (file.isDirectory()) {
+        for (String f : file.list()) {
+          String ppath = path + "/" + f;
+          JSONArray j = getComponentsJSON(path+"/"+f, json);
         }
       }
     }
+
+    return json;
+  }
+
+  public static JSONObject processComponent(String name) throws Exception {
+    String className = name.replace('/', '-');
+    String path      = mApproot + "/components/" + name;
+
+    String html = path + ".html";
+    String css  = path + ".css";
+    String js   = path + ".js";
+
+    GolfResource htmlRes = new GolfResource(null, html);
+    GolfResource cssRes  = new GolfResource(null, css);
+    GolfResource jsRes   = new GolfResource(null, js);
+
+    String htmlStr = 
+      processComponentHtml(htmlRes.toString(), className);
+    String cssStr = 
+      processComponentCss(cssRes.toString(), className);
+    String jsStr = jsRes.toString();
+
+    JSONObject json = new JSONObject()
+        .put("name",  name.replace('/', '.').replaceFirst("^\\.", ""))
+        .put("html",  htmlStr)
+        .put("css",   cssStr)
+        .put("js",    jsStr);
+
+    return json;
+  }
+
+  public static String processComponentHtml(String text, String className) {
+    String result = text;
+
+    // Add the unique component css class to the component outermost
+    // element.
+
+    // the first opening html tag
+    String tmp = result.substring(0, result.indexOf('>'));
+
+    // add the component magic classes to the tag
+    if (tmp.matches(".*['\"\\s]class\\s*=\\s*['\"].*"))
+      result = 
+        result.replaceFirst("^(.*class\\s*=\\s*.)", "$1component " + 
+            className + " ");
+    else
+      result = 
+        result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"component " + 
+            className + "\"");
+
+    return result;
+  }
+
+  public static String processComponentCss(String text, String className) {
+    String result = text;
+
+    // Localize this css file by inserting the unique component css class
+    // in the beginning of every selector. Also remove extra whitespace and
+    // comments, etc.
+
+    // remove newlines
+    result = result.replaceAll("[\\r\\n\\s]+", " ");
+    // remove comments
+    result = result.replaceAll("/\\*.*\\*/", "");
+    // this is bad but fuckit
+    result = 
+      result.replaceAll("(^|\\})\\s*([^{]*[^{\\s])*\\s*\\{", "$1 ." + 
+          className + " $2 {");
+    result = result.trim();
+
+    return result;
   }
 
   private void cacheResources(File file, String path) throws Exception {
     if (path.startsWith("."))
       return;
 
-    if (file.isDirectory()) {
+    if (file.isFile()) {
+      cacheFile(file, path);
+    } else if (file.isDirectory()) {
       for (String f : file.list()) {
         String ppath = path + (path.endsWith("/") ? f : "/" + f);
         cacheResources(new File(file, f), ppath);
       }
-    } else {
-      S3Object obj = new S3Object(mBucket, file);
-      obj.setKey(path);
-      obj.setContentType(GolfResource.MimeMapping.lookup(path));
-      obj.setAcl(mAcl);
-      mS3svc.putObject(mBucket, obj);
     }
   }
 
   private void doServer() throws Exception {
     Server server = new Server(mPort);
     
+    cacheComponentsFile();
+
     QueuedThreadPool threadPool = new QueuedThreadPool();
     threadPool.setMaxThreads(100);
     server.setThreadPool(threadPool);
@@ -320,7 +428,6 @@ public class Main
       ServletHolder sh1 = new ServletHolder(new GolfServlet());
       sh1.setInitParameter("awsprivate", mAwsPrivate);
       sh1.setInitParameter("awspublic",  mAwsPublic);
-      sh1.setInitParameter("devmode",    mDevmode);
       cx1.addServlet(sh1, "/*");
     }
     
@@ -395,11 +502,6 @@ public class Main
 "         key ID specified with the --awspublic option.\n"+
 "\n"+
 "     GOLF APPLICATION SERVER CONFIGURATION:\n"+
-"\n"+
-"     --devmode <true/false>\n"+
-"         Whether to run in development mode or not. Default for war file\n"+
-"         deployment is false; default for embedded servlet container is\n"+
-"         true.\n"+
 "\n"+
 "     --war\n"+
 "         If present, create war file instead of starting embedded servlet\n"+

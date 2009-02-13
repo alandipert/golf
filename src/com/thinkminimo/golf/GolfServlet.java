@@ -124,7 +124,6 @@ public class GolfServlet extends HttpServlet {
     private Integer   mSeq        = -1;
     private Boolean   mJs         = false;
     private String    mPath       = null;
-    private String    mComponent  = null;
 
     public GolfParams(HttpServletRequest req) {
       mEvent      = req.getParameter("event");
@@ -139,7 +138,6 @@ public class GolfServlet extends HttpServlet {
                       ? null
                       : Boolean.parseBoolean(req.getParameter("js"));
       mPath       = req.getParameter("path");
-      mComponent  = req.getParameter("component");
     }
 
     public String   getEvent()          { return mEvent; }
@@ -148,7 +146,6 @@ public class GolfServlet extends HttpServlet {
     public Integer  getSeq()            { return mSeq; }
     public Boolean  getJs()             { return mJs; }
     public String   getPath()           { return mPath; }
-    public String   getComponent()      { return mComponent; }
 
     public void setEvent(String v)      { mEvent      = v; }
     public void setTarget(String v)     { mTarget     = v; }
@@ -156,7 +153,6 @@ public class GolfServlet extends HttpServlet {
     public void setSeq(Integer v)       { mSeq        = v; }
     public void setJs(Boolean v)        { mJs         = v; }
     public void setPath(String v)       { mPath       = v; }
-    public void setComponent(String v)  { mComponent  = v; }
 
     private String toQueryParam(String name, String p) {
       return p != null ? name+"="+p : "";
@@ -176,7 +172,6 @@ public class GolfServlet extends HttpServlet {
       result += toQueryParam("golf",      mSeq);
       result += toQueryParam("js",        mJs);
       result += toQueryParam("path",      mPath);
-      result += toQueryParam("component", mComponent);
       return result.length() > 0 ? "?"+result : "";
     }
   }
@@ -238,7 +233,6 @@ public class GolfServlet extends HttpServlet {
     new ConcurrentHashMap<String, StoredJSVM>();
 
   private static int        mLogLevel       = LOG_ALL;
-  private static boolean    mDevMode        = false;
   private static String     mCfDomain       = null;
 
   /**
@@ -247,13 +241,11 @@ public class GolfServlet extends HttpServlet {
   public void init(ServletConfig config) throws ServletException {
     super.init(config); // tricky little bastard
 
-    mDevMode     = Boolean.parseBoolean(config.getInitParameter("devmode"));
     mCfDomain    = config.getInitParameter("cloudfrontDomain");
 
     if (mCfDomain == null)
       mCfDomain = "";
 
-    System.err.println("devmode="+mDevMode);
     System.err.println("cloudfrontDomain="+mCfDomain);
   }
 
@@ -264,12 +256,19 @@ public class GolfServlet extends HttpServlet {
    * @param       response    the http response object
    */
   public void doGet(HttpServletRequest request, HttpServletResponse response)
-    throws IOException, ServletException
-  {
+      throws IOException, ServletException {
     GolfContext   context         = new GolfContext(request, response);
     String        result          = null;
 
     logRequest(context);
+
+    try {
+      // refresh components cache in devmode
+      if (mCfDomain.length() == 0)
+        Main.cacheComponentsFile();
+    } catch (Exception e) {
+      throw new ServletException("can't write components.js: ", e);
+    }
 
     // All query string parameters are considered to be arguments directed
     // to the golf container. The app itself gets its arguments in the path
@@ -280,9 +279,7 @@ public class GolfServlet extends HttpServlet {
         throw new RedirectException(
             context.response.encodeRedirectURL(context.servletURL + "/"));
 
-      if (context.p.getComponent() != null) {
-        doComponentGet(context);
-      } else if (context.p.getPath() != null) {
+      if (context.p.getPath() != null) {
         doStaticResourceGet(context);
       } else {
         doDynamicResourceGet(context);
@@ -334,9 +331,12 @@ public class GolfServlet extends HttpServlet {
       page = page.replaceFirst("^<\\?xml [^>]+>\n", "");
 
     // cloudfront url rewrites
-    if (!server && mCfDomain.length() > 0)
+    if (!server && mCfDomain.length() > 0) {
       page = page.replaceAll("(<[^>]+ (href|src)=['\"])\\?path=",
           "$1http://" + mCfDomain + "/");
+      page = page.replaceAll("([ :]url\\(['\"]?)\\?path=",
+          "$1http://" + mCfDomain + "/");
+    }
 
     // robots must not index event proxy (because infinite loops, etc.)
     if (!context.hasEvent())
@@ -366,10 +366,6 @@ public class GolfServlet extends HttpServlet {
       // the url fragment (shenanigans here)
       page = page.replaceFirst("(window.urlHash +=) \"[a-zA-Z_]+\";", 
           "$1 \"" + context.urlHash + "\";");
-      
-      // import the session ID into the javascript environment
-      page = page.replaceFirst("(window.devmode +=) [a-zA-Z_]+;", 
-          "$1 \"" + Boolean.toString(mDevMode) + "\";");
       
       // the cloudfront Domain
       page = page.replaceFirst("(window.cloudfrontDomain +=) \"[a-zA-Z_]+\";", 
@@ -588,119 +584,13 @@ public class GolfServlet extends HttpServlet {
       String contentType, boolean canCache) throws IOException {
     context.response.setContentType(contentType);
 
-    if (canCache && !mDevMode)
+    if (canCache)
       setCachable(context);
 
     PrintWriter out = context.response.getWriter();
     out.println(html);
     out.close();
     logResponse(context, 200);
-  }
-
-  /**
-   * Handle a request for a component's html/js/css.
-   *
-   * @param   context       the golf context for this request
-   */
-  private void doComponentGet(GolfContext context) 
-      throws FileNotFoundException, IOException, JSONException {
-    String name = context.p.getComponent();
-    String json = processComponent(getServletContext(), name, null);
-    sendResponse(context, json, "text/javascript", true);
-  }
-
-  public static String processComponent(ServletContext context, String name,
-      String cwd) throws FileNotFoundException, IOException, JSONException {
-    String className = name.replace('.', '-');
-    String path      = "/components/" + name.replace('.', '/');
-
-    if (cwd != null)
-      path = cwd + path;
-
-    String html = path + ".html";
-    String css  = path + ".css";
-    String js   = path + ".js";
-
-    GolfResource htmlRes = new GolfResource(context, html);
-    GolfResource cssRes  = new GolfResource(context, css);
-    GolfResource jsRes   = new GolfResource(context, js);
-
-    String htmlStr = 
-      processComponentHtml(htmlRes.toString(), className);
-    String cssStr = 
-      processComponentCss(cssRes.toString(), className);
-    String jsStr = jsRes.toString();
-
-    String json = new JSONStringer()
-      .object()
-        .key("name")
-        .value(name)
-        .key("html")
-        .value(htmlStr)
-        .key("css")
-        .value(cssStr)
-        .key("js")
-        .value(jsStr)
-      .endObject()
-      .toString();
-
-    return "jQuery.golf.doJSONP(" + json + ");";
-  }
-
-  /**
-   * Process html file for service, inserting component class name, etc.
-   *
-   * @param   text          the component css/html text
-   * @param   className     the text class name
-   * @return                the processed css/html text
-   */
-  public static String processComponentHtml(String text, String className) {
-    String result = text;
-
-    // Add the unique component css class to the component outermost
-    // element.
-
-    // the first opening html tag
-    String tmp = result.substring(0, result.indexOf('>'));
-
-    // add the component magic classes to the tag
-    if (tmp.matches(".*['\"\\s]class\\s*=\\s*['\"].*"))
-      result = 
-        result.replaceFirst("^(.*class\\s*=\\s*.)", "$1component " + 
-            className + " ");
-    else
-      result = 
-        result.replaceFirst("(<[a-zA-Z]+)", "$1 class=\"component " + 
-            className + "\"");
-
-    return result;
-  }
-
-  /**
-   * Process css file for service, inserting component class name, etc.
-   *
-   * @param   text          the component css/html text
-   * @param   className     the text class name
-   * @return                the processed css/html text
-   */
-  public static String processComponentCss(String text, String className) {
-    String result     = text;
-
-    // Localize this css file by inserting the unique component css class
-    // in the beginning of every selector. Also remove extra whitespace and
-    // comments, etc.
-
-    // remove newlines
-    result = result.replaceAll("[\\r\\n\\s]+", " ");
-    // remove comments
-    result = result.replaceAll("/\\*.*\\*/", "");
-    // this is bad but fuckit
-    result = 
-      result.replaceAll("(^|\\})\\s*([^{]*[^{\\s])*\\s*\\{", "$1 ." + 
-          className + " $2 {");
-    result = result.trim();
-
-    return result;
   }
 
   private void setCachable(GolfContext context) {

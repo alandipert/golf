@@ -145,7 +145,7 @@ jQuery.golf = {
           type:       "GET",
           url:        url,
           dataType:   "text",
-          success:    function(data) { eval(data); },
+          success:    function(data) { eval(data); }
         });
       } else {
         var script  = document.createElement("SCRIPT");
@@ -206,7 +206,7 @@ jQuery.golf = {
     
   onLoad: function() {
     if (urlHash && !location.hash)
-      location.href = servletURL + "#" + urlHash;
+      location.href = servletUrl + "#" + urlHash;
     jQuery.ajaxSetup({ async: serverside ? false : true });
     jQuery.history.init(jQuery.golf.onHistoryChange);
   },
@@ -342,7 +342,21 @@ jQuery.golf = {
     $.component = name;
     $.package   = name.replace(/\.[^.]*$/, "");
     
-    jQuery.golf.getComponent(name, function(cmp) {
+    var cmp;
+
+    for (var i = 0; i < jQuery.golf.components.length; i++) {
+      if (jQuery.golf.components[i].name == name)
+        cmp = jQuery.golf.components[i];
+    }
+
+    if (cmp) {
+      if (cmp.css) {
+        // add css to <head>
+        if (cmp.css.replace(/^\s+|\s+$/g, '').length > 3)
+          jQuery("head").append("<style type='text/css'>"+cmp.css+"</style>");
+        cmp.css = null;
+      }
+
       var p     = jQuery(cmp.html).get()[0];
       var frag  = document.createDocumentFragment();
 
@@ -358,7 +372,9 @@ jQuery.golf = {
       $.js   = String(cmp.js);
 
       jQuery.golf.doCall($, argv);
-    });
+    } else {
+      throw "can't find component: "+name;
+    }
   },
 };
 
