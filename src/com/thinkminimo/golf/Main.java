@@ -44,7 +44,8 @@ import org.mortbay.thread.QueuedThreadPool;
 
 public class Main
 {
-  public static final String AWS_URL = "s3.amazonaws.com";
+  public static final String AWS_URL        = "s3.amazonaws.com";
+  public static final int    NUM_CFDOMAINS  = 10;
 
   private static Integer             mPort         = 8080;
   private static String              mAppname      = null;
@@ -53,6 +54,8 @@ public class Main
   private static String              mAwsPrivate   = "";
   private static String              mDisplayName  = "";
   private static String              mDescription  = "";
+  private static int                 mCloudfronts  = NUM_CFDOMAINS;
+  private static String              mCfDomains    = "";
   private static boolean             mDoWarfile    = false;
 
   private static AWSCredentials      mAwsKeys      = null;
@@ -63,7 +66,6 @@ public class Main
   private static HashMap<String, String> mApps     = 
     new HashMap<String, String>();
 
-  private static String              mCfDomain     = null;
 
   public Main(String[] argv) throws Exception {
     processCommandLine(argv);
@@ -97,6 +99,7 @@ public class Main
       new LongOpt("displayname",  LongOpt.REQUIRED_ARGUMENT,  null,    3 ),
       new LongOpt("description",  LongOpt.REQUIRED_ARGUMENT,  null,    4 ),
       new LongOpt("war",          LongOpt.NO_ARGUMENT,        null,    5 ),
+      new LongOpt("cloudfronts",  LongOpt.REQUIRED_ARGUMENT,  null,    6 ),
     };
 
     // parse command line parameters
@@ -131,6 +134,9 @@ public class Main
           break;
         case 5:
           mDoWarfile = true;
+          break;
+        case 6:
+          mCloudfronts = Integer.valueOf(g.getOptarg());
           break;
         case 'h':
           // fall through
@@ -195,7 +201,7 @@ public class Main
     }
     System.out.println("done.");
 
-    System.out.print("Creating CloudFront distribution...");
+    System.out.print("Creating CloudFront distributions..");
 
     mCfsvc = new CloudFrontService(mAwsKeys);
 
@@ -208,11 +214,20 @@ public class Main
     else
       cmnt = mAppname;
 
-    Distribution dist = 
-      mCfsvc.createDistribution(orig, null, null, cmnt, true);
+    Distribution dist;
+    String[] listDomains = new String[mCloudfronts];
 
-    mCfDomain = dist.getDomainName();
+    for (int i=0; i<mCloudfronts; i++) {
+      dist = mCfsvc.createDistribution(orig, null, null, cmnt, true);
+      mCfDomains += (mCfDomains.length() == 0 ? "," : "");
+      mCfDomains += dist.getDomainName();
+      listDomains[i] = dist.getDomainName();
+    }
+
     System.out.println("done.");
+
+    for (int i=0; i<mCloudfronts; i++)
+      System.out.printf("  %3d. %s\n", i+1, listDomains[i]);
   }
 
   private void cacheString(String str, String key) throws Exception {
@@ -255,7 +270,7 @@ public class Main
     gant.setAppname(mAppname);
     gant.setDisplayName(mDisplayName);
     gant.setDescription(mDescription);
-    gant.setCfDomain(mCfDomain);
+    gant.setCfDomain(mCfDomains);
     gant.doit();
     System.out.println("done.");
   }
@@ -500,6 +515,9 @@ public class Main
 "     --awsprivate <key>\n"+
 "         The amazon aws secret access key corresponding to the aws access\n"+
 "         key ID specified with the --awspublic option.\n"+
+"\n"+
+"     --cloudfronts <number>\n"+
+"         How man CloudFront distributions to create (for pipelining).\n"+
 "\n"+
 "     GOLF APPLICATION SERVER CONFIGURATION:\n"+
 "\n"+
