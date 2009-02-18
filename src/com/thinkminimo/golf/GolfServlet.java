@@ -233,6 +233,8 @@ public class GolfServlet extends HttpServlet {
     new ConcurrentHashMap<String, StoredJSVM>();
 
   private static int                  mLogLevel     = LOG_ALL;
+  private static String               mNewHtml      = null;
+  private static String               mJsDetect     = null;
   private static String               mDevMode      = null;
 
   /**
@@ -241,7 +243,15 @@ public class GolfServlet extends HttpServlet {
   public void init(ServletConfig config) throws ServletException {
     super.init(config); // tricky little bastard
 
-    mDevMode    = config.getInitParameter("devmode");
+    try {
+      mDevMode  = config.getInitParameter("devmode");
+      mNewHtml  =
+        (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
+      mJsDetect = 
+        (new GolfResource(getServletContext(), FILE_JSDETECT_HTML)).toString();
+    } catch (Exception e) {
+      throw new ServletException("can't initialize servlet", e);
+    }
   }
 
   /**
@@ -435,8 +445,7 @@ public class GolfServlet extends HttpServlet {
           context.jsvm.client = client;
 
           // the blank skeleton html template
-          String newHtml = 
-            (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
+          String newHtml = mNewHtml;
 
           // do not pass query string to the app, as those parameters are meant
           // only for the golf container itself.
@@ -506,9 +515,7 @@ public class GolfServlet extends HttpServlet {
    */
   private void doNoProxy(GolfContext context) throws Exception {
     // the blank skeleton html template
-    String html = 
-      (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
-
+    String html = mNewHtml;
     sendResponse(context, preprocess(html, context, false), "text/html", true);
   }
 
@@ -560,8 +567,7 @@ public class GolfServlet extends HttpServlet {
     context.s.setSeq(new Integer(0));
     context.s.setIpAddr(remoteAddr);
 
-    String jsDetect = 
-      (new GolfResource(getServletContext(), FILE_JSDETECT_HTML)).toString();
+    String jsDetect = mJsDetect;
 
     jsDetect = 
       jsDetect.replaceAll("__HAVE_JS__", ";jsessionid="+sid+"?js=true");

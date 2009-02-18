@@ -340,7 +340,7 @@ public class Main
   }
   public static File getTmpFile(String ext) throws IOException {
     File f = File.createTempFile("golf_deploy.", ext);
-    f.deleteOnExit();
+    //f.deleteOnExit();
     return f;
   }
 
@@ -359,13 +359,14 @@ public class Main
 
   public File cacheResourceFile(String name, String ext, File f)
     throws IOException {
+    name = name.replaceFirst("^/+", "");
     byte[] b = new byte[BUF_SIZE];
 
     if (f == null)
       f = getTmpFile(ext);
 
-    JavaResource          res = new JavaResource(name, null);
-    BufferedInputStream   in  = new BufferedInputStream(res.getInputStream());
+    BufferedInputStream   in  = new BufferedInputStream(
+        getClass().getClassLoader().getResourceAsStream(name));
     BufferedOutputStream  out = 
       new BufferedOutputStream(new FileOutputStream(f));
 
@@ -383,7 +384,6 @@ public class Main
       f = getTmpFile(ext);
 
     PrintWriter out = new PrintWriter(new FileOutputStream(f));
-
     out.print(text);
     out.close();
 
@@ -397,13 +397,8 @@ public class Main
   private void cacheStringAws(String str, String key, String type) 
       throws Exception {
     key = key.replaceFirst("^/+", "");
-    S3Object obj  = new S3Object(mBucket, key, str);
-    if (type == null)
-      obj.setContentType("text/javascript");
-    else
-      obj.setContentType(type);
-    obj.setAcl(mAcl);
-    mS3svc.putObject(mBucket, obj);
+    File f = cacheStringFile(str, key.replaceFirst("^.*/", ""), null);
+    cacheFileAws(f, key, type);
   }
 
   private void cacheFileAws(File file, String key) throws Exception {
@@ -413,6 +408,31 @@ public class Main
   private void cacheFileAws(File file, String key, String type)
       throws Exception {
     key = key.replaceFirst("^/+", "");
+
+    if (key.endsWith(".js") || key.endsWith(".css") || key.endsWith(".html")) {
+      BufferedReader inBr = new BufferedReader(new FileReader(file));
+      StringBuilder  sb   = new StringBuilder();
+      
+      String s;
+      while ((s = inBr.readLine()) != null)
+        sb.append(s).append("\n");
+
+      String src = sb.toString();
+
+      if (key.endsWith(".js"))
+        src = injectCloudfrontUrl(compressJs(src, key));
+      else if (key.endsWith(".css"))
+        src = injectCloudfrontUrl(compressCss(src, key));
+      else if (key.endsWith(".html"))
+        src = injectCloudfrontUrl(src);
+
+      file.delete();
+
+      PrintWriter out = new PrintWriter(new FileWriter(file));
+      out.println(src);
+      out.close();
+    }
+
     S3Object obj = new S3Object(mBucket, file);
     obj.setKey(key);
     if (type == null)
@@ -435,43 +455,7 @@ public class Main
   }
 
   private void cacheJarResourceAws(String name) throws Exception {
-    File f = File.createTempFile("golf", name.replaceAll("^.*/", ""));
-
-    InputStream in = getClass().getResourceAsStream(name);
-
-    if (name.endsWith(".js") || name.endsWith(".css")) {
-      BufferedReader inBr = new BufferedReader(new InputStreamReader(in));
-      StringBuilder  sb   = new StringBuilder();
-      
-      String s;
-      while ((s = inBr.readLine()) != null)
-        sb.append(s).append("\n");
-
-      String src = sb.toString();
-
-      src = (name.endsWith(".js") 
-          ? compressJs(src, name)
-          : compressCss(src, name));
-      src = injectCloudfrontUrl(src);
-
-      f.delete();
-
-      PrintWriter out = new PrintWriter(new FileWriter(f));
-      out.println(src);
-      out.close();
-    } else {
-      BufferedInputStream inBs = new BufferedInputStream(in);
-      BufferedOutputStream out =
-        new BufferedOutputStream(new FileOutputStream(f));
-      byte[] buf = new byte[1024*4];
-      int nread;
-      while ((nread = inBs.read(buf)) != -1)
-        out.write(buf, 0, nread);
-      out.close();
-    }
-
-    //f.deleteOnExit();
-
+    File f = cacheResourceFile(name, name.replaceAll("^.*/", ""), null);
     cacheFileAws(f, name.replaceFirst("^/+", ""));
   }
 
@@ -510,8 +494,6 @@ public class Main
         " custom body section -->\n"+bodyStr+
         "    <!-- end custom body section ");
     result = result.replaceFirst("__CLOUDFRONTDOMAIN__", o.getOpt("cfdomains"));
-
-    result = injectCloudfrontUrl(result);
 
     return result;
   }
@@ -572,12 +554,10 @@ public class Main
     GolfResource cssRes  = new GolfResource(cwd, css);
     GolfResource jsRes   = new GolfResource(cwd, js);
 
-    String htmlStr = 
-      injectCloudfrontUrl(processComponentHtml(htmlRes.toString(), className));
-    String cssStr = 
-      injectCloudfrontUrl(processComponentCss(cssRes.toString(), className));
-    String jsStr = 
-      injectCloudfrontUrl(processComponentJs(jsRes.toString(), name+".js"));
+    String htmlStr  = processComponentHtml(htmlRes.toString(), className);
+    String jsStr    = processComponentJs(jsRes.toString(), name+".js");
+    String cssStr   = 
+      processComponentCss(cssRes.toString(), className, name+".css");
 
     JSONObject json = new JSONObject()
         .put("name",  name.replace('/', '.').replaceFirst("^\\.", ""))
@@ -617,7 +597,8 @@ public class Main
     return result;
   }
 
-  public static String processComponentCss(String text, String className) {
+  public static String processComponentCss(String text, String className,
+      String fileName) {
     String result = text;
 
     // Localize this css file by inserting the unique component css class
@@ -635,7 +616,7 @@ public class Main
     result = result.trim();
 
     if (!o.getFlag("devmode"))
-      result = compressCss(result, className);
+      result = compressCss(result, fileName);
 
     return result;
   }
@@ -728,6 +709,7 @@ public class Main
     Server server = new Server(Integer.valueOf(o.getOpt("port")));
     
     cacheComponentsFile();
+    cacheNewDotHtmlFile();
 
     QueuedThreadPool threadPool = new QueuedThreadPool();
     threadPool.setMaxThreads(100);
