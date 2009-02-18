@@ -1,14 +1,23 @@
 package com.thinkminimo.golf;
 
+import com.thinkminimo.getopt.GetOpt;
+
 import org.json.*;
 
 import java.io.*;
 import java.util.*;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.rmi.server.UID;
 import java.security.NoSuchAlgorithmException;
 
-import gnu.getopt.Getopt;
-import gnu.getopt.LongOpt;
+import java.lang.reflect.Method;
+import java.lang.reflect.Constructor;
+
+import org.mozilla.javascript.ErrorReporter;
+import org.mozilla.javascript.EvaluatorException;
+import com.yahoo.platform.yui.compressor.CssCompressor;
+import com.yahoo.platform.yui.compressor.JavaScriptCompressor;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -28,6 +37,10 @@ import org.jets3t.service.model.cloudfront.DistributionConfig;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.security.AWSCredentials;
 
+import org.apache.tools.ant.*;
+import org.apache.tools.ant.taskdefs.*;
+import org.apache.tools.ant.types.resources.*;
+
 import org.mortbay.log.Log;
 import org.mortbay.jetty.Handler;
 import org.mortbay.jetty.HandlerContainer;
@@ -44,37 +57,137 @@ import org.mortbay.thread.QueuedThreadPool;
 
 public class Main
 {
-  public static final String AWS_URL        = "s3.amazonaws.com";
-  public static final int    NUM_CFDOMAINS  = 10;
+  public static class RingList<T> extends ArrayList <T> {
+    private int next = 0;
+    public T next() {
+      return get(next++ % size());
+    }
+    public void reset() {
+      next = 0;
+    }
+  }
 
-  private static Integer             mPort         = 8080;
-  private static String              mAppname      = null;
-  private static String              mApproot      = null;
-  private static String              mAwsPublic    = "";
-  private static String              mAwsPrivate   = "";
-  private static String              mDisplayName  = "";
-  private static String              mDescription  = "";
-  private static int                 mCloudfronts  = NUM_CFDOMAINS;
-  private static String              mCfDomains    = "";
-  private static boolean             mDoWarfile    = false;
+  private class SkipException extends Exception {
+    public SkipException()                      { super();      }
+    public SkipException(String s)              { super(s);     }
+    public SkipException(String s, Throwable t) { super(s, t);  }
+    public SkipException(Throwable t)           { super(t);     }
+  }
 
-  private static AWSCredentials      mAwsKeys      = null;
-  private static RestS3Service       mS3svc        = null;
-  private static CloudFrontService   mCfsvc        = null;
-  private static S3Bucket            mBucket       = null;
-  private static AccessControlList   mAcl          = null;
-  private static HashMap<String, String> mApps     = 
-    new HashMap<String, String>();
+  public    static final String       AWS_URL         = "s3.amazonaws.com";
+  public    static final int          NUM_CFDOMAINS   = 1;
+  public    static final int          JETTY_PORT      = 4653;
+  private   static final int          BUF_SIZE        = 1024;
+
+  private   static GetOpt             o               = null;
+  private   static RingList<String>   mCfDomains      = null;
+
+  private AWSCredentials              mAwsKeys        = null;
+  private RestS3Service               mS3svc          = null;
+  private CloudFrontService           mCfsvc          = null;
+  private S3Bucket                    mBucket         = null;
+  private AccessControlList           mAcl            = null;
+  private HashMap<String, String>     mApps           = null;
 
 
   public Main(String[] argv) throws Exception {
-    processCommandLine(argv);
+    mApps       = new HashMap<String, String>();
+    mCfDomains  = new RingList<String>();
 
-    if (mDoWarfile) {
-      doWarfile();
-    } else {
-      doServer();
+    // Command line parser setup
+
+    o     = new GetOpt("golf", argv);
+    o.addFlag(
+      "version", 
+      "Display golf application server version info and exit."
+    ).addOpt(
+      "port",
+      "Set the port the server will listen on."
+    ).addOpt(
+      "displayname",
+      "The display name to use for deploying as a war file into a servlet "+
+      "container."
+    ).addOpt(
+      "description",
+      "Description of app when deploying as a war file into a servle "+
+      "container."
+    ).addOpt(
+      "awspublic",
+      "The amazon aws access key ID to use for cloudfront caching."
+    ).addOpt(
+      "awsprivate",
+      "The amazon aws secret access key corresponding to the aws access "+
+      "key ID specified with the --awspublic option."
+    ).addOpt(
+      "cloudfronts",
+      "How man CloudFront distributions to create."
+    ).addFlag(
+      "war",
+      "If present, create war file instead of starting embedded servlet "+
+      "container."
+    ).addArg(
+      "appname",
+      "The name of your app. This will be the servlet context path."
+    ).addArg(
+      "approot",
+      "The location of the app source directory."
+    );
+
+    // default values for command line options
+
+    o.setOpt("port",          String.valueOf(JETTY_PORT));
+    o.setOpt("displayname",   "golf app");
+    o.setOpt("description",   "");
+    o.setOpt("devmode",       "false");
+    o.setOpt("cloudfronts",   String.valueOf(NUM_CFDOMAINS));
+    o.setOpt("cfdomains",     "[]");
+
+    // parse command line
+    try {
+      o.go();
+    } catch (Exception e) {
+      System.exit(1);
     }
+
+    // command line option validation
+
+    if (o.getOpt("port") != null) {
+      try {
+        Integer.parseInt(o.getOpt("port"));
+      } catch (NumberFormatException e) {
+        usage(e.getMessage());
+      }
+    }
+
+    // process single flag command lines
+
+    if (o.getFlag("version")) {
+      System.out.println("golf v0.1dev");
+      System.exit(0);
+    } else if (o.getFlag("help")) {
+      usage(null);
+      System.exit(0);
+    }
+
+    // process command lines with argv
+
+    if (o.getOpt("appname") == null || o.getOpt("approot") == null) {
+      usage("missing command line parameter");
+      System.exit(1);
+    }
+      
+    mApps.put(o.getOpt("appname"), o.getOpt("approot"));
+
+    try {
+      if (o.getFlag("war"))
+        doWarfile();
+      else
+        doServer();
+    } catch (Exception e) {
+      System.err.println("golf: "+e.getMessage());
+      System.exit(1);
+    }
+
     System.exit(0);
   }
 
@@ -87,81 +200,16 @@ public class Main
     }
   }
 
-  private void processCommandLine(String[] argv) throws Exception {
-    LongOpt[] longopts = {
-      new LongOpt("port",         LongOpt.REQUIRED_ARGUMENT,  null,   'p'),
-      new LongOpt("appname",      LongOpt.REQUIRED_ARGUMENT,  null,   'a'),
-      new LongOpt("approot",      LongOpt.REQUIRED_ARGUMENT,  null,   'd'),
-      new LongOpt("help",         LongOpt.NO_ARGUMENT,        null,   'h'),
-      new LongOpt("version",      LongOpt.NO_ARGUMENT,        null,   'V'),
-      new LongOpt("awsprivate",   LongOpt.REQUIRED_ARGUMENT,  null,    1 ),
-      new LongOpt("awspublic",    LongOpt.REQUIRED_ARGUMENT,  null,    2 ),
-      new LongOpt("displayname",  LongOpt.REQUIRED_ARGUMENT,  null,    3 ),
-      new LongOpt("description",  LongOpt.REQUIRED_ARGUMENT,  null,    4 ),
-      new LongOpt("war",          LongOpt.NO_ARGUMENT,        null,    5 ),
-      new LongOpt("cloudfronts",  LongOpt.REQUIRED_ARGUMENT,  null,    6 ),
-    };
+  private void prepareAws()  throws Exception {
+    if (o.getOpt("awspublic") == null || o.getOpt("awsprivate") == null)
+      return;
 
-    // parse command line parameters
-    Getopt g = new Getopt("golf", argv, "p:a:d:hV", longopts);
-    int c;
-    while ((c = g.getopt()) != -1) {
-      switch (c) {
-        case 'p':
-          mPort = Integer.valueOf(g.getOptarg());
-          break;
-        case 'a':
-          mAppname = g.getOptarg();
-          break;
-        case 'd':
-          mApproot = g.getOptarg().replaceFirst("/*$", "");
-          break;
-        case 'V':
-          System.out.println("Golf version 0.1dev");
-          System.exit(0);
-          break;
-        case 1:
-          mAwsPrivate = g.getOptarg();
-          break;
-        case 2:
-          mAwsPublic = g.getOptarg();
-          break;
-        case 3:
-          mDisplayName = g.getOptarg();
-          break;
-        case 4:
-          mDescription = g.getOptarg();
-          break;
-        case 5:
-          mDoWarfile = true;
-          break;
-        case 6:
-          mCloudfronts = Integer.valueOf(g.getOptarg());
-          break;
-        case 'h':
-          // fall through
-        case '?':
-          usage();
-          break;
-      }
-    }
-
-    if (mApproot == null || mAppname == null) {
-      System.err.println("You must specify an approot and an appname!");
-      System.exit(1);
-    }
-
-    mApps.put(mAppname, mApproot);
-  }
-
-  private void doAws() throws Exception {
-    System.out.print("Preparing S3 bucket................");
-
-    mAwsKeys  = new AWSCredentials(mAwsPublic, mAwsPrivate);
+    mAwsKeys  = 
+      new AWSCredentials(o.getOpt("awspublic"), o.getOpt("awsprivate"));
     mS3svc    = new RestS3Service(mAwsKeys);
 
     while (true) {
-      mBucket       = mS3svc.getOrCreateBucket(randName(mAppname));
+      mBucket       = mS3svc.getOrCreateBucket(randName(o.getOpt("appname")));
       long nowTime  = (new Date()).getTime();
       long bktTime  = mBucket.getCreationDate().getTime();
       long oneMin   = 1L * 60L * 1000L;
@@ -177,65 +225,178 @@ public class Main
 
     mBucket.setAcl(mAcl);
     mS3svc.putBucketAcl(mBucket);
+  }
 
-    System.out.println("done.");
-
-    System.out.print("Uploading components...............");
-    cacheComponentsAws();
-    cacheComponentsFile();
-    System.out.println("done.");
-
-    System.out.print("Uploading jar resources............");
-    String[] resources = {"/jquery.golf.js", "/jquery.history.js", "/jquery.js",
-      "/jsdetect.html", "/loading.gif", "/new.html", "/taffy.js"};
-    for (String res : resources)
-      cacheJarResource(res);
-    System.out.println("done.");
-
-    System.out.print("Uploading resource files...........");
-    File resDir = new File(mApproot);
-    String[] files = resDir.list();
-    for (String f : files) {
-      if (! f.equals("components"))
-        cacheResources(new File(resDir, f), f);
-    }
-    System.out.println("done.");
-
-    System.out.print("Creating CloudFront distributions..");
+  private void doCloudFront() throws Exception {
+    if (o.getOpt("awspublic") == null || o.getOpt("awsprivate") == null)
+      throw new SkipException("no aws keys provided");
 
     mCfsvc = new CloudFrontService(mAwsKeys);
 
     String orig = mBucket.getName() + "." + AWS_URL;
     String cmnt;
-    if (mDescription.length() > 0)
-      cmnt = mDescription;
-    else if (mDisplayName.length() > 0)
-      cmnt = mDisplayName;
+    if (o.getOpt("description") != null)
+      cmnt = o.getOpt("description");
+    else if (o.getOpt("displayname") != null)
+      cmnt = o.getOpt("displayname");
     else
-      cmnt = mAppname;
+      cmnt = o.getOpt("appname");
 
-    Distribution dist;
-    String[] listDomains = new String[mCloudfronts];
+    JSONArray json = new JSONArray();
 
-    for (int i=0; i<mCloudfronts; i++) {
-      dist = mCfsvc.createDistribution(orig, null, null, cmnt, true);
-      mCfDomains += (mCfDomains.length() == 0 ? "," : "");
-      mCfDomains += dist.getDomainName();
-      listDomains[i] = dist.getDomainName();
+    for (int i=0; i<Integer.valueOf(o.getOpt("cloudfronts")); i++) {
+      Distribution dist = 
+        mCfsvc.createDistribution(orig, null, null, cmnt, true);
+      String domain = "http://"+dist.getDomainName()+"/";
+      mCfDomains.add(domain);
+      json.put(domain);
     }
 
-    System.out.println("done.");
+    o.setOpt("cfdomains", json.toString());
+  }
+  
+  private void doAws() throws Exception {
+    if (o.getOpt("awspublic") == null || o.getOpt("awsprivate") == null)
+      throw new SkipException("no aws keys provided");
 
-    for (int i=0; i<mCloudfronts; i++)
-      System.out.printf("  %3d. %s\n", i+1, listDomains[i]);
+    try {
+      System.err.print("Preparing S3 bucket................");
+      prepareAws();
+      System.err.println("done.");
+
+      System.err.print("Creating CloudFront distributions..");
+      doCloudFront();
+      System.err.println("done.");
+
+      System.err.print("Compiling components...............");
+      cacheComponentsFile();
+      System.err.println("done.");
+
+      System.err.print("Creating new.html template file....");
+      cacheNewDotHtmlFile();
+      System.err.println("done.");
+
+      System.err.print("Uploading jar resources............");
+      cacheJarResourcesAws();
+      System.err.println("done.");
+
+      System.err.print("Uploading resource files...........");
+      cacheResourcesAws(new File(o.getOpt("approot")), "");
+      System.err.println("done.");
+    } catch (SkipException d) {
+      System.err.println("skipped: "+d.getMessage());
+    } catch (Exception e) {
+      System.err.println("fail.");
+      throw new Exception(e);
+    }
   }
 
-  private void cacheString(String str, String key) throws Exception {
-    cacheString(str, key, null);
+  private void doWarfile() throws Exception {
+    o.setOpt("devmode", "false");
+    doAws();
+    doAnt();
   }
 
-  private void cacheString(String str, String key, String type) 
+  public void doAnt() throws Exception {
+    try {
+      System.err.print("Building warfile...................");
+
+      File    dep     = cacheResourceFile("depends.zip",    ".zip", null);
+      File    res     = cacheResourceFile("resources.zip",  ".zip", null);
+      File    cls     = cacheResourceFile("classes.zip",    ".zip", null);
+      File    web     = getTmpFile(".xml");
+      File    ant     = File.createTempFile("project.", ".xml", new File("."));
+
+      ant.deleteOnExit();
+
+      String  webStr  = getResourceAsString("web.xml");
+      String  antStr  = getResourceAsString("project.xml");
+
+      webStr =  webStr.replaceAll("__DISPLAYNAME__",    o.getOpt("displayname"))
+                      .replaceAll("__DESCRIPTION__",    o.getOpt("description"))
+                      .replaceAll("__DEVMODE__",        o.getOpt("devmode"));
+
+      antStr =  antStr.replaceAll("__OUTFILE__", o.getOpt("appname") + ".war")
+                      .replaceAll("__WEB.XML__",        web.getAbsolutePath())
+                      .replaceAll("__RESOURCES.ZIP__",  res.getAbsolutePath())
+                      .replaceAll("__APPROOT__",        o.getOpt("approot"))
+                      .replaceAll("__DEPENDENCIES.ZIP__", dep.getAbsolutePath())
+                      .replaceAll("__CLASSES.ZIP__",    cls.getAbsolutePath());
+
+      cacheStringFile(webStr, "", web);
+      cacheStringFile(antStr, "", ant);
+
+      Project project = new Project();
+      project.init();
+      project.setUserProperty("ant.file" , ant.getAbsolutePath());
+      ProjectHelper.configureProject(project, ant);
+      project.executeTarget("war");
+
+      System.err.println("done.");
+    } catch (Exception e) {
+      System.err.println("fail.");
+      throw new Exception(e);
+    }
+  }
+  public static File getTmpFile(String ext) throws IOException {
+    File f = File.createTempFile("golf_deploy.", ext);
+    f.deleteOnExit();
+    return f;
+  }
+
+  public String getResourceAsString(String name) throws IOException {
+    JavaResource res = new JavaResource(name, null);
+    BufferedReader in = 
+      new BufferedReader(new InputStreamReader(res.getInputStream()));
+    StringBuilder s = new StringBuilder();
+
+    String tmp;
+    while((tmp = in.readLine()) != null)
+      s.append(tmp).append("\n");
+
+    return s.toString();
+  }
+
+  public File cacheResourceFile(String name, String ext, File f)
+    throws IOException {
+    byte[] b = new byte[BUF_SIZE];
+
+    if (f == null)
+      f = getTmpFile(ext);
+
+    JavaResource          res = new JavaResource(name, null);
+    BufferedInputStream   in  = new BufferedInputStream(res.getInputStream());
+    BufferedOutputStream  out = 
+      new BufferedOutputStream(new FileOutputStream(f));
+
+    int nread;
+    while ((nread = in.read(b)) != -1)
+      out.write(b, 0, nread);
+    out.close();
+
+    return f;
+  }
+
+  public File cacheStringFile(String text, String ext, File f)
+    throws IOException {
+    if (f == null)
+      f = getTmpFile(ext);
+
+    PrintWriter out = new PrintWriter(new FileOutputStream(f));
+
+    out.print(text);
+    out.close();
+
+    return f;
+  }
+
+  private void cacheStringAws(String str, String key) throws Exception {
+    cacheStringAws(str, key, null);
+  }
+
+  private void cacheStringAws(String str, String key, String type) 
       throws Exception {
+    key = key.replaceFirst("^/+", "");
     S3Object obj  = new S3Object(mBucket, key, str);
     if (type == null)
       obj.setContentType("text/javascript");
@@ -245,12 +406,13 @@ public class Main
     mS3svc.putObject(mBucket, obj);
   }
 
-  private void cacheFile(File file, String key) throws Exception {
-    cacheFile(file, key, null);
+  private void cacheFileAws(File file, String key) throws Exception {
+    cacheFileAws(file, key, null);
   }
 
-  private void cacheFile(File file, String key, String type)
+  private void cacheFileAws(File file, String key, String type)
       throws Exception {
+    key = key.replaceFirst("^/+", "");
     S3Object obj = new S3Object(mBucket, file);
     obj.setKey(key);
     if (type == null)
@@ -261,41 +423,101 @@ public class Main
     mS3svc.putObject(mBucket, obj);
   }
 
-  private void doWarfile() throws Exception {
-    doAws();
-
-    System.out.print("Creating warfile...................");
-    GolfAnt gant = new GolfAnt();
-    gant.setApproot(mApproot);
-    gant.setAppname(mAppname);
-    gant.setDisplayName(mDisplayName);
-    gant.setDescription(mDescription);
-    gant.setCfDomain(mCfDomains);
-    gant.doit();
-    System.out.println("done.");
+  private void cacheJarResourcesAws() throws Exception {
+    String[] resources = {
+      "/jquery.js",             "/jsdetect.html",
+      "/jquery.history.js",     "/loading.gif",
+      "/jquery.golf.js",    
+      "/taffy.js",          
+    };
+    for (String res : resources)
+      cacheJarResourceAws(res);
   }
 
-  private void cacheJarResource(String name) throws Exception {
+  private void cacheJarResourceAws(String name) throws Exception {
     File f = File.createTempFile("golf", name.replaceAll("^.*/", ""));
 
-    BufferedInputStream in = 
-      new BufferedInputStream(getClass().getResourceAsStream(name));
-    BufferedOutputStream out =
-      new BufferedOutputStream(new FileOutputStream(f));
+    InputStream in = getClass().getResourceAsStream(name);
 
-    byte[] buf = new byte[1024];
+    if (name.endsWith(".js") || name.endsWith(".css")) {
+      BufferedReader inBr = new BufferedReader(new InputStreamReader(in));
+      StringBuilder  sb   = new StringBuilder();
+      
+      String s;
+      while ((s = inBr.readLine()) != null)
+        sb.append(s).append("\n");
 
-    int nread;
-    while ((nread = in.read(buf)) != -1)
-      out.write(buf, 0, nread);
-    out.close();
+      String src = sb.toString();
 
+      src = (name.endsWith(".js") 
+          ? compressJs(src, name)
+          : compressCss(src, name));
+      src = injectCloudfrontUrl(src);
+
+      f.delete();
+
+      PrintWriter out = new PrintWriter(new FileWriter(f));
+      out.println(src);
+      out.close();
+    } else {
+      BufferedInputStream inBs = new BufferedInputStream(in);
+      BufferedOutputStream out =
+        new BufferedOutputStream(new FileOutputStream(f));
+      byte[] buf = new byte[1024*4];
+      int nread;
+      while ((nread = inBs.read(buf)) != -1)
+        out.write(buf, 0, nread);
+      out.close();
+    }
+
+    //f.deleteOnExit();
+
+    cacheFileAws(f, name.replaceFirst("^/+", ""));
+  }
+
+  public static void cacheNewDotHtmlFile() throws Exception {
+    String newHtmlStr = getNewDotHtmlString();
+    File f = new File(o.getOpt("approot"), "new.html");
+    if (f.exists())
+      f.delete();
     f.deleteOnExit();
-    cacheFile(f, name.replaceFirst("^/*", ""));
+    PrintWriter out = new PrintWriter(new FileWriter(f));
+    out.println(newHtmlStr);
+    out.close();
+  }
+
+  public static String getNewDotHtmlString() throws Exception {
+    File   cwd  = new File(o.getOpt("approot"));
+
+    GolfResource  newHtml       = new GolfResource(cwd, "new.html");
+    GolfResource  headHtml      = new GolfResource(cwd, "head.html");
+    GolfResource  bodyHtml      = new GolfResource(cwd, "body.html");
+    GolfResource  noscriptHtml  = new GolfResource(cwd, "noscript.html");
+
+    String        newStr        = newHtml.toString();
+    String        headStr       = headHtml.toString();
+    String        bodyStr       = bodyHtml.toString();
+    String        noscriptStr   = noscriptHtml.toString();
+
+    String result = newStr;
+    result = result.replaceFirst("\n *__HEAD_HTML__ *\n *", 
+        " custom head section -->\n"+headStr+
+        "    <!-- end custom head section ");
+    result = result.replaceFirst("\n *__NOSCRIPT_HTML__ *\n *", 
+        " custom noscript section -->\n"+noscriptStr+
+        "      <!-- end custom noscript section ");
+    result = result.replaceFirst("\n *__BODY_HTML__ *\n *", 
+        " custom body section -->\n"+bodyStr+
+        "    <!-- end custom body section ");
+    result = result.replaceFirst("__CLOUDFRONTDOMAIN__", o.getOpt("cfdomains"));
+
+    result = injectCloudfrontUrl(result);
+
+    return result;
   }
 
   public static void cacheComponentsFile() throws Exception {
-    File f = new File(mApproot + "/components.js");
+    File f = new File(o.getOpt("approot"), "components.js");
     if (f.exists())
       f.delete();
     f.deleteOnExit();
@@ -305,54 +527,57 @@ public class Main
   }
 
   private void cacheComponentsAws() throws Exception {
-    cacheString(getComponentsString(), "components.js", "text/javascript");
+    cacheStringAws(getComponentsString(), "components.js", "text/javascript");
   }
 
   private static String getComponentsString() throws Exception {
-    return "jQuery.golf.components = " + 
-      getComponentsJSON(null, null).toString() + ";";
+    return "jQuery.golf.components = " + getComponentsJSON(null, null) + ";";
   }
 
-  private static JSONArray getComponentsJSON(String path, JSONArray json) 
+  private static String getComponentsJSON(String path, JSONObject json) 
       throws Exception {
     if (path == null) path = "";
-    if (json == null) json = new JSONArray();
+    if (json == null) json = new JSONObject();
 
-    File file = new File(mApproot + "/components/" + path);
+    File file = new File(new File(o.getOpt("approot"), "components"), path);
       
     if (!file.getName().startsWith(".")) {
       if (file.isFile()) {
         if (path.endsWith(".html")) {
-          json.put(processComponent(path.replaceFirst("\\.html$", "")));
+          String cmpName = path.replaceFirst("\\.html$", "");
+          String keyName = cmpName.replaceFirst("^/+", "").replace("/", ".");
+          json.put(keyName, processComponent(cmpName));
         }
       } else if (file.isDirectory()) {
         for (String f : file.list()) {
           String ppath = path + "/" + f;
-          JSONArray j = getComponentsJSON(path+"/"+f, json);
+          getComponentsJSON(path+"/"+f, json);
         }
       }
     }
 
-    return json;
+    return json.toString();
   }
 
   public static JSONObject processComponent(String name) throws Exception {
+    name = name.replaceFirst("^/+", "");
     String className = name.replace('/', '-');
-    String path      = mApproot + "/components/" + name;
+    File   cwd       = new File(o.getOpt("approot"), "components");
 
-    String html = path + ".html";
-    String css  = path + ".css";
-    String js   = path + ".js";
+    String html = name + ".html";
+    String css  = name + ".css";
+    String js   = name + ".js";
 
-    GolfResource htmlRes = new GolfResource(null, html);
-    GolfResource cssRes  = new GolfResource(null, css);
-    GolfResource jsRes   = new GolfResource(null, js);
+    GolfResource htmlRes = new GolfResource(cwd, html);
+    GolfResource cssRes  = new GolfResource(cwd, css);
+    GolfResource jsRes   = new GolfResource(cwd, js);
 
     String htmlStr = 
-      processComponentHtml(htmlRes.toString(), className);
+      injectCloudfrontUrl(processComponentHtml(htmlRes.toString(), className));
     String cssStr = 
-      processComponentCss(cssRes.toString(), className);
-    String jsStr = jsRes.toString();
+      injectCloudfrontUrl(processComponentCss(cssRes.toString(), className));
+    String jsStr = 
+      injectCloudfrontUrl(processComponentJs(jsRes.toString(), name+".js"));
 
     JSONObject json = new JSONObject()
         .put("name",  name.replace('/', '.').replaceFirst("^\\.", ""))
@@ -361,6 +586,13 @@ public class Main
         .put("js",    jsStr);
 
     return json;
+  }
+
+  public static String injectCloudfrontUrl(String text) {
+    String result = text;
+    if (mCfDomains.size() > 0)
+      while (! result.equals(result = result.replaceFirst("\\?path=/*", mCfDomains.next())));
+    return result;
   }
 
   public static String processComponentHtml(String text, String className) {
@@ -402,25 +634,98 @@ public class Main
           className + " $2 {");
     result = result.trim();
 
+    if (!o.getFlag("devmode"))
+      result = compressCss(result, className);
+
     return result;
   }
 
-  private void cacheResources(File file, String path) throws Exception {
-    if (path.startsWith("."))
+  public static String compressCss(String in, String filename) {
+    String result = in;
+    try {
+      CssCompressor css = new CssCompressor(new StringReader(in));
+
+      StringWriter out = new StringWriter();
+      css.compress(out, -1);
+      result = out.toString();
+    } catch (Exception e) {
+      System.err.println("golf: "+filename+" not compressed: "+e.toString());
+    }
+    return result;
+  }
+
+  public static String processComponentJs(String text, String filename)
+      throws Exception {
+    String result = "function($, argv) {"+text+"}\n";
+    if (!o.getFlag("devmode"))
+      result = compressJs(result, filename);
+    return result;
+  }
+
+  private static String compressJs(String in, String filename) {
+    String result = in;
+    //try {
+    //  final String cn = filename;
+    //  
+    //  ErrorReporter errz = new ErrorReporter() {
+    //    public void warning(String message, String sourceName,
+    //        int line, String lineSource, int lineOffset) {
+    //      if (line < 0) {
+    //        System.err.println(cn+": warning:\n"+message+"\n");
+    //      } else {
+    //        System.err.println(cn+": warning:\n"+line+':'+lineOffset+ 
+    //          ':'+message+"\n");
+    //      }
+    //    }
+    //    public void error(String message, String sourceName,
+    //          int line, String lineSource, int lineOffset) {
+    //      if (line < 0) {
+    //        System.err.println(cn+": error:\n"+message+"\n");
+    //      } else {
+    //        System.err.println(cn+": error:\n"+line+':'+lineOffset+
+    //          ':'+message+"\n");
+    //      }
+    //    }
+    //    public EvaluatorException runtimeError(String message, 
+    //        String sourceName, int line, String lineSource, int lineOffset) {
+    //      error(message, sourceName, line, lineSource, lineOffset);
+    //      return new EvaluatorException(message);
+    //    }
+    //  };
+
+    //  JavaScriptCompressor js = 
+    //    new JavaScriptCompressor(new StringReader(in), errz);
+
+    //  StringWriter out = new StringWriter();
+    //  js.compress(out, -1, false, false, false, true);
+    //  result = out.toString().replace("\n", "\\n");
+    //} catch (Exception e) {
+    //  System.err.println("golf: "+filename+" not compressed: "+e.toString());
+    //}
+    return result;
+  }
+
+  private void cacheResourcesAws(File file, String path) throws Exception {
+    if (path.startsWith("/.")         || 
+        path.equals("/components")    ||
+        path.equals("/head.html")     || 
+        path.equals("/noscript.html") ||
+        path.equals("/body.html"))
       return;
 
     if (file.isFile()) {
-      cacheFile(file, path);
+      cacheFileAws(file, path);
     } else if (file.isDirectory()) {
       for (String f : file.list()) {
         String ppath = path + (path.endsWith("/") ? f : "/" + f);
-        cacheResources(new File(file, f), ppath);
+        cacheResourcesAws(new File(file, f), ppath);
       }
     }
   }
 
   private void doServer() throws Exception {
-    Server server = new Server(mPort);
+    o.setOpt("devmode", "true");
+    Server server = new Server(Integer.valueOf(o.getOpt("port")));
     
     cacheComponentsFile();
 
@@ -440,9 +745,9 @@ public class Main
 
       Context cx1 = new Context(contexts, golfPath, Context.SESSIONS);
       cx1.setResourceBase(golfRoot);
+      cx1.setDisplayName(o.getOpt("displayname"));
       ServletHolder sh1 = new ServletHolder(new GolfServlet());
-      sh1.setInitParameter("awsprivate", mAwsPrivate);
-      sh1.setInitParameter("awspublic",  mAwsPublic);
+      sh1.setInitParameter("devmode", o.getOpt("devmode"));
       cx1.addServlet(sh1, "/*");
     }
     
@@ -464,67 +769,10 @@ public class Main
     return result;
   }
 
-  private void usage() {
-    System.out.println(
-"\n"+
-"Usage: java -jar golf.jar [OPTIONS]\n"+
-"\n"+
-"OPTIONS:\n"+
-"\n"+
-"     HELP AND INFO:\n"+
-"\n"+
-"     -h\n"+
-"     --help\n"+
-"         Display this help info right here and exit.\n"+
-"\n"+
-"     -V\n"+
-"     --version\n"+
-"         Display golf application server version info and exit.\n"+
-"\n"+
-"     REQUIRED OPTIONS:\n"+ 
-"\n"+
-"     -a <name>\n"+
-"     --appname <name>\n"+
-"         Set the app's context path.\n"+
-"\n"+
-"     -d <path>\n"+
-"     --approot <path>\n"+
-"         The location of the golf application source directory.\n"+
-"\n"+
-"     EMBEDDED SERVLET CONTAINER CONFIGURATION:\n"+
-"\n"+
-"     -p <port>\n"+
-"     --port <port>\n"+
-"         Set the port the server will listen on.\n"+
-"\n"+
-"     GENERIC SERVLET CONTAINER CONFIGURATION:\n"+
-"\n"+
-"     --displayname <name>\n"+
-"         The display name to use for deploying as a war file into a servlet\n"+
-"         container.\n"+
-"\n"+
-"     --description <description>\n"+
-"         Description of app when deploying as a war file into a servlet\n"+
-"         container.\n"+
-"\n"+
-"     AMAZON WEB SERVICES CONFIGURATION:\n"+
-"\n"+
-"     --awspublic <key>\n"+
-"         The amazon aws access key ID to use for cloudfront caching.\n"+
-"\n"+
-"     --awsprivate <key>\n"+
-"         The amazon aws secret access key corresponding to the aws access\n"+
-"         key ID specified with the --awspublic option.\n"+
-"\n"+
-"     --cloudfronts <number>\n"+
-"         How man CloudFront distributions to create (for pipelining).\n"+
-"\n"+
-"     GOLF APPLICATION SERVER CONFIGURATION:\n"+
-"\n"+
-"     --war\n"+
-"         If present, create war file instead of starting embedded servlet\n"+
-"         container.\n"
-    );
-    System.exit(1);
+  private void usage(String error) {
+    if (error != null)
+      System.err.println("golf: "+error);
+
+    o.printUsage();
   }
 }

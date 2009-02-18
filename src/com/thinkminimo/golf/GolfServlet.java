@@ -232,8 +232,8 @@ public class GolfServlet extends HttpServlet {
   private static ConcurrentHashMap<String, StoredJSVM> mJsvms =
     new ConcurrentHashMap<String, StoredJSVM>();
 
-  private static int        mLogLevel       = LOG_ALL;
-  private static String     mCfDomain       = null;
+  private static int                  mLogLevel     = LOG_ALL;
+  private static String               mDevMode      = null;
 
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
@@ -241,12 +241,7 @@ public class GolfServlet extends HttpServlet {
   public void init(ServletConfig config) throws ServletException {
     super.init(config); // tricky little bastard
 
-    mCfDomain    = config.getInitParameter("cloudfrontDomain");
-
-    if (mCfDomain == null)
-      mCfDomain = "";
-
-    System.err.println("cloudfrontDomain="+mCfDomain);
+    mDevMode    = config.getInitParameter("devmode");
   }
 
   /**
@@ -262,14 +257,6 @@ public class GolfServlet extends HttpServlet {
 
     logRequest(context);
 
-    try {
-      // refresh components cache in devmode
-      if (mCfDomain.length() == 0)
-        Main.cacheComponentsFile();
-    } catch (Exception e) {
-      throw new ServletException("can't write components.js: ", e);
-    }
-
     // All query string parameters are considered to be arguments directed
     // to the golf container. The app itself gets its arguments in the path
     // info.
@@ -282,6 +269,11 @@ public class GolfServlet extends HttpServlet {
       if (context.p.getPath() != null) {
         doStaticResourceGet(context);
       } else {
+        // refresh components cache in devmode
+        if (Boolean.parseBoolean(mDevMode)) {
+          Main.cacheComponentsFile();
+          Main.cacheNewDotHtmlFile();
+        }
         doDynamicResourceGet(context);
       }
     }
@@ -315,7 +307,7 @@ public class GolfServlet extends HttpServlet {
    * @return                  the processed page html contents
    */
   private String preprocess(String page, GolfContext context, boolean server) {
-    String        sid       = context.request.getSession().getId();
+    String sid = context.request.getSession().getId();
 
     // pattern matching all script tags (should this be removed?)
     String pat2 = 
@@ -329,14 +321,6 @@ public class GolfServlet extends HttpServlet {
     // remove xml tag (why is it even there?)
     if (!server)
       page = page.replaceFirst("^<\\?xml [^>]+>\n", "");
-
-    // cloudfront url rewrites
-    if (!server && mCfDomain.length() > 0) {
-      page = page.replaceAll("(<[^>]+ (href|src)=['\"])\\?path=",
-          "$1http://" + mCfDomain + "/");
-      page = page.replaceAll("([ :]url\\(['\"]?)\\?path=",
-          "$1http://" + mCfDomain + "/");
-    }
 
     // robots must not index event proxy (because infinite loops, etc.)
     if (!context.hasEvent())
@@ -366,10 +350,6 @@ public class GolfServlet extends HttpServlet {
       // the url fragment (shenanigans here)
       page = page.replaceFirst("(window.urlHash +=) \"[a-zA-Z_]+\";", 
           "$1 \"" + context.urlHash + "\";");
-      
-      // the cloudfront Domain
-      page = page.replaceFirst("(window.cloudfrontDomain +=) \"[a-zA-Z_]+\";", 
-          "$1 \"http://" + mCfDomain + "\";");
     }
 
     // no dtd for serverside because it breaks the xml parser
@@ -445,7 +425,7 @@ public class GolfServlet extends HttpServlet {
           // write any alert() calls to the log
           client.setAlertHandler(new AlertHandler() {
             public void handleAlert(Page page, String message) {
-              //Log.info("ALERT: " + message);
+              System.err.println("ALERT: " + message);
             }
           });
 
@@ -461,6 +441,7 @@ public class GolfServlet extends HttpServlet {
           // do not pass query string to the app, as those parameters are meant
           // only for the golf container itself.
 
+          System.err.println(preprocess(newHtml, context, true));
           StringWebResponse response = new StringWebResponse(
             preprocess(newHtml, context, true),
             new URL(context.servletURL + "#" + context.urlHash)
@@ -473,12 +454,22 @@ public class GolfServlet extends HttpServlet {
           );
         } else {
           String script = "jQuery.history.load('"+context.urlHash+"');";
+          if (Boolean.parseBoolean(mDevMode)) {
+            GolfResource res = 
+              new GolfResource(getServletContext(), "components.js");
+            script = res.toString() + script;
+          }
           result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
           result.executeJavaScript(script);
         }
       } else {
         if (client != null) {
           String script = "jQuery(\"[golfid='"+lastTarget+"']\").click()";
+          if (Boolean.parseBoolean(mDevMode)) {
+            GolfResource res = 
+              new GolfResource(getServletContext(), "components.js");
+            script = res.toString() + script;
+          }
           result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
           result.executeJavaScript(script);
         } else {
@@ -608,6 +599,9 @@ public class GolfServlet extends HttpServlet {
   private void doStaticResourceGet(GolfContext context) 
       throws FileNotFoundException, IOException, JSONException {
     String path = context.p.getPath();
+
+    if (path.matches("^[/]*\\."))
+      throw new FileNotFoundException();
 
     if (! path.startsWith("/"))
       path = "/" + path;

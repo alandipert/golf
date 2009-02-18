@@ -48,7 +48,7 @@
   <!-- set classpath for compiling project -->
   <path id="compile.classpath">
     <pathelement path="${src.home}"/>
-    <fileset dir="${lib.home}" includes="*.jar"/>
+    <fileset dir="${lib.home}"        includes="*.jar"/>
   </path>
 
   <!-- the rest of this file is target definitions -->
@@ -101,7 +101,8 @@
         <exclude name="jetty-*"/>
         <exclude name="ant.jar"/>
         <exclude name="ant-*"/>
-        <exclude name="gnu-getopt.jar"/>
+        <exclude name="getopt-*"/>
+        <exclude name="yuicompressor-*"/>
       </fileset>
     </zip>
     <!-- Create the resources zip file -->
@@ -109,15 +110,12 @@
       <fileset dir="${resources.home}">
         <exclude name="web.xml"/>
         <exclude name="project.xml"/>
-        <exclude name="**/.git"/>
-        <exclude name="**/.git/**"/>
-        <exclude name="**/.gitignore"/>
-        <exclude name="**/*.swp"/>
-        <exclude name="**/*.swo"/>
+        <exclude name="**/.*"/>
+        <exclude name="**/.*/**"/>
         <exclude name="**/*~"/>
       </fileset>
     </zip>
-    <!-- Create application zip file -->
+    <!-- Create application jarfile -->
     <jar jarfile="${jarfile.dist}" index="true">
       <manifest>
         <attribute name="Built-By"               value="${user.name}"/>
@@ -126,12 +124,12 @@
         <attribute name="Implementation-Version" value="${app.version}"/>
         <attribute name="Main-Class"             value="${compile.mainclass}"/>
       </manifest>
-      <fileset dir="${build.home}">
-        <exclude name="**/*.swp"/>
-        <exclude name="**/*.swo"/>
+      <fileset dir="${build.home}"/>
+      <fileset dir="${resources.home}">
+        <exclude name="**/.*"/>
+        <exclude name="**/.*/**"/>
         <exclude name="**/*~"/>
       </fileset>
-      <fileset dir="${resources.home}"/>
       <zipgroupfileset dir="${lib.home}"/>
     </jar>
   </target>
@@ -149,8 +147,9 @@
     description="Create binary distribution.">
     <zip destfile="${dist.home}/${app.fullname}.zip">
       <zipfileset file="${jarfile.dist}"    prefix="${app.fullname}"/>
-      <zipfileset  dir="${docs.home}"       prefix="${app.fullname}/docs"
-              excludes="api/**"/>
+      <zipfileset dir="${docs.home}"        prefix="${app.fullname}/docs">
+        <exclude name="api/**"/>
+      </zipfileset>
     </zip>
   </target>
 

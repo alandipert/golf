@@ -14,10 +14,6 @@
       <param-name>devmode</param-name>
       <param-value>__DEVMODE__</param-value>
     </init-param>
-    <init-param>
-      <param-name>cloudfrontDomain</param-name>
-      <param-value>__CLOUDFRONTDOMAIN__</param-value>
-    </init-param>
   </servlet>
 
   <servlet-mapping>

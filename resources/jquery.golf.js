@@ -130,32 +130,6 @@ jQuery.golf = {
     }
   },
 
-  getComponent: function(name, callback) {
-    if (! jQuery.golf.doJSONP(name, callback)) {
-      var url;
-      
-      if (cloudfrontDomain.length > 0 && !serverside)
-        url = cloudfrontDomain + "/components/" + name;
-      else
-        url = "?component=" + name;
-
-      if (serverside) {
-        jQuery.ajax({
-          async:      false,
-          type:       "GET",
-          url:        url,
-          dataType:   "text",
-          success:    function(data) { eval(data); }
-        });
-      } else {
-        var script  = document.createElement("SCRIPT");
-        script.type = "text/javascript";
-        script.src  = url;
-        jQuery("head").append(script);
-      }
-    }
-  },
-
   doJSONP: (function() {
     var listeners = {};
     var cache = {};
@@ -188,6 +162,7 @@ jQuery.golf = {
             listeners[obj.name][i](obj);
           }
         }
+        return true;
       }
     };
   })(),
@@ -201,7 +176,11 @@ jQuery.golf = {
   },
 
   doCall: function($, argv) {
-    eval($.js);
+    if ($.js.length > 10) {
+      var f;
+      eval("f = "+$.js);
+      f($, argv);
+    }
   },
     
   onLoad: function() {
@@ -340,21 +319,16 @@ jQuery.golf = {
     jQuery.extend($, jQuery);
 
     $.component = name;
-    $.package   = name.replace(/\.[^.]*$/, "");
+    $.pkg       = name.replace(/\.[^.]*$/, "");
     
-    var cmp;
-
-    for (var i = 0; i < jQuery.golf.components.length; i++) {
-      if (jQuery.golf.components[i].name == name)
-        cmp = jQuery.golf.components[i];
-    }
+    var cmp = jQuery.golf.components[name];
 
     if (cmp) {
       if (cmp.css) {
         // add css to <head>
         if (cmp.css.replace(/^\s+|\s+$/g, '').length > 3)
           jQuery("head").append("<style type='text/css'>"+cmp.css+"</style>");
-        cmp.css = null;
+        cmp.css = false;
       }
 
       var p     = jQuery(cmp.html).get()[0];
@@ -375,7 +349,7 @@ jQuery.golf = {
     } else {
       throw "can't find component: "+name;
     }
-  },
+  }
 };
 
 jQuery(jQuery.golf.onLoad);

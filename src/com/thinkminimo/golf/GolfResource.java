@@ -461,23 +461,35 @@ public class GolfResource {
 
   public  static int    BYTE_BUF_SIZE = 4096;
 
-  private ServletContext          context;
-  private String                  path;
-  private ByteArrayOutputStream   buffer;
-  private int                     source;
-  private String                  mimeType;
+  private ServletContext          mContext;
+  private String                  mPath;
+  private ByteArrayOutputStream   mBuffer;
+  private int                     mSource;
+  private String                  mMimeType;
+  private File                    mCwd;
 
   public GolfResource(ServletContext context, String path)
-    throws FileNotFoundException, IOException {
-    this.context    = context;
-    this.path       = path;
-    this.mimeType   = MimeMapping.lookup(path);
+      throws FileNotFoundException, IOException {
+    this(context, null, path);
+  }
+
+  public GolfResource(File cwd, String path)
+      throws FileNotFoundException, IOException {
+    this(null, cwd, path);
+  }
+
+  protected GolfResource(ServletContext context, File cwd, String path)
+      throws FileNotFoundException, IOException {
+    mContext    = context;
+    mPath       = path;
+    mMimeType   = MimeMapping.lookup(path);
+    mCwd        = cwd;
     getStream();
   }
 
-  public int      getSource()         { return source; }
-  public void     setSource(int src)  { source = src; }
-  public String   getMimeType()       { return mimeType; }
+  public int      getSource()         { return mSource;    }
+  public void     setSource(int src)  { mSource = src;     }
+  public String   getMimeType()       { return mMimeType;  }
 
   /**
    * Loads contents of resource into the ByteArrayOutputStream, sets the
@@ -487,54 +499,61 @@ public class GolfResource {
     byte[] buf = new byte[BYTE_BUF_SIZE];
 
     InputStream in  = null;
-    source = SOURCE_NONE;
+    mSource = SOURCE_NONE;
 
-    if (context != null)
-      path = path.replaceFirst("/", "");
+    if (mContext != null)
+      mPath = mPath.replaceFirst("/", "");
 
     // from the filesystem
     try {
-      String realPath = (context == null ?  path : context.getRealPath(path));
-      File theFile = new File(realPath);
-      if (theFile != null && theFile.exists())
+      File theFile;
+      if (mContext != null)
+        theFile = new File(mContext.getRealPath(mPath));
+      else if (mPath.startsWith("/"))
+        theFile = new File(mPath);
+      else
+        theFile = new File(mCwd, mPath);
+       
+      if (theFile.exists())
         in = new FileInputStream(theFile);
     } catch (Exception x) { }
 
     // from the jarfile resource
-    if (in == null && context != null)
-      in = context.getClass().getClassLoader().getResourceAsStream(path);
+    if (in == null)
+      in = (mContext == null ? this : mContext).getClass().getClassLoader()
+        .getResourceAsStream(mPath);
     else
-      source = SOURCE_FILE;
+      mSource = SOURCE_FILE;
 
     if (in == null)
-      throw new FileNotFoundException("File not found (" + path + ")");
-    else if (source == SOURCE_NONE)
-      source = SOURCE_JAR;
+      throw new FileNotFoundException("File not found (" + mPath + ")");
+    else if (mSource == SOURCE_NONE)
+      mSource = SOURCE_JAR;
 
-    buffer = new ByteArrayOutputStream(BYTE_BUF_SIZE);
+    mBuffer = new ByteArrayOutputStream(BYTE_BUF_SIZE);
 
     int nread;
-    while ((nread = in.read(buf)) != -1) buffer.write(buf, 0, nread);
+    while ((nread = in.read(buf)) != -1) mBuffer.write(buf, 0, nread);
   }
 
   /**
    * @see java.io.ByteArrayOutputStream#toString()
    */
   public String toString() {
-    return buffer.toString();
+    return mBuffer.toString();
   }
 
   /**
    * @see java.io.ByteArrayOutputStream#toString(String)
    */
   public String toString(String enc) throws UnsupportedEncodingException {
-    return buffer.toString(enc);
+    return mBuffer.toString(enc);
   }
 
   /**
    * @see java.io.ByteArrayOutputStream#toByteArray()
    */
   public byte[] toByteArray() {
-    return buffer.toByteArray();
+    return mBuffer.toByteArray();
   }
 }
