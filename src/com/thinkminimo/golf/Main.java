@@ -67,15 +67,10 @@ public class Main
     }
   }
 
-  private class SkipException extends Exception {
-    public SkipException()                      { super();      }
-    public SkipException(String s)              { super(s);     }
-    public SkipException(String s, Throwable t) { super(s, t);  }
-    public SkipException(Throwable t)           { super(t);     }
-  }
-
   public    static final String       AWS_URL         = "s3.amazonaws.com";
   public    static final int          NUM_CFDOMAINS   = 1;
+  public    static final int          NUM_VMPOOL      = 20;
+  public    static final int          NUM_VMEXPIRE    = 10;
   public    static final int          JETTY_PORT      = 4653;
   private   static final int          BUF_SIZE        = 1024;
 
@@ -109,7 +104,7 @@ public class Main
       "container."
     ).addOpt(
       "description",
-      "Description of app when deploying as a war file into a servle "+
+      "Description of app when deploying as a war file into a servlet "+
       "container."
     ).addOpt(
       "awspublic",
@@ -120,7 +115,20 @@ public class Main
       "key ID specified with the --awspublic option."
     ).addOpt(
       "cloudfronts",
-      "How man CloudFront distributions to create."
+      "How many CloudFront distributions to create."
+    ).addOpt(
+      "pool-size",
+      "How many concurrent proxymode client virtual machines to allow."
+    ).addOpt(
+      "pool-expire",
+      "Minimum idle time (minutes) before a proxymode client virtual "+
+      "machine can be scavenged."
+    ).addFlag(
+      "compress-js",
+      "Whether to yuicompress javascript resource files (production only)."
+    ).addFlag(
+      "compress-css",
+      "Whether to yuicompress css resource files (production only)."
     ).addFlag(
       "war",
       "If present, create war file instead of starting embedded servlet "+
@@ -136,11 +144,18 @@ public class Main
     // default values for command line options
 
     o.setOpt("port",          String.valueOf(JETTY_PORT));
-    o.setOpt("displayname",   "golf app");
-    o.setOpt("description",   "");
+    o.setOpt("displayname",   "untitled web application");
+    o.setOpt("description",   "powered by golf: http://thinkminimo.com");
     o.setOpt("devmode",       "false");
+    o.setOpt("awspublic",     null);
+    o.setOpt("awsprivate",    null);
     o.setOpt("cloudfronts",   String.valueOf(NUM_CFDOMAINS));
+    o.setOpt("pool-size",     String.valueOf(NUM_VMPOOL));
+    o.setOpt("pool-expire",   String.valueOf(NUM_VMEXPIRE));
     o.setOpt("cfdomains",     "[]");
+    o.setOpt("compress-js",   "false");
+    o.setOpt("compress-css",  "false");
+    o.setOpt("war",           "false");
 
     // parse command line
     try {
@@ -201,9 +216,6 @@ public class Main
   }
 
   private void prepareAws()  throws Exception {
-    if (o.getOpt("awspublic") == null || o.getOpt("awsprivate") == null)
-      return;
-
     mAwsKeys  = 
       new AWSCredentials(o.getOpt("awspublic"), o.getOpt("awsprivate"));
     mS3svc    = new RestS3Service(mAwsKeys);
@@ -228,9 +240,6 @@ public class Main
   }
 
   private void doCloudFront() throws Exception {
-    if (o.getOpt("awspublic") == null || o.getOpt("awsprivate") == null)
-      throw new SkipException("no aws keys provided");
-
     mCfsvc = new CloudFrontService(mAwsKeys);
 
     String orig = mBucket.getName() + "." + AWS_URL;
@@ -256,17 +265,22 @@ public class Main
   }
   
   private void doAws() throws Exception {
-    if (o.getOpt("awspublic") == null || o.getOpt("awsprivate") == null)
-      throw new SkipException("no aws keys provided");
-
     try {
       System.err.print("Preparing S3 bucket................");
-      prepareAws();
-      System.err.println("done.");
+      if (o.getOpt("awspublic") != null && o.getOpt("awsprivate") != null) {
+        prepareAws();
+        System.err.println("done.");
+      } else {
+        System.err.println("skipped.");
+      }
 
       System.err.print("Creating CloudFront distributions..");
-      doCloudFront();
-      System.err.println("done.");
+      if (o.getOpt("awspublic") != null && o.getOpt("awsprivate") != null) {
+        doCloudFront();
+        System.err.println("done.");
+      } else {
+        System.err.println("skipped.");
+      }
 
       System.err.print("Compiling components...............");
       cacheComponentsFile();
@@ -277,14 +291,20 @@ public class Main
       System.err.println("done.");
 
       System.err.print("Uploading jar resources............");
-      cacheJarResourcesAws();
-      System.err.println("done.");
+      if (o.getOpt("awspublic") != null && o.getOpt("awsprivate") != null) {
+        cacheJarResourcesAws();
+        System.err.println("done.");
+      } else {
+        System.err.println("skipped.");
+      }
 
       System.err.print("Uploading resource files...........");
-      cacheResourcesAws(new File(o.getOpt("approot")), "");
-      System.err.println("done.");
-    } catch (SkipException d) {
-      System.err.println("skipped: "+d.getMessage());
+      if (o.getOpt("awspublic") != null && o.getOpt("awsprivate") != null) {
+        cacheResourcesAws(new File(o.getOpt("approot")), "");
+        System.err.println("done.");
+      } else {
+        System.err.println("skipped.");
+      }
     } catch (Exception e) {
       System.err.println("fail.");
       throw new Exception(e);
@@ -305,17 +325,18 @@ public class Main
       File    res     = cacheResourceFile("resources.zip",  ".zip", null);
       File    cls     = cacheResourceFile("classes.zip",    ".zip", null);
       File    web     = getTmpFile(".xml");
-      File    ant     = File.createTempFile("project.", ".xml", new File("."));
-
-      ant.deleteOnExit();
+      File    ant     = getTmpFile(".xml", new File("."));
 
       String  webStr  = getResourceAsString("web.xml");
       String  antStr  = getResourceAsString("project.xml");
 
+      // set init parameters in the web.xml file
       webStr =  webStr.replaceAll("__DISPLAYNAME__",    o.getOpt("displayname"))
                       .replaceAll("__DESCRIPTION__",    o.getOpt("description"))
+                      .replaceAll("__POOLSIZE__",       o.getOpt("pool-size"))
                       .replaceAll("__DEVMODE__",        o.getOpt("devmode"));
 
+      // setup the ant build file
       antStr =  antStr.replaceAll("__OUTFILE__", o.getOpt("appname") + ".war")
                       .replaceAll("__WEB.XML__",        web.getAbsolutePath())
                       .replaceAll("__RESOURCES.ZIP__",  res.getAbsolutePath())
@@ -338,9 +359,16 @@ public class Main
       throw new Exception(e);
     }
   }
+
   public static File getTmpFile(String ext) throws IOException {
     File f = File.createTempFile("golf_deploy.", ext);
-    //f.deleteOnExit();
+    f.deleteOnExit();
+    return f;
+  }
+
+  public static File getTmpFile(String ext, File dir) throws IOException {
+    File f = File.createTempFile("golf_deploy.", ext, dir);
+    f.deleteOnExit();
     return f;
   }
 
@@ -622,6 +650,9 @@ public class Main
   }
 
   public static String compressCss(String in, String filename) {
+    if (!o.getFlag("compress-css"))
+      return in;
+
     String result = in;
     try {
       CssCompressor css = new CssCompressor(new StringReader(in));
@@ -644,45 +675,49 @@ public class Main
   }
 
   private static String compressJs(String in, String filename) {
+    if (!o.getFlag("compress-js"))
+      return in;
+
     String result = in;
-    //try {
-    //  final String cn = filename;
-    //  
-    //  ErrorReporter errz = new ErrorReporter() {
-    //    public void warning(String message, String sourceName,
-    //        int line, String lineSource, int lineOffset) {
-    //      if (line < 0) {
-    //        System.err.println(cn+": warning:\n"+message+"\n");
-    //      } else {
-    //        System.err.println(cn+": warning:\n"+line+':'+lineOffset+ 
-    //          ':'+message+"\n");
-    //      }
-    //    }
-    //    public void error(String message, String sourceName,
-    //          int line, String lineSource, int lineOffset) {
-    //      if (line < 0) {
-    //        System.err.println(cn+": error:\n"+message+"\n");
-    //      } else {
-    //        System.err.println(cn+": error:\n"+line+':'+lineOffset+
-    //          ':'+message+"\n");
-    //      }
-    //    }
-    //    public EvaluatorException runtimeError(String message, 
-    //        String sourceName, int line, String lineSource, int lineOffset) {
-    //      error(message, sourceName, line, lineSource, lineOffset);
-    //      return new EvaluatorException(message);
-    //    }
-    //  };
 
-    //  JavaScriptCompressor js = 
-    //    new JavaScriptCompressor(new StringReader(in), errz);
+    try {
+      final String cn = filename;
+      
+      ErrorReporter errz = new ErrorReporter() {
+        public void warning(String message, String sourceName,
+            int line, String lineSource, int lineOffset) {
+          if (line < 0) {
+            System.err.println(cn+": warning:\n"+message+"\n");
+          } else {
+            System.err.println(cn+": warning:\n"+line+':'+lineOffset+ 
+              ':'+message+"\n");
+          }
+        }
+        public void error(String message, String sourceName,
+              int line, String lineSource, int lineOffset) {
+          if (line < 0) {
+            System.err.println(cn+": error:\n"+message+"\n");
+          } else {
+            System.err.println(cn+": error:\n"+line+':'+lineOffset+
+              ':'+message+"\n");
+          }
+        }
+        public EvaluatorException runtimeError(String message, 
+            String sourceName, int line, String lineSource, int lineOffset) {
+          error(message, sourceName, line, lineSource, lineOffset);
+          return new EvaluatorException(message);
+        }
+      };
 
-    //  StringWriter out = new StringWriter();
-    //  js.compress(out, -1, false, false, false, true);
-    //  result = out.toString().replace("\n", "\\n");
-    //} catch (Exception e) {
-    //  System.err.println("golf: "+filename+" not compressed: "+e.toString());
-    //}
+      JavaScriptCompressor js = 
+        new JavaScriptCompressor(new StringReader(in), errz);
+
+      StringWriter out = new StringWriter();
+      js.compress(out, -1, false, false, false, true);
+      result = out.toString().replace("\n", "\\n");
+    } catch (Exception e) {
+      System.err.println("golf: "+filename+" not compressed: "+e.toString());
+    }
     return result;
   }
 
@@ -729,7 +764,11 @@ public class Main
       cx1.setResourceBase(golfRoot);
       cx1.setDisplayName(o.getOpt("displayname"));
       ServletHolder sh1 = new ServletHolder(new GolfServlet());
-      sh1.setInitParameter("devmode", o.getOpt("devmode"));
+
+      // manually set init parameters
+      sh1.setInitParameter("devmode",     o.getOpt("devmode"));
+      sh1.setInitParameter("poolsize",    o.getOpt("pool-size"));
+
       cx1.addServlet(sh1, "/*");
     }
     

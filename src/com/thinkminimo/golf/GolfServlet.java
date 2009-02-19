@@ -236,6 +236,7 @@ public class GolfServlet extends HttpServlet {
   private static String               mNewHtml      = null;
   private static String               mJsDetect     = null;
   private static String               mDevMode      = null;
+  private static String               mPoolSize     = null;
 
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
@@ -243,8 +244,10 @@ public class GolfServlet extends HttpServlet {
   public void init(ServletConfig config) throws ServletException {
     super.init(config); // tricky little bastard
 
+    mDevMode  = config.getInitParameter("devmode");
+    mPoolSize = config.getInitParameter("poolsize");
+
     try {
-      mDevMode  = config.getInitParameter("devmode");
       mNewHtml  =
         (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
       mJsDetect = 
@@ -272,9 +275,10 @@ public class GolfServlet extends HttpServlet {
     // info.
 
     try {
-      if (!context.request.getPathInfo().endsWith("/"))
+      String url = context.request.getRequestURL().toString();
+      if (! url.endsWith("/"))
         throw new RedirectException(
-            context.response.encodeRedirectURL(context.servletURL + "/"));
+            context.response.encodeRedirectURL(url + "/"));
 
       if (context.p.getPath() != null) {
         doStaticResourceGet(context);
@@ -450,7 +454,6 @@ public class GolfServlet extends HttpServlet {
           // do not pass query string to the app, as those parameters are meant
           // only for the golf container itself.
 
-          System.err.println(preprocess(newHtml, context, true));
           StringWebResponse response = new StringWebResponse(
             preprocess(newHtml, context, true),
             new URL(context.servletURL + "#" + context.urlHash)
