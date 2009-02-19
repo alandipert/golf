@@ -50,22 +50,16 @@ jQuery.golf = {
   _json_encode: function(inVal, out) {
     out = out || new Array();
     var undef; // undefined
-
     switch (typeof inVal) {
       case 'object':
         if (!inVal) {
           out.push('null');
         } else {
           if (inVal.constructor == Array) {
-            // Need to make a decision... 
-            // if theres any associative elements of the array then I will
-            // block the whole thing as an object {} otherwise, I'll block
-            // it as a  normal array []
             var testVal = inVal.length;
             var compVal = 0;
             for (var key in inVal) compVal++;
             if (testVal != compVal) {
-              // Associative
               out.push('{');
               i = 0;
               for (var key in inVal) {
@@ -77,7 +71,6 @@ jQuery.golf = {
               }
               out.push('}');
             } else {
-              // Standard array...
               out.push('[');          
               for (var i = 0; i < inVal.length; ++i) {
                 if (i > 0) out.push(',\n');
@@ -85,12 +78,10 @@ jQuery.golf = {
               }
               out.push(']');
             }
-            
           } else if (typeof inVal.toString != 'undefined') {
             out.push('{');
             var first = true;
             for (var i in inVal) {
-              // Record position to allow undo when arg[i] is undefined.
               var curr = out.length;
               if (!first) out.push(',\n');
               jQuery.golf._json_encode(i, out);
@@ -107,13 +98,11 @@ jQuery.golf = {
           }
         }
         return out;
-
       case 'unknown':
       case 'undefined':
       case 'function':
         out.push(undef);
         return out;
-        
       case 'string':
             out.push('"');
             out.push(
@@ -123,7 +112,6 @@ jQuery.golf = {
             );
             out.push('"');
             return out;
-            
       default:
         out.push(String(inVal));
         return out;
@@ -135,29 +123,22 @@ jQuery.golf = {
     var cache = {};
     return function(obj, callback) {
       if (typeof(obj) == "string") {
-        // register the callback (obj == e.g. "com.minimo.mycomponent")
         if (cache[obj]) {
-          // already have cached response, no need to get via JSONP
           callback(cache[obj]);
           return true;
         } 
-        
         if (listeners[obj])
           listeners[obj].push(callback);
         else
           listeners[obj] = [callback];
-
         return false;
       } else {
-        // call the previously registered listener (callback param isn't used)
         if (!cache[obj.name]) {
           cache[obj.name] = obj;
-          // seeing comp for first time ==> need to add css to <head>
           if (obj.css.replace(/^\s+|\s+$/g, '').length > 3)
             jQuery("head").append("<style type='text/css'>"+obj.css+"</style>");
         }
         if (listeners[obj.name]) {
-          // call all the listeners' callbacks
           for (var i = 0; i < listeners[obj.name].length; i++) {
             listeners[obj.name][i](obj);
           }
@@ -179,7 +160,7 @@ jQuery.golf = {
     if ($.js.length > 10) {
       var f;
       eval("f = "+$.js);
-      f($, argv);
+      return new f($, argv);
     }
   },
     
@@ -209,8 +190,6 @@ jQuery.golf = {
     };
   })(),
 
-  errors: [],
-
   route: function(argv, b) {
     if (!argv || argv.length == 0) argv = ["home"];
 
@@ -226,8 +205,6 @@ jQuery.golf = {
     var fullName        = actionBaseName+"['"+theName+"']";
     var fullErrorName   = actionBaseName+"."+theErrorName;
     var fullDefaultName = actionBaseName+"."+theDefaultName;
-
-    jQuery.golf.errors = [];
 
     if (!b) b = jQuery(document.body);
     b.empty();
