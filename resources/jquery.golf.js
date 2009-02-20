@@ -1,4 +1,8 @@
 
+function Component() {
+  this._dom = null;
+}
+
 if (serverside) {
   jQuery.fn.origBind = jQuery.fn.bind;
 
@@ -18,29 +22,40 @@ if (serverside) {
   })();
 }
 
-jQuery.fn.golf = function(name, argv) {
-  var parentElem = this;
-  new jQuery.golf.Component(function(comp) {
-    parentElem.append(comp);
-  }, name, argv);
-  return this;
-};
+jQuery.fn.append = (function() { 
+    var bak = jQuery.fn.append; 
+    return function(a) { 
+      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+    }; 
+})();
 
-jQuery.fn.golfAfter = function(name, argv) {
-  var parentElem = this;
-  new jQuery.golf.Component(function(comp) {
-    parentElem.after(comp);
-  }, name, argv);
-  return this;
-};
+jQuery.fn.prepend = (function() { 
+    var bak = jQuery.fn.prepend; 
+    return function(a) { 
+      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+    }; 
+})();
 
-jQuery.fn.golfBefore = function(name, argv) {
-  var parentElem = this;
-  new jQuery.golf.Component(function(comp) {
-    parentElem.before(comp);
-  }, name, argv);
-  return this;
-};
+jQuery.fn.after = (function() { 
+    var bak = jQuery.fn.after; 
+    return function(a) { 
+      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+    }; 
+})();
+
+jQuery.fn.before = (function() { 
+    var bak = jQuery.fn.before; 
+    return function(a) { 
+      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+    }; 
+})();
+
+jQuery.fn.replaceWith = (function() { 
+    var bak = jQuery.fn.replaceWith; 
+    return function(a) { 
+      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+    }; 
+})();
 
 jQuery.golf = {
   toJSON: function(inVal) {
@@ -156,15 +171,43 @@ jQuery.golf = {
     });
   },
 
-  doCall: function($, argv) {
+  makePkg: function(pkg, obj) {
+    if (!obj)
+      obj = window;
+
+    if (!pkg || !pkg.length)
+      return obj;
+
+    var r = /^([^.]+)((\.)([^.]+.*))?$/;
+    var m = pkg.match(r);
+
+    if (!m)
+      throw "bad package: '"+pkg+"'";
+
+    if (!obj[m[1]])
+      obj[m[1]] = {};
+
+    return jQuery.golf.makePkg(m[4], obj[m[1]]);
+  },
+
+  doCall: function(obj, $, argv) {
     if ($.js.length > 10) {
       var f;
       eval("f = "+$.js);
-      return new f($, argv);
+      f.call(obj, $, argv);
     }
   },
     
   onLoad: function() {
+    var name, m, pkg;
+    for (name in jQuery.golf.components) {
+      if (!(m = name.match(/^(.*)\.([^.]+)$/)))
+        throw "bad component name: '"+name+"'";
+
+      pkg = jQuery.golf.makePkg(m[1]);
+      pkg[m[2]] = jQuery.golf.genericConstructor(name);
+    }
+
     if (urlHash && !location.hash)
       location.href = servletUrl + "#" + urlHash;
     jQuery.ajaxSetup({ async: serverside ? false : true });
@@ -172,7 +215,7 @@ jQuery.golf = {
   },
 
   onHistoryChange: (function() {
-    var lastHash = "";
+    var lastHash = "", argv;
     return function(hash) {
       if (!hash) {
         jQuery.history.load("home/");
@@ -183,7 +226,7 @@ jQuery.golf = {
         lastHash = hash;
         // urls always end in '/', so there's an extra blank arg
         hash = hash.replace(/\/$/, "");
-        var argv = hash.split("/");
+        argv = hash.split("/");
         jQuery.golf.route(argv);
         jQuery.golf.location = hash+"/";
       }
@@ -268,13 +311,21 @@ jQuery.golf = {
     return jQuery(p);
   },
 
-  Component: function(callback, name, argv) {
+  genericConstructor: function(name) {
+    var result = function(argv) {
+      new jQuery.golf.component(this, name, argv);
+    };
+    result.prototype = new Component();
+    return result;
+  },
+
+  component: function(obj, name, argv) {
     var _index = [];
 
     var $ = function(selector) {
       var isHtml = /^[^<]*(<(.|\s)+>)[^>]*$/;
 
-      // if it's not a CSS selector then passthru to jQ
+      // if it's not a selector then passthru to jQ
       if (typeof(selector) != "string" || selector.match(isHtml))
         return jQuery(selector);
 
@@ -308,21 +359,14 @@ jQuery.golf = {
         cmp.css = false;
       }
 
-      var p     = jQuery(cmp.html).get()[0];
-      var frag  = document.createDocumentFragment();
+      obj.dom = jQuery(cmp.html);
 
-      jQuery.golf.prepare(p);
+      jQuery.golf.prepare(obj.dom);
+      jQuery.golf.index(_index, obj.dom.get()[0]);
 
-      frag.appendChild(p);
-
-      callback(frag);
-
-      jQuery.golf.index(_index, p);
-
-      $.root = p.parentNode;
       $.js   = String(cmp.js);
 
-      jQuery.golf.doCall($, argv);
+      jQuery.golf.doCall(obj, $, argv);
     } else {
       throw "can't find component: "+name;
     }

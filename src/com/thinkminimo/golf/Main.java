@@ -668,7 +668,7 @@ public class Main
 
   public static String processComponentJs(String text, String filename)
       throws Exception {
-    String result = "function($, argv) {"+text+"}\n";
+    String result = text;
     if (!o.getFlag("devmode"))
       result = compressJs(result, filename);
     return result;

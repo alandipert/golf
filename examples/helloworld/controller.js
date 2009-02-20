@@ -1,7 +1,9 @@
 jQuery.golf.controllers = {
 
-  'home': function(argv, b, match) {
-    b.golf("com.thinkminimo.hello");
-  },
+  defaultAction: function(argv, b, match) {
+    var a = new com.thinkminimo.hello(argv);
+    a.doit();
+    b.append(a);
+  }
 
 };
