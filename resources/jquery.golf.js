@@ -3,6 +3,9 @@ function Component() {
   this._dom = null;
 }
 
+function Golf() {
+}
+
 if (serverside) {
   jQuery.fn.origBind = jQuery.fn.bind;
 
@@ -25,39 +28,75 @@ if (serverside) {
 jQuery.fn.append = (function() { 
     var bak = jQuery.fn.append; 
     return function(a) { 
-      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+      var e = jQuery(a instanceof Component ? a._dom : a),
+          result;
+      jQuery.golf.prepare(e);
+      result = bak.call(jQuery(this), e);
+      //e.find("a").removeData("rewriteUrl");
+      return result;
     }; 
 })();
 
 jQuery.fn.prepend = (function() { 
     var bak = jQuery.fn.prepend; 
     return function(a) { 
-      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+      return bak.call(jQuery(this), (a instanceof Component ? a._dom : a)); 
     }; 
 })();
 
 jQuery.fn.after = (function() { 
     var bak = jQuery.fn.after; 
     return function(a) { 
-      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+      return bak.call(jQuery(this), (a instanceof Component ? a._dom : a)); 
     }; 
 })();
 
 jQuery.fn.before = (function() { 
     var bak = jQuery.fn.before; 
     return function(a) { 
-      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+      return bak.call(jQuery(this), (a instanceof Component ? a._dom : a)); 
     }; 
 })();
 
 jQuery.fn.replaceWith = (function() { 
     var bak = jQuery.fn.replaceWith; 
     return function(a) { 
-      bak.call(jQuery(this), (a instanceof Component ? a.dom : a)); 
+      return bak.call(jQuery(this), (a instanceof Component ? a._dom : a)); 
     }; 
 })();
 
 jQuery.golf = {
+
+  parseUri: (function() {
+    var o = {
+      strictMode: true,
+      key: ["source","protocol","authority","userInfo","user","password",
+            "host","port","relative","path","directory","file","query","anchor"],
+      q:   {
+        name:   "queryKey",
+        parser: /(?:^|&)([^&=]*)=?([^&]*)/g
+      },
+      parser: {
+        strict: /^(?:([^:\/?#]+):)?(?:\/\/((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?))?((((?:[^?#\/]*\/)*)([^?#]*))(?:\?([^#]*))?(?:#(.*))?)/,
+        loose:  /^(?:(?![^:@]+:[^:@\/]*@)([^:\/?#.]+):)?(?:\/\/)?((?:(([^:@]*):?([^:@]*))?@)?([^:\/?#]*)(?::(\d*))?)(((\/(?:[^?#](?![^?#\/]*\.[^?#\/.]+(?:[?#]|$)))*\/?)?([^?#\/]*))(?:\?([^#]*))?(?:#(.*))?)/
+      }
+    };
+    return function(str) {
+      var m   = o.parser[o.strictMode ? "strict" : "loose"].exec(str),
+          uri = {},
+          i   = 14;
+
+      while (i--) uri[o.key[i]] = m[i] || "";
+
+      uri[o.q.name] = {};
+      uri[o.key[12]].replace(o.q.parser, function ($0, $1, $2) {
+        if ($1) uri[o.q.name][$1] = $2;
+      });
+
+      return uri;
+    };
+  })(),
+
   toJSON: function(inVal) {
     return jQuery.golf._json_encode(inVal).join('');
   },
@@ -173,7 +212,7 @@ jQuery.golf = {
 
   makePkg: function(pkg, obj) {
     if (!obj)
-      obj = window;
+      obj = Golf;
 
     if (!pkg || !pkg.length)
       return obj;
@@ -191,10 +230,10 @@ jQuery.golf = {
   },
 
   doCall: function(obj, $, argv) {
-    if ($.js.length > 10) {
+    if ($.component.js.length > 10) {
       var f;
-      eval("f = "+$.js);
-      f.call(obj, $, argv);
+      eval("f = "+$.component.js);
+      f.call(obj, argv);
     }
   },
     
@@ -205,7 +244,7 @@ jQuery.golf = {
         throw "bad component name: '"+name+"'";
 
       pkg = jQuery.golf.makePkg(m[1]);
-      pkg[m[2]] = jQuery.golf.genericConstructor(name);
+      pkg[m[2]] = jQuery.golf.componentConstructor(name);
     }
 
     if (urlHash && !location.hash)
@@ -285,91 +324,98 @@ jQuery.golf = {
     }
   },
 
-  prepare: function(p) {
-    jQuery("a[href^='#']", p).each(function() { 
-      var pat   = /^(.*)(;jsessionid=[^#?\/]+)(.*)$/;
-      var sid="", match;
+  rewriteUrl: function(e) {
+    if ($(e).data("rewriteUrl"))
+      return;
 
-      if (match = this.href.match(pat)) {
-        sid = match[2]+"/";
-        this.href = match[1] + match[3];
-      }
+    var p   = jQuery.golf.parseUri(servletUrl).directory,
+        a   = jQuery.golf.parseUri(window.location).anchor,
+        uri = jQuery.golf.parseUri(e.getAttribute("href")),
+        h   = e.getAttribute("href"),
+        m;
 
-      var base  = this.href.replace(/#.*$/, "");
-      var hash  = this.href.replace(/^.*#/, "");
-      this.href = base + hash + sid;
+    jQuery(e).data("rewriteUrl", true);
 
-      // only in client mode, otherwise makes redundant <a> tag wrappers
-      if (!serverside) {
-        jQuery(this).unbind("click");
-        jQuery(this).click(function() {
-          jQuery.history.load(hash);
-          return false;
-        });
-      }
-    });
-    return jQuery(p);
+    if (uri.protocol)
+      return;
+
+    if (uri.queryKey.path) {
+      if (cloudfrontDomain.length)
+        e.href = cloudfrontDomain[0]+uri.queryKey.path;
+      return;
+    }
+
+    if (m = h.match(/^\/+(.*)$/)) {
+      e.href = "#"+m[1];
+      jQuery.golf.rewriteUrl(e);
+    }
+
+    if (m = h.match(/^#(.*)$/)) {
+      e.href = p+m[1];
+      if (!serverside)
+        jQuery(e).click(function() { window.location=h; return false });
+    } else {
+      e.href = p+a+h;
+      if (!serverside)
+        jQuery(e).click(function() { window.location="#"+a+h; return false });
+    }
   },
 
-  genericConstructor: function(name) {
+  prepare: function(p) {
+    jQuery("a", p.parent()).each(function() { jQuery.golf.rewriteUrl(this) });
+    return p;
+  },
+
+  componentConstructor: function(name) {
     var result = function(argv) {
-      new jQuery.golf.component(this, name, argv);
+      var obj = this;
+      var _index = [];
+
+      var $ = function(selector) {
+        var isHtml = /^[^<]*(<(.|\s)+>)[^>]*$/;
+
+        // if it's not a selector then passthru to jQ
+        if (typeof(selector) != "string" || selector.match(isHtml))
+          return jQuery(selector);
+
+        var res = jQuery(selector, obj._dom).get();
+        var tmp = [];
+
+        for (var i = 0; i < res.length; i++) {
+          for (var j = 0; j < _index.length; j++) {
+            if (res[i] == _index[j]) {
+              tmp.push(res[i]);
+            }
+          }
+        }
+        res = tmp;
+
+        return jQuery(res);
+      };
+
+      jQuery.extend($, jQuery);
+
+      var cmp = jQuery.golf.components[name];
+      
+      $.component = cmp;
+
+      if (cmp) {
+        if (cmp.css) {
+          // add css to <head>
+          if (cmp.css.replace(/^\s+|\s+$/g, '').length > 3)
+            jQuery("head").append("<style type='text/css'>"+cmp.css+"</style>");
+          cmp.css = false;
+        }
+
+        obj._dom = jQuery(cmp.html);
+        jQuery.golf.index(_index, obj._dom.get()[0]);
+        jQuery.golf.doCall(obj, $, argv);
+      } else {
+        throw "can't find component: "+name;
+      }
     };
     result.prototype = new Component();
     return result;
-  },
-
-  component: function(obj, name, argv) {
-    var _index = [];
-
-    var $ = function(selector) {
-      var isHtml = /^[^<]*(<(.|\s)+>)[^>]*$/;
-
-      // if it's not a selector then passthru to jQ
-      if (typeof(selector) != "string" || selector.match(isHtml))
-        return jQuery(selector);
-
-      var res = jQuery(selector, $.root).get();
-      var tmp = [];
-
-      for (var i = 0; i < res.length; i++) {
-        for (var j = 0; j < _index.length; j++) {
-          if (res[i] == _index[j]) {
-            tmp.push(res[i]);
-          }
-        }
-      }
-      res = tmp;
-
-      return jQuery(res);
-    };
-
-    jQuery.extend($, jQuery);
-
-    $.component = name;
-    $.pkg       = name.replace(/\.[^.]*$/, "");
-    
-    var cmp = jQuery.golf.components[name];
-
-    if (cmp) {
-      if (cmp.css) {
-        // add css to <head>
-        if (cmp.css.replace(/^\s+|\s+$/g, '').length > 3)
-          jQuery("head").append("<style type='text/css'>"+cmp.css+"</style>");
-        cmp.css = false;
-      }
-
-      obj.dom = jQuery(cmp.html);
-
-      jQuery.golf.prepare(obj.dom);
-      jQuery.golf.index(_index, obj.dom.get()[0]);
-
-      $.js   = String(cmp.js);
-
-      jQuery.golf.doCall(obj, $, argv);
-    } else {
-      throw "can't find component: "+name;
-    }
   }
 };
 
