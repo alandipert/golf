@@ -346,11 +346,10 @@ jQuery.golf = {
     }
 
     if (m = h.match(/^\/+(.*)$/)) {
-      e.href = "#"+m[1];
-      jQuery.golf.rewriteUrl(e);
-    }
-
-    if (m = h.match(/^#(.*)$/)) {
+      e.href = p+m[1];
+      if (!serverside)
+        jQuery(e).click(function() { window.location="#"+m[1]; return false });
+    } else if (m = h.match(/^#(.*)$/)) {
       e.href = p+m[1];
       if (!serverside)
         jQuery(e).click(function() { window.location=h; return false });
