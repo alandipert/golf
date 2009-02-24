@@ -7,6 +7,8 @@ import org.json.*;
 import java.io.*;
 import java.util.*;
 import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLClassLoader;
 import java.rmi.server.UID;
 import java.security.NoSuchAlgorithmException;
@@ -200,6 +202,7 @@ public class Main
         doServer();
     } catch (Exception e) {
       System.err.println("golf: "+e.getMessage());
+      e.printStackTrace();
       System.exit(1);
     }
 
@@ -556,7 +559,7 @@ public class Main
         if (path.endsWith(".html")) {
           String cmpName = path.replaceFirst("\\.html$", "");
           String keyName = cmpName.replaceFirst("^/+", "").replace("/", ".");
-          json.put(keyName, processComponent(cmpName));
+          json.put(keyName, processComponent(cmpName).put("name", keyName));
         }
       } else if (file.isDirectory()) {
         for (String f : file.list()) {
@@ -577,21 +580,25 @@ public class Main
     String html = name + ".html";
     String css  = name + ".css";
     String js   = name + ".js";
+    String res  = name + ".res";
 
     GolfResource htmlRes = new GolfResource(cwd, html);
     GolfResource cssRes  = new GolfResource(cwd, css);
     GolfResource jsRes   = new GolfResource(cwd, js);
+    File         resDir  = new File(cwd, res);
 
     String htmlStr  = processComponentHtml(htmlRes.toString(), className);
     String jsStr    = processComponentJs(jsRes.toString(), name+".js");
     String cssStr   = 
       processComponentCss(cssRes.toString(), className, name+".css");
+    JSONObject resObj   = 
+      processComponentRes(resDir, cwd, resDir, null);
 
     JSONObject json = new JSONObject()
-        .put("name",  name.replace('/', '.').replaceFirst("^\\.", ""))
         .put("html",  htmlStr)
         .put("css",   cssStr)
-        .put("js",    jsStr);
+        .put("js",    jsStr)
+        .put("res",   resObj);
 
     return json;
   }
@@ -601,6 +608,25 @@ public class Main
     if (mCfDomains.size() > 0)
       while (! result.equals(result = result.replaceFirst("\\?path=/*", mCfDomains.next())));
     return result;
+  }
+
+  public static JSONObject processComponentRes(File f, File uriBase, 
+      File refBase, JSONObject res) throws URISyntaxException, JSONException {
+    if (!f.exists() || f.getName().startsWith("."))
+      return null;
+
+    if (res == null)
+      res = new JSONObject();
+
+    if (f.isDirectory()) {
+      for (String s : f.list())
+        processComponentRes(new File(f, s), uriBase, refBase, res);
+    } else {
+      String rel = getRelativePath(f, uriBase);
+      String ref = getRelativePath(f, refBase);
+      res.put(ref, "?path=components/"+rel);
+    }
+    return res;
   }
 
   public static String processComponentHtml(String text, String className) {
@@ -723,7 +749,6 @@ public class Main
 
   private void cacheResourcesAws(File file, String path) throws Exception {
     if (path.startsWith("/.")         || 
-        path.equals("/components")    ||
         path.equals("/head.html")     || 
         path.equals("/noscript.html") ||
         path.equals("/body.html"))
@@ -782,6 +807,13 @@ public class Main
 
     server.start();
     server.join();
+  }
+
+  private static String getRelativePath(File f, File base) 
+      throws URISyntaxException {
+    URI  u1 = new URI(base.toURI().toString());
+    URI  u2 = new URI(f.toURI().toString());
+    return u1.relativize(u2).toString();
   }
 
   private String randName(String base) {
