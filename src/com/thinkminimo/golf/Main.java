@@ -594,6 +594,12 @@ public class Main
     JSONObject resObj   = 
       processComponentRes(resDir, cwd, resDir, null);
 
+    String resUriPath = "?path=components/"+getRelativePath(resDir, cwd);
+
+    htmlStr = htmlStr.replaceAll("\\?resource=", resUriPath);
+    jsStr   =   jsStr.replaceAll("\\?resource=", resUriPath);
+    cssStr  =  cssStr.replaceAll("\\?resource=", resUriPath);
+
     JSONObject json = new JSONObject()
         .put("html",  htmlStr)
         .put("css",   cssStr)
