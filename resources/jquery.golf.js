@@ -3,14 +3,12 @@ function Component() {
   this._dom = null;
 }
 
-function Golf() {
-}
+// install override on the jQ bind method to inject proxy links and golfIDs
 
 if (serverside) {
-  jQuery.fn.origBind = jQuery.fn.bind;
-
   jQuery.fn.bind = (function() {
     var lastId = 0;
+    var bak    = jQuery.fn.bind;
     return function(name, fn) {
       if (name == "click") {
         ++lastId;
@@ -20,50 +18,28 @@ if (serverside) {
         jQuery(this).attr("golfid", lastId);
         jQuery(this).wrap(a);
       }
-      return jQuery(this).origBind(name, fn);
+      return bak.call(jQuery(this), name, fn);
     };
   })();
 }
 
-jQuery.fn.append = (function() { 
-    var bak = jQuery.fn.append; 
-    return function(a) { 
-      var e = jQuery(a instanceof Component ? a._dom : a),
-          result;
-      jQuery.golf.prepare(e);
-      result = bak.call(jQuery(this), e);
-      //e.find("a").removeData("rewriteUrl");
-      return result;
-    }; 
+// install overrides on jQ DOM manipulation methods to incorporate components
+
+(function() {
+    var fns = ["append", "prepend", "after", "before", "replaceWith"];
+    for (var i in fns) {
+      jQuery.fn[fns[i]] = (function() {
+          var bak = jQuery.fn[fns[i]]; 
+          return function(a) { 
+            var e = jQuery(a instanceof Component ? a._dom : a);
+            jQuery.golf.prepare(e);
+            return bak.call(jQuery(this), e);
+          }; 
+      })();
+    }
 })();
 
-jQuery.fn.prepend = (function() { 
-    var bak = jQuery.fn.prepend; 
-    return function(a) { 
-      return bak.call(jQuery(this), (a instanceof Component ? a._dom : a)); 
-    }; 
-})();
-
-jQuery.fn.after = (function() { 
-    var bak = jQuery.fn.after; 
-    return function(a) { 
-      return bak.call(jQuery(this), (a instanceof Component ? a._dom : a)); 
-    }; 
-})();
-
-jQuery.fn.before = (function() { 
-    var bak = jQuery.fn.before; 
-    return function(a) { 
-      return bak.call(jQuery(this), (a instanceof Component ? a._dom : a)); 
-    }; 
-})();
-
-jQuery.fn.replaceWith = (function() { 
-    var bak = jQuery.fn.replaceWith; 
-    return function(a) { 
-      return bak.call(jQuery(this), (a instanceof Component ? a._dom : a)); 
-    }; 
-})();
+// main jQ golf object
 
 jQuery.golf = {
 
@@ -172,36 +148,6 @@ jQuery.golf = {
     }
   },
 
-  doJSONP: (function() {
-    var listeners = {};
-    var cache = {};
-    return function(obj, callback) {
-      if (typeof(obj) == "string") {
-        if (cache[obj]) {
-          callback(cache[obj]);
-          return true;
-        } 
-        if (listeners[obj])
-          listeners[obj].push(callback);
-        else
-          listeners[obj] = [callback];
-        return false;
-      } else {
-        if (!cache[obj.name]) {
-          cache[obj.name] = obj;
-          if (obj.css.replace(/^\s+|\s+$/g, '').length > 3)
-            jQuery("head").append("<style type='text/css'>"+obj.css+"</style>");
-        }
-        if (listeners[obj.name]) {
-          for (var i = 0; i < listeners[obj.name].length; i++) {
-            listeners[obj.name][i](obj);
-          }
-        }
-        return true;
-      }
-    };
-  })(),
-
   index: function(idx, node) {
     idx.push(node);
 
@@ -212,7 +158,7 @@ jQuery.golf = {
 
   makePkg: function(pkg, obj) {
     if (!obj)
-      obj = Golf;
+      obj = window;
 
     if (!pkg || !pkg.length)
       return obj;
