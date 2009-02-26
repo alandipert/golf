@@ -1,4 +1,4 @@
 
 function(argv) {
-  $(".stuff").append("<img src='"+$.component.res["golf.png"]+"'/>");
+  $(".stuff").append("<img src='?resource=golf.png'/>");
 }
