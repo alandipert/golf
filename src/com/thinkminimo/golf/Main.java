@@ -506,12 +506,10 @@ public class Main
 
     GolfResource  newHtml       = new GolfResource(cwd, "new.html");
     GolfResource  headHtml      = new GolfResource(cwd, "head.html");
-    GolfResource  bodyHtml      = new GolfResource(cwd, "body.html");
     GolfResource  noscriptHtml  = new GolfResource(cwd, "noscript.html");
 
     String        newStr        = newHtml.toString();
     String        headStr       = headHtml.toString();
-    String        bodyStr       = bodyHtml.toString();
     String        noscriptStr   = noscriptHtml.toString();
 
     String result = newStr;
@@ -521,9 +519,6 @@ public class Main
     result = result.replaceFirst("\n *__NOSCRIPT_HTML__ *\n *", 
         " custom noscript section -->\n"+noscriptStr+
         "      <!-- end custom noscript section ");
-    result = result.replaceFirst("\n *__BODY_HTML__ *\n *", 
-        " custom body section -->\n"+bodyStr+
-        "    <!-- end custom body section ");
     result = result.replaceFirst("__CLOUDFRONTDOMAIN__", o.getOpt("cfdomains"));
 
     return result;
@@ -544,7 +539,31 @@ public class Main
   }
 
   private static String getComponentsString() throws Exception {
-    return "jQuery.golf.components = " + getComponentsJSON(null, null) + ";";
+    return "jQuery.golf.components = " + getComponentsJSON(null, null) + ";" +
+           "jQuery.golf.res = " + getResourcesJSON(null, null) + ";";
+  }
+
+  private static String getResourcesJSON(String path, JSONObject json) 
+      throws Exception {
+    if (path == null) path = "";
+    if (json == null) json = new JSONObject();
+
+    File file = new File(new File(o.getOpt("approot")), path);
+      
+    if (!file.getName().startsWith(".") || file.getName().equals(".")
+        || file.getName().equals("..")) {
+      if (file.isFile()) {
+        String keyName = path.replaceFirst("^/+", "");
+        json.put(keyName, "?path=" + keyName);
+      } else if (file.isDirectory()) {
+        for (String f : file.list()) {
+          String ppath = path + "/" + f;
+          getResourcesJSON(path+"/"+f, json);
+        }
+      }
+    }
+
+    return json.toString();
   }
 
   private static String getComponentsJSON(String path, JSONObject json) 
@@ -756,8 +775,7 @@ public class Main
   private void cacheResourcesAws(File file, String path) throws Exception {
     if (path.startsWith("/.")         || 
         path.equals("/head.html")     || 
-        path.equals("/noscript.html") ||
-        path.equals("/body.html"))
+        path.equals("/noscript.html"))
       return;
 
     if (file.isFile()) {
