@@ -33,10 +33,41 @@ if (serverside) {
           return function(a) { 
             var e = jQuery(a instanceof Component ? a._dom : a);
             jQuery.golf.prepare(e);
-            return bak.call(jQuery(this), e);
+            var ret = bak.call(jQuery(this), e);
+            e.removeData("_golf_prepared");
           }; 
       })();
     }
+
+    jQuery.fn.href = (function() {
+        var uri2;
+        return function(uri) {
+          var uri1  = jQuery.golf.parseUri(uri);
+
+          if (!uri2)
+            uri2 = jQuery.golf.parseUri(servletUrl);
+
+          if (uri1.protocol == uri2.protocol 
+              && uri1.authority == uri2.authority
+              && uri1.directory.substr(0, uri2.directory.length) 
+                  == uri2.directory) {
+            if (uri1.queryKey.path) {
+              if (cloudfrontDomain.length)
+                uri = cloudfrontDomain[0]+uri.queryKey.path;
+            } else if (uri1.anchor) {
+              uri = servletUrl + uri1.anchor;
+            } else {
+              throw "bad href value: '"+uri+"'";
+            }
+          }
+          this.attr("href", uri);
+          if (!serverside)
+            this.click(function() { 
+                $.history.load(uri1.anchor);
+                return false;
+            });
+        }; 
+    })();
 })();
 
 // main jQ golf object
@@ -234,7 +265,7 @@ jQuery.golf = {
     var fullErrorName   = actionBaseName+"."+theErrorName;
     var fullDefaultName = actionBaseName+"."+theDefaultName;
 
-    if (!b) b = jQuery(document.body);
+    if (!b) b = jQuery("body > div.golfbody").eq(0);
     b.empty();
 
     try {
@@ -270,44 +301,14 @@ jQuery.golf = {
     }
   },
 
-  rewriteUrl: function(e) {
-    if ($(e).data("rewriteUrl"))
-      return;
-
-    var p   = jQuery.golf.parseUri(servletUrl).directory,
-        a   = jQuery.golf.parseUri(window.location).anchor,
-        uri = jQuery.golf.parseUri(e.getAttribute("href")),
-        h   = e.getAttribute("href"),
-        m;
-
-    jQuery(e).data("rewriteUrl", true);
-
-    if (uri.protocol)
-      return;
-
-    if (uri.queryKey.path) {
-      if (cloudfrontDomain.length)
-        e.href = cloudfrontDomain[0]+uri.queryKey.path;
-      return;
-    }
-
-    if (m = h.match(/^\/+(.*)$/)) {
-      e.href = p+m[1];
-      if (!serverside)
-        jQuery(e).click(function() { window.location="#"+m[1]; return false });
-    } else if (m = h.match(/^#(.*)$/)) {
-      e.href = p+m[1];
-      if (!serverside)
-        jQuery(e).click(function() { window.location=h; return false });
-    } else {
-      e.href = p+a+h;
-      if (!serverside)
-        jQuery(e).click(function() { window.location="#"+a+h; return false });
-    }
-  },
-
   prepare: function(p) {
-    jQuery("a", p.parent()).each(function() { jQuery.golf.rewriteUrl(this) });
+    jQuery("a", p.parent()).each(function() { 
+        var jself = jQuery(this);
+        if (jself.data("_golf_prepared"))
+          return;
+        jself.data("_golf_prepared", true);
+        jself.href(this.href);
+    });
     return p;
   },
 
