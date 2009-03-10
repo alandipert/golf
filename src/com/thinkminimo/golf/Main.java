@@ -337,6 +337,7 @@ public class Main
       webStr =  webStr.replaceAll("__DISPLAYNAME__",    o.getOpt("displayname"))
                       .replaceAll("__DESCRIPTION__",    o.getOpt("description"))
                       .replaceAll("__POOLSIZE__",       o.getOpt("pool-size"))
+                      .replaceAll("__POOLEXPIRE__",     o.getOpt("pool-expire"))
                       .replaceAll("__DEVMODE__",        o.getOpt("devmode"));
 
       // setup the ant build file
@@ -817,6 +818,7 @@ public class Main
       // manually set init parameters
       sh1.setInitParameter("devmode",     o.getOpt("devmode"));
       sh1.setInitParameter("poolsize",    o.getOpt("pool-size"));
+      sh1.setInitParameter("poolexpire",  o.getOpt("pool-expire"));
 
       cx1.addServlet(sh1, "/*");
     }

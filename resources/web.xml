@@ -18,6 +18,10 @@
       <param-name>poolsize</param-name>
       <param-value>__POOLSIZE__</param-value>
     </init-param>
+    <init-param>
+      <param-name>poolexpire</param-name>
+      <param-value>__POOLEXPIRE__</param-value>
+    </init-param>
   </servlet>
 
   <servlet-mapping>
