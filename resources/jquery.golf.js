@@ -189,7 +189,7 @@ jQuery.golf = {
 
   makePkg: function(pkg, obj) {
     if (!obj)
-      obj = window;
+      obj = Component;
 
     if (!pkg || !pkg.length)
       return obj;
