@@ -10,13 +10,19 @@ if (serverside) {
     var lastId = 0;
     var bak    = jQuery.fn.bind;
     return function(name, fn) {
+      var jself = jQuery(this);
       if (name == "click") {
         ++lastId;
+        jself.attr("golfid", lastId);
         var e = "onclick";
         var a = "<a rel='nofollow' class='golfproxylink' href='?target="+
-          lastId+"&amp;event="+e+"'></a>";
-        jQuery(this).attr("golfid", lastId);
-        jQuery(this).wrap(a);
+          lastId+"&amp;event=onclick'></a>";
+        jself.wrap(a);
+      } else if (name == "submit") {
+        ++lastId;
+        jself.attr("golfid", lastId);
+        jself.append("<input type='hidden' name='event' value='onsubmit'/>");
+        jself.append("<input type='hidden' name='target' value='"+lastId+"'/>");
       }
       return bak.call(jQuery(this), name, fn);
     };
@@ -216,6 +222,10 @@ jQuery.golf = {
     
   onLoad: function() {
     var name, m, pkg;
+
+    if (serverside)
+      $("noscript").remove();
+
     for (name in jQuery.golf.components) {
       if (!(m = name.match(/^(.*)\.([^.]+)$/)))
         throw "bad component name: '"+name+"'";
@@ -321,8 +331,9 @@ jQuery.golf = {
         var isHtml = /^[^<]*(<(.|\s)+>)[^>]*$/;
 
         // if it's not a selector then passthru to jQ
-        if (typeof(selector) != "string" || selector.match(isHtml))
+        if (typeof(selector) != "string" || selector.match(isHtml)) {
           return jQuery(selector);
+        }
 
         var res = jQuery(selector, obj._dom).get();
         var tmp = [];

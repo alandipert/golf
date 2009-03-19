@@ -428,6 +428,30 @@ public class GolfServlet extends HttpServlet {
     if (result == null || !path.equals(lastUrl)) {
       if (lastEvent == null || lastTarget == null || !path.equals(lastUrl)) {
         if (event != null && target != null && client != null) {
+          if (event.equals("onclick")) {
+            // nothing here
+          } else if (event.equals("onsubmit")) {
+            Map<String, String[]> pmap = context.request.getParameterMap();
+            for (String key : pmap.keySet()) {
+              System.out.println("- - - - - - - - KEY='"+key+"'");
+              String val = pmap.get(key)[0].replaceAll("[\"]", "\\x22");
+              System.out.println("VAL IS '"+val+"'");
+
+              String script = "jQuery(\"[name='"+key+"']\").val(\""+val+"\");";
+
+              System.out.println("- - - - - - - - SCRIPT='"+script+"'");
+              if (Boolean.parseBoolean(mDevMode)) {
+                GolfResource res = 
+                  new GolfResource(getServletContext(), "components.js");
+                script = res.toString() + script;
+              }
+              result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
+              result.executeJavaScript(script);
+            }
+          } else {
+            throw new RedirectException(
+                context.response.encodeRedirectURL(context.servletURL + path));
+          }
           context.s.setLastEvent(event);
           context.s.setLastTarget(target);
           context.s.setLastUrl(path);
@@ -477,7 +501,15 @@ public class GolfServlet extends HttpServlet {
         }
       } else {
         if (client != null) {
-          String script = "jQuery(\"[golfid='"+lastTarget+"']\").click()";
+          String script;
+          if (lastEvent.equals("onclick")) {
+            script = "jQuery(\"[golfid='"+lastTarget+"']\").click()";
+          } else if (lastEvent.equals("onsubmit")) {
+            script = "jQuery(\"[golfid='"+lastTarget+"']\").submit()";
+          } else {
+            throw new RedirectException(
+                context.response.encodeRedirectURL(context.servletURL + path));
+          }
           if (Boolean.parseBoolean(mDevMode)) {
             GolfResource res = 
               new GolfResource(getServletContext(), "components.js");
@@ -732,5 +764,31 @@ public class GolfServlet extends HttpServlet {
     }
 
     return buf.toString();
+  }
+
+  /**
+   *
+   */
+  public static boolean isSafeName(String name) {
+    return name.matches("^[a-zA-Z][a-zA-Z0-9-_.]*$");
+  }
+
+  /**
+   *
+   */
+  public static boolean isSafeGolfId(String golfid) {
+    try { 
+      Integer.parseInt(golfid);
+    } catch (NumberFormatException e) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   *
+   */
+  public static boolean isSafeEvent(String event) {
+    return (event.equals("onclick") || event.equals("onsubmit"));
   }
 }
