@@ -62,8 +62,6 @@ if (serverside) {
                 uri = cloudfrontDomain[0]+uri.queryKey.path;
             } else if (uri1.anchor) {
               uri = servletUrl + uri1.anchor;
-            } else {
-              throw "bad href value: '"+uri+"'";
             }
           }
           this.attr("href", uri);
@@ -79,6 +77,15 @@ if (serverside) {
 // main jQ golf object
 
 jQuery.golf = {
+
+  defaultActionName: "home",
+
+  htmlEncode: function(text) {
+    return text.replace(/&/g,   "&amp;")
+               .replace(/</g,   "&lt;")
+               .replace(/>/g,   "&gt;")
+               .replace(/"/g,   "&quot;");
+  },
 
   parseUri: (function() {
     var o = {
@@ -244,33 +251,36 @@ jQuery.golf = {
     var lastHash = "", argv;
     return function(hash) {
       if (!hash) {
-        jQuery.history.load("home/");
+        jQuery.history.load(String(jQuery.golf.defaultActionName+"/")
+          .replace(/\/+$/, "/"));
         return;
       }
 
       if (hash && hash != lastHash) {
         lastHash = hash;
-        // urls always end in '/', so there's an extra blank arg
-        hash = hash.replace(/\/$/, "");
-        argv = hash.split("/");
-        jQuery.golf.route(argv);
-        jQuery.golf.location = hash+"/";
+        alert("======> 0: '"+hash+"/"+"'");
+        jQuery.golf.route(hash);
+        alert("======> 1: '"+hash+"/"+"'");
+        jQuery.golf.location = String(hash+"/").replace(/\/+$/, "/");
+        alert("======> 2: '"+jQuery.golf.location+"'");
+        window.location.hash = "#"+jQuery.golf.location;
       }
     };
   })(),
 
-  route: function(argv, b) {
-    if (!argv || argv.length == 0) argv = ["home"];
+  route: function(hash, b) {
+    if (!hash) 
+      hash = String(jQuery.golf.defaultActionName+"/").replace(/\/+$/, "/");
 
-    var theName         = argv.shift();
-    var actionBaseName  = "jQuery.golf.controllers";
+    var theName         = hash;
+    var actionBaseName  = "jQuery.golf.controller";
     var theErrorName    = "errorAction";
     var theDefaultName  = "defaultAction";
 
     var theAction       = null;
 
-    var defaultAction   = jQuery.golf.controllers.defaultAction;
-    var errorAction     = jQuery.golf.controllers.errorAction;
+    var defaultAction   = jQuery.golf.controller.defaultAction;
+    var errorAction     = jQuery.golf.controller.errorAction;
     var fullName        = actionBaseName+"['"+theName+"']";
     var fullErrorName   = actionBaseName+"."+theErrorName;
     var fullDefaultName = actionBaseName+"."+theDefaultName;
@@ -279,20 +289,23 @@ jQuery.golf = {
     b.empty();
 
     try {
-      for (var i in jQuery.golf.controllers) {
-        var pat       = new RegExp("^"+i+"$");
+      alert("BEGIN LOOP NOW!!!!");
+      for (var i in jQuery.golf.controller) {
+        alert("i is now '"+i+"'");
+        var pat       = new RegExp(i);
         var match     = theName.match(pat);
 
+        alert("testing to see if '"+theName+"' matches pattern '"+pat+"'");
         if (match) {
-          theAction = jQuery.golf.controllers[i];
-          if (theAction(argv, b, match))
+          theAction = jQuery.golf.controller[i];
+          if (theAction(b, match))
             theAction = null;
           else
             break;
         }
       }
       if (!theAction)
-        defaultAction(argv, b, [theName]);
+        defaultAction(b, [theName]);
     } catch (x) {
       if (!theAction)
         x = "Exception: <em>"+x+"</em> :: "+fullDefaultName+" :: "+fullName;
@@ -300,8 +313,7 @@ jQuery.golf = {
         x = "Exception: <em>"+x+"</em> :: "+fullName;
 
       try  {
-        argv.unshift(x);
-        errorAction(argv, b, [theName]);
+        errorAction(b, [hash]);
       } catch (y) {
         x = "Exception: <em>"+y+"</em> :: "+fullErrorName+"<br/>"+x;
         b = jQuery(document.body);
