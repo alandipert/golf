@@ -198,14 +198,20 @@ public class GolfServlet extends HttpServlet {
      * @param       response    the http response object
      */
     public GolfContext(HttpServletRequest request, 
-        HttpServletResponse response) {
+        HttpServletResponse response) throws ServletException {
       this.request     = request;
       this.response    = response;
       this.p           = new GolfParams(request);
       this.s           = new GolfSession(request);
       this.urlHash     = request.getPathInfo();
       this.servletURL  = request.getRequestURL().toString()
-                          .replaceFirst(";jsessionid=.*$", "");
+                            .replaceFirst(";jsessionid=.*$", "");
+      
+      try {
+        this.servletURL  = URLDecoder.decode(this.servletURL, "UTF-8");
+      } catch (UnsupportedEncodingException e) {
+        throw new ServletException(e);
+      }
 
       if (! this.servletURL.endsWith("/")) this.servletURL += "/";
 
@@ -263,7 +269,7 @@ public class GolfServlet extends HttpServlet {
    * @param       request     the http request object
    * @param       response    the http response object
    */
-  public void doGet(HttpServletRequest request, HttpServletResponse response)
+  public void service(HttpServletRequest request, HttpServletResponse response)
       throws IOException, ServletException {
     GolfContext   context         = new GolfContext(request, response);
     String        result          = null;
@@ -407,7 +413,7 @@ public class GolfServlet extends HttpServlet {
    * @param   context       the golf context for this request
    */
   private void doProxy(GolfContext context) throws FileNotFoundException,
-          IOException, URISyntaxException, RedirectException {
+          IOException, URISyntaxException, RedirectException, ServletException {
     String      sid     = context.request.getSession().getId();
     HtmlPage    result  = context.jsvm.lastPage;
 
@@ -433,13 +439,10 @@ public class GolfServlet extends HttpServlet {
           } else if (event.equals("onsubmit")) {
             Map<String, String[]> pmap = context.request.getParameterMap();
             for (String key : pmap.keySet()) {
-              System.out.println("- - - - - - - - KEY='"+key+"'");
               String val = pmap.get(key)[0].replaceAll("[\"]", "\\x22");
-              System.out.println("VAL IS '"+val+"'");
 
               String script = "jQuery(\"[name='"+key+"']\").val(\""+val+"\");";
 
-              System.out.println("- - - - - - - - SCRIPT='"+script+"'");
               if (Boolean.parseBoolean(mDevMode)) {
                 GolfResource res = 
                   new GolfResource(getServletContext(), "components.js");
@@ -449,14 +452,19 @@ public class GolfServlet extends HttpServlet {
               result.executeJavaScript(script);
             }
           } else {
-            throw new RedirectException(
-                context.response.encodeRedirectURL(context.servletURL + path));
+            throw new ServletException("unsupported event for proxy: "+event);
           }
           context.s.setLastEvent(event);
           context.s.setLastTarget(target);
           context.s.setLastUrl(path);
-          throw new RedirectException(
-              context.response.encodeRedirectURL(context.servletURL + path));
+          if (context.request.getQueryString() != null) {
+            throw new RedirectException(
+                context.response.encodeRedirectURL(context.servletURL + path));
+          } else {
+            lastEvent   = context.s.getLastEvent();
+            lastTarget  = context.s.getLastTarget();
+            lastUrl     = context.s.getLastUrl();
+          }
         } else if (client == null) {
           log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
           client = new WebClient(context.browser);
@@ -499,7 +507,9 @@ public class GolfServlet extends HttpServlet {
           result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
           result.executeJavaScript(script);
         }
-      } else {
+      }
+
+      if (lastEvent != null && lastTarget != null && path.equals(lastUrl)) {
         if (client != null) {
           String script;
           if (lastEvent.equals("onclick")) {
@@ -523,8 +533,20 @@ public class GolfServlet extends HttpServlet {
         }
       }
 
-      String loc = (String) result.executeJavaScript("jQuery.golf.location")
+      String loc  = (String) result.executeJavaScript("window.location.href")
                               .getJavaScriptResult();
+
+      try {
+        loc = URLDecoder.decode(loc, "UTF-8");
+      } catch (UnsupportedEncodingException e) {
+        throw new ServletException(e);
+      }
+
+      if (!loc.startsWith(context.servletURL)) {
+        throw new RedirectException(loc);
+      } else {
+        loc = loc.replaceFirst("^[^#]+#", "");
+      }
       
       if (!loc.equals(path) || context.request.getQueryString() != null) {
         context.jsvm.lastPage = result;
