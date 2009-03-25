@@ -315,6 +315,7 @@ public class GolfServlet extends HttpServlet {
     catch (Exception x) {
       // send a 500 INTERNAL SERVER ERROR
       logResponse(context, 500);
+      x.printStackTrace();
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
     }
   }

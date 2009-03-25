@@ -258,11 +258,8 @@ jQuery.golf = {
 
       if (hash && hash != lastHash) {
         lastHash = hash;
-        alert("======> 0: '"+hash+"/"+"'");
         jQuery.golf.route(hash);
-        alert("======> 1: '"+hash+"/"+"'");
         jQuery.golf.location = String(hash+"/").replace(/\/+$/, "/");
-        alert("======> 2: '"+jQuery.golf.location+"'");
         window.location.hash = "#"+jQuery.golf.location;
       }
     };
@@ -289,13 +286,10 @@ jQuery.golf = {
     b.empty();
 
     try {
-      alert("BEGIN LOOP NOW!!!!");
       for (var i in jQuery.golf.controller) {
-        alert("i is now '"+i+"'");
         var pat       = new RegExp(i);
         var match     = theName.match(pat);
 
-        alert("testing to see if '"+theName+"' matches pattern '"+pat+"'");
         if (match) {
           theAction = jQuery.golf.controller[i];
           if (theAction(b, match))
