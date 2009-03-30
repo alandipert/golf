@@ -1,5 +1,7 @@
 build/*
 dist/*
+docs/api/*
+docs/api
 *.swp
 *.swo
 *.war
