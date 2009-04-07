@@ -31,7 +31,6 @@ if (serverside) {
   jQuery.ajax = (function() {
       var bak = jQuery.ajax;
       return function(options) {
-        alert("><><><><><><><><><><><><><><");
         options.async = false;
         return bak(options);
       };
@@ -72,13 +71,8 @@ if (serverside) {
               if (cloudfrontDomain.length)
                 uri = cloudfrontDomain[0]+uri.queryKey.path;
             } else if (uri1.anchor) {
-              uri = servletUrl + uri1.anchor;
-              if (!serverside) {
-                this.click(function() { 
-                    $.history.load(uri1.anchor);
-                    return false;
-                });
-              }
+              if (serverside)
+                uri = servletUrl + uri1.anchor;
             }
           }
           this.attr("href", uri);
