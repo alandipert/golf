@@ -38,6 +38,7 @@ public class GolfServlet extends HttpServlet {
 
   public static final String  FILE_NEW_HTML       = "new.html";
   public static final String  FILE_JSDETECT_HTML  = "jsdetect.html";
+  public static final String  FILE_COMPONENTS_JS  = "components.js";
 
   private class StoredJSVM {
     public WebClient client;
@@ -49,7 +50,7 @@ public class GolfServlet extends HttpServlet {
     }
   }
 
-  public class RedirectException extends Exception {
+  public static class RedirectException extends Exception {
     public RedirectException(String msg) {
       super(msg);
     }
@@ -241,6 +242,7 @@ public class GolfServlet extends HttpServlet {
   private static int                  mLogLevel     = LOG_ALL;
   private static String               mNewHtml      = null;
   private static String               mJsDetect     = null;
+  private static String               mComponents   = null;
   private static String               mDevMode      = null;
   private static String               mPoolSize     = null;
 
@@ -248,19 +250,12 @@ public class GolfServlet extends HttpServlet {
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
    */
   public void init(ServletConfig config) throws ServletException {
-    super.init(config); // tricky little bastard
+    super.init(config); // tricky little guy
 
     mDevMode  = config.getInitParameter("devmode");
     mPoolSize = config.getInitParameter("poolsize");
 
-    try {
-      mNewHtml  =
-        (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
-      mJsDetect = 
-        (new GolfResource(getServletContext(), FILE_JSDETECT_HTML)).toString();
-    } catch (Exception e) {
-      throw new ServletException("can't initialize servlet", e);
-    }
+    cacheStaticFiles();
   }
 
   /**
@@ -281,42 +276,59 @@ public class GolfServlet extends HttpServlet {
     // info.
 
     try {
+      // refresh cache in devmode
+      if (Boolean.parseBoolean(mDevMode))
+        cacheStaticFiles();
+
       String url = context.request.getRequestURL().toString()
         .replaceFirst(";jsessionid=.*$", "");
       if (! url.endsWith("/"))
         throw new RedirectException(
             context.response.encodeRedirectURL(url + "/"));
 
-      if (context.p.getPath() != null) {
+      // handle your business
+      if (context.p.getPath() != null)
         doStaticResourceGet(context);
-      } else {
-        // refresh components cache in devmode
-        if (Boolean.parseBoolean(mDevMode)) {
-          Main.cacheComponentsFile();
-          Main.cacheNewDotHtmlFile();
-        }
+      else
         doDynamicResourceGet(context);
-      }
     }
 
     catch (RedirectException r) {
-      // send a 302 FOUND
+      // 302 FOUND
       logResponse(context, 302);
       log(context, LOG_INFO, "302 ---to--> "+r.getMessage());
       context.response.sendRedirect(r.getMessage());
     }
 
     catch (FileNotFoundException e) {
-      // send a 404 NOT FOUND
+      // 404 NOT FOUND
       logResponse(context, 404);
       errorPage(context, HttpServletResponse.SC_NOT_FOUND, e);
     }
 
     catch (Exception x) {
-      // send a 500 INTERNAL SERVER ERROR
+      // 500 INTERNAL SERVER ERROR
       logResponse(context, 500);
       x.printStackTrace();
       errorPage(context, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, x);
+    }
+  }
+
+  /**
+   * (Re)build static files and cache them in memory
+   */
+  public void cacheStaticFiles() throws ServletException {
+    try {
+      Main.cacheComponentsFile();
+      Main.cacheNewDotHtmlFile();
+      mNewHtml  =
+        (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
+      mJsDetect = 
+        (new GolfResource(getServletContext(), FILE_JSDETECT_HTML)).toString();
+      mComponents =
+        (new GolfResource(getServletContext(), FILE_COMPONENTS_JS)).toString();
+    } catch (Exception e) {
+      throw new ServletException("can't cache static files", e);
     }
   }
 
@@ -330,6 +342,9 @@ public class GolfServlet extends HttpServlet {
    */
   private String preprocess(String page, GolfContext context, boolean server) {
     String sid = context.request.getSession().getId();
+
+    // pattern matching all script tags (should this be removed?)
+    String pat1 = "<noscript>.*</noscript>";
 
     // pattern matching all script tags (should this be removed?)
     String pat2 = 
@@ -354,8 +369,18 @@ public class GolfServlet extends HttpServlet {
       page = page.replaceAll("(<[^>]+) golfid=['\"][0-9]+['\"]", "$1");
 
     if (! context.s.getJs().booleanValue() && !server) {
-      // proxy mode only, so remove all javascript except on serverside
+      // proxy mode: remove javascript/noscript except for serverside
+      page = page.replaceAll(pat1, "");
       page = page.replaceAll(pat2, "");
+
+      for (int i=0, j=0; (i=page.indexOf("<style", i)) != -1; i=j) {
+        j = page.indexOf("</style>", i);
+        page = page.substring(0, i) 
+          + page.substring(i, j).replaceAll("&gt;", ">") 
+                                .replaceAll("&lt;", "<")
+                                .replaceAll("&amp;", "&")
+          + page.substring(j);
+      }
     } else {
       // on the client window.serverside must be false, and vice versa
       page = page.replaceFirst("(window.serverside +=) [a-zA-Z_]+;", 
@@ -444,11 +469,8 @@ public class GolfServlet extends HttpServlet {
 
               String script = "jQuery(\"[name='"+key+"']\").val(\""+val+"\");";
 
-              if (Boolean.parseBoolean(mDevMode)) {
-                GolfResource res = 
-                  new GolfResource(getServletContext(), "components.js");
-                script = res.toString() + script;
-              }
+              if (Boolean.parseBoolean(mDevMode))
+                script = mComponents + script;
               result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
               result.executeJavaScript(script);
             }
@@ -500,11 +522,8 @@ public class GolfServlet extends HttpServlet {
           );
         } else {
           String script = "jQuery.history.load('"+context.urlHash+"');";
-          if (Boolean.parseBoolean(mDevMode)) {
-            GolfResource res = 
-              new GolfResource(getServletContext(), "components.js");
-            script = res.toString() + script;
-          }
+          if (Boolean.parseBoolean(mDevMode))
+            script = mComponents + script;
           result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
           result.executeJavaScript(script);
         }
@@ -521,11 +540,8 @@ public class GolfServlet extends HttpServlet {
             throw new RedirectException(
                 context.response.encodeRedirectURL(context.servletURL + path));
           }
-          if (Boolean.parseBoolean(mDevMode)) {
-            GolfResource res = 
-              new GolfResource(getServletContext(), "components.js");
-            script = res.toString() + script;
-          }
+          if (Boolean.parseBoolean(mDevMode))
+            script = mComponents + script;
           result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
           result.executeJavaScript(script);
         } else {

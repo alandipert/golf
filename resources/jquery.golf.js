@@ -27,6 +27,15 @@ if (serverside) {
       return bak.call(jQuery(this), name, fn);
     };
   })();
+
+  jQuery.ajax = (function() {
+      var bak = jQuery.ajax;
+      return function(options) {
+        alert("><><><><><><><><><><><><><><");
+        options.async = false;
+        return bak(options);
+      };
+  })();
 }
 
 // install overrides on jQ DOM manipulation methods to incorporate components
@@ -40,7 +49,9 @@ if (serverside) {
             var e = jQuery(a instanceof Component ? a._dom : a);
             jQuery.golf.prepare(e);
             var ret = bak.call(jQuery(this), e);
-            e.removeData("_golf_prepared");
+            jQuery(e.parent()).each(function() {
+              jQuery(this).removeData("_golf_prepared");
+            });
           }; 
       })();
     }
@@ -62,14 +73,15 @@ if (serverside) {
                 uri = cloudfrontDomain[0]+uri.queryKey.path;
             } else if (uri1.anchor) {
               uri = servletUrl + uri1.anchor;
+              if (!serverside) {
+                this.click(function() { 
+                    $.history.load(uri1.anchor);
+                    return false;
+                });
+              }
             }
           }
           this.attr("href", uri);
-          if (!serverside)
-            this.click(function() { 
-                $.history.load(uri1.anchor);
-                return false;
-            });
         }; 
     })();
 })();
@@ -228,12 +240,20 @@ jQuery.golf = {
   },
     
   onLoad: function() {
-    var name, m, pkg;
+    var cmp, name, m, pkg;
 
     if (serverside)
       $("noscript").remove();
 
     for (name in jQuery.golf.components) {
+      cmp = jQuery.golf.components[name];
+      if (cmp.css) {
+        // add css to <head>
+        if (cmp.css.replace(/^\s+|\s+$/g, '').length > 3)
+          jQuery("head").append("<style type='text/css'>"+cmp.css+"</style>");
+        cmp.css = false;
+      }
+
       if (!(m = name.match(/^(.*)\.([^.]+)$/)))
         throw "bad component name: '"+name+"'";
 
@@ -363,13 +383,6 @@ jQuery.golf = {
       $.component = cmp;
 
       if (cmp) {
-        if (cmp.css) {
-          // add css to <head>
-          if (cmp.css.replace(/^\s+|\s+$/g, '').length > 3)
-            jQuery("head").append("<style type='text/css'>"+cmp.css+"</style>");
-          cmp.css = false;
-        }
-
         obj._dom = jQuery(cmp.html);
         jQuery.golf.index(_index, obj._dom.get()[0]);
         jQuery.golf.doCall(obj, $, argv);
