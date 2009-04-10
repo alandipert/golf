@@ -282,6 +282,7 @@ public class GolfServlet extends HttpServlet {
 
       String url = context.request.getRequestURL().toString()
         .replaceFirst(";jsessionid=.*$", "");
+
       if (! url.endsWith("/"))
         throw new RedirectException(
             context.response.encodeRedirectURL(url + "/"));
