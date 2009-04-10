@@ -9,4 +9,5 @@ Getting Started With Golf
 Project Documentation and Community Portal
 ==========================================
 
-Please see the [http://code.google.com/p/golf/ google code site].
+Please see the [google code site](http://code.google.com/p/golf/).
+
