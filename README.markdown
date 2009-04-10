@@ -11,3 +11,4 @@ Project Documentation and Community Portal
 
 Please see the [google code site](http://code.google.com/p/golf/).
 
+Thanks!
