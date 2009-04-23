@@ -186,7 +186,7 @@ public class Main
     // process single flag command lines
 
     if (o.getFlag("version")) {
-      System.out.println("golf v0.1dev");
+      System.out.println("golf v0.11dev");
       System.exit(0);
     } else if (o.getFlag("help")) {
       usage(null);
