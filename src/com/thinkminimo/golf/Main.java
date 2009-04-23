@@ -813,10 +813,6 @@ public class Main
     ContextHandlerCollection contexts = new ContextHandlerCollection();
     HandlerList handlers              = new HandlerList();
     
-    if (o.getOpt("backendname") != null && o.getOpt("backendroot") != null) {
-      System.out.println("backendname='"+o.getOpt("backendname")+"'");
-    }
-    
     for (String app: mApps.keySet()) {
       Log.info("Starting app `" + app + "'");
 
