@@ -55,6 +55,7 @@ import org.mortbay.jetty.handler.RequestLogHandler;
 import org.mortbay.jetty.servlet.Context;
 import org.mortbay.jetty.servlet.ServletHolder;
 import org.mortbay.jetty.servlet.DefaultServlet;
+import org.mortbay.jetty.webapp.WebAppContext;
 import org.mortbay.thread.QueuedThreadPool;
 
 public class Main
@@ -85,10 +86,12 @@ public class Main
   private S3Bucket                    mBucket         = null;
   private AccessControlList           mAcl            = null;
   private HashMap<String, String>     mApps           = null;
+  private HashMap<String, String>     mBackends       = null;
 
 
   public Main(String[] argv) throws Exception {
     mApps       = new HashMap<String, String>();
+    mBackends   = new HashMap<String, String>();
     mCfDomains  = new RingList<String>();
 
     // Command line parser setup
@@ -141,6 +144,9 @@ public class Main
     ).addArg(
       "approot",
       "The location of the app source directory."
+    ).addVarArg(
+      "<backend name> <backend root>",
+      "The backend webapp context path and location of .war file or approot."
     );
 
     // default values for command line options
@@ -163,6 +169,7 @@ public class Main
     try {
       o.go();
     } catch (Exception e) {
+      e.printStackTrace();
       System.exit(1);
     }
 
@@ -193,6 +200,9 @@ public class Main
       System.exit(1);
     }
       
+    if (o.getExtra().size() >= 2)
+      mBackends.put(o.getExtra().get(0), o.getExtra().get(1));
+
     mApps.put(o.getOpt("appname"), o.getOpt("approot"));
 
     try {
@@ -801,6 +811,11 @@ public class Main
     server.setThreadPool(threadPool);
 
     ContextHandlerCollection contexts = new ContextHandlerCollection();
+    HandlerList handlers              = new HandlerList();
+    
+    if (o.getOpt("backendname") != null && o.getOpt("backendroot") != null) {
+      System.out.println("backendname='"+o.getOpt("backendname")+"'");
+    }
     
     for (String app: mApps.keySet()) {
       Log.info("Starting app `" + app + "'");
@@ -822,10 +837,25 @@ public class Main
 
       cx1.addServlet(sh1, "/*");
     }
-    
-    HandlerList handlers = new HandlerList();
-    handlers.setHandlers(new Handler[] {contexts, new DefaultHandler(),
-      new RequestLogHandler()});
+
+    for (String app: mBackends.keySet()) {
+      Log.info("Starting app `" + app + "'");
+
+      String docRoot    = mBackends.get(app);
+
+      String golfPath   = "/" + app;
+      String golfRoot   = docRoot;
+
+      WebAppContext wac = new WebAppContext();
+      wac.setContextPath(golfPath);
+      wac.setWar(docRoot);
+
+      handlers.addHandler(wac);
+    }
+
+    handlers.addHandler(contexts);
+    handlers.addHandler(new DefaultHandler());
+    handlers.addHandler(new RequestLogHandler());
 
     server.setHandler(handlers);
     server.setStopAtShutdown(true);
