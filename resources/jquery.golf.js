@@ -84,7 +84,9 @@ if (serverside) {
 
 jQuery.golf = {
 
-  defaultActionName: "home",
+  defaultRoute: "home",
+  
+  onRouteError: undefined,
 
   htmlEncode: function(text) {
     return text.replace(/&/g,   "&amp;")
@@ -265,7 +267,7 @@ jQuery.golf = {
     var lastHash = "", argv;
     return function(hash) {
       if (!hash) {
-        jQuery.history.load(String(jQuery.golf.defaultActionName+"/")
+        jQuery.history.load(String(jQuery.golf.defaultRoute+"/")
           .replace(/\/+$/, "/"));
         return;
       }
@@ -281,28 +283,27 @@ jQuery.golf = {
 
   route: function(hash, b) {
     if (!hash) 
-      hash = String(jQuery.golf.defaultActionName+"/").replace(/\/+$/, "/");
+      hash = String(jQuery.golf.defaultRoute+"/").replace(/\/+$/, "/");
 
     var theName         = hash;
     var actionBaseName  = "jQuery.golf.controller";
     var theErrorName    = "errorAction";
-    var theDefaultName  = "defaultAction";
 
     var theAction       = null;
 
-    var defaultAction   = jQuery.golf.controller.defaultAction;
-    var errorAction     = jQuery.golf.controller.errorAction;
+    var errorAction     = jQuery.golf.onRouteError;
     var fullName        = actionBaseName+"['"+theName+"']";
     var fullErrorName   = actionBaseName+"."+theErrorName;
-    var fullDefaultName = actionBaseName+"."+theDefaultName;
+
+    var i, x, pat, match;
 
     if (!b) b = jQuery("body > div.golfbody").eq(0);
     b.empty();
 
     try {
-      for (var i in jQuery.golf.controller) {
-        var pat       = new RegExp(i);
-        var match     = theName.match(pat);
+      for (i in jQuery.golf.controller) {
+        pat   = new RegExp(i);
+        match = theName.match(pat);
 
         if (match) {
           theAction = jQuery.golf.controller[i];
@@ -312,13 +313,8 @@ jQuery.golf = {
             break;
         }
       }
-      if (!theAction)
-        defaultAction(b, [theName]);
     } catch (x) {
-      if (!theAction)
-        x = "Exception: <em>"+x+"</em> :: "+fullDefaultName+" :: "+fullName;
-      else
-        x = "Exception: <em>"+x+"</em> :: "+fullName;
+      x = "Exception: <em>"+x+"</em> :: "+fullName;
 
       try  {
         errorAction(b, [hash]);
