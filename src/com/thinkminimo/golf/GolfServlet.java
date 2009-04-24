@@ -43,10 +43,12 @@ public class GolfServlet extends HttpServlet {
   private class StoredJSVM {
     public WebClient client;
     public HtmlPage  lastPage;
+    public long      created;
 
     StoredJSVM(WebClient client) {
       this.client   = client;
       this.lastPage = null;
+      this.created  = (new Date()).getTime();
     }
   }
 
@@ -225,10 +227,8 @@ public class GolfServlet extends HttpServlet {
 
       this.jsvm = mJsvms.get(request.getSession().getId());
 
-      if (this.jsvm == null) {
+      if (this.jsvm == null)
         this.jsvm = new StoredJSVM((WebClient) null);
-        mJsvms.put(request.getSession().getId(), this.jsvm);
-      }
     }
 
     public boolean hasEvent() {
@@ -245,6 +245,7 @@ public class GolfServlet extends HttpServlet {
   private static String               mComponents   = null;
   private static String               mDevMode      = null;
   private static String               mPoolSize     = null;
+  private static String               mPoolExpire   = null;
 
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
@@ -252,9 +253,17 @@ public class GolfServlet extends HttpServlet {
   public void init(ServletConfig config) throws ServletException {
     super.init(config); // tricky little guy
 
-    mDevMode  = config.getInitParameter("devmode");
-    mPoolSize = config.getInitParameter("poolsize");
+    // init parameters
+    mDevMode    = config.getInitParameter("devmode");
+    mPoolSize   = config.getInitParameter("poolsize");
+    mPoolExpire = config.getInitParameter("poolexpire");
 
+    // default values
+    mDevMode    = mDevMode    != null ? mDevMode    : "true";
+    mPoolSize   = mPoolSize   != null ? mPoolSize   : "10";
+    mDevMode    = mPoolExpire != null ? mPoolExpire : "900";  // 15 min
+    
+    // process the static files that need to be kept in memory
     cacheStaticFiles();
   }
 
@@ -490,8 +499,14 @@ public class GolfServlet extends HttpServlet {
             lastUrl     = context.s.getLastUrl();
           }
         } else if (client == null) {
-          log(context, LOG_INFO, "INITIALIZING NEW CLIENT");
-          client = new WebClient(context.browser);
+          log(context, LOG_INFO, "*** INITIALIZING NEW CLIENT ***");
+          log(context, LOG_INFO, "Running JSVMs, before GC: " + mJsvms.size());
+
+          createNewJsvm(context);
+
+          log(context, LOG_INFO, "Running JSVMs, after GC:  " + mJsvms.size());
+
+          client = context.jsvm.client;
 
           // write any alert() calls to the log
           client.setAlertHandler(new AlertHandler() {
@@ -502,8 +517,6 @@ public class GolfServlet extends HttpServlet {
 
           // if this isn't long enough it'll timeout before all ajax is complete
           client.setJavaScriptTimeout(JSVM_TIMEOUT);
-
-          context.jsvm.client = client;
 
           // the blank skeleton html template
           String newHtml = mNewHtml;
@@ -596,7 +609,32 @@ public class GolfServlet extends HttpServlet {
   }
 
   /**
-   * Do the request flowchart.
+   * First clean out any old JSVMs that might be hanging around, then 
+   * make sure there is room for another jsvm.
+   */
+  private void createNewJsvm(GolfContext context) throws ServletException {
+    int   psize = Integer.getInteger(mPoolSize);
+    long  ptime = Long.getLong(mPoolExpire) * 1000L; // convert sec --> msec
+    long  ctime = (new Date()).getTime();
+
+    for (String key : mJsvms.keySet())
+      if (ctime - mJsvms.get(key).created > ptime)
+        mJsvms.remove(key);
+
+    if (mJsvms.size() >= psize) {
+      throw new ServletException(
+          "The server has too many concurrent proxy sessions right now. "+
+          "Please enable javascript in your browser (if you can) or try "+
+          "again later."
+      );
+    }
+
+    context.jsvm.client = new WebClient(context.browser);
+    mJsvms.put(context.request.getSession().getId(), context.jsvm);
+  }
+
+  /**
+   * Do the dynamic request.
    *
    * @param   context       the golf context for this request
    */

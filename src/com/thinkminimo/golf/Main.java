@@ -126,7 +126,7 @@ public class Main
       "How many concurrent proxymode client virtual machines to allow."
     ).addOpt(
       "pool-expire",
-      "Minimum idle time (minutes) before a proxymode client virtual "+
+      "Minimum idle time (seconds) before a proxymode client virtual "+
       "machine can be scavenged."
     ).addFlag(
       "compress-js",
@@ -186,7 +186,7 @@ public class Main
     // process single flag command lines
 
     if (o.getFlag("version")) {
-      System.out.println("golf v0.11dev");
+      System.out.println("golf v0.12dev");
       System.exit(0);
     } else if (o.getFlag("help")) {
       usage(null);
