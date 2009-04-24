@@ -265,7 +265,7 @@ jQuery.golf = {
 
   onHistoryChange: (function() {
     var lastHash = "", argv;
-    return function(hash) {
+    return function(hash, b) {
       if (!hash) {
         jQuery.history.load(String(jQuery.golf.defaultRoute+"/")
           .replace(/\/+$/, "/"));
@@ -274,7 +274,7 @@ jQuery.golf = {
 
       if (hash && hash != lastHash) {
         lastHash = hash;
-        jQuery.golf.route(hash);
+        jQuery.golf.route(hash, b);
         jQuery.golf.location = String(hash+"/").replace(/\/+$/, "/");
         window.location.hash = "#"+jQuery.golf.location;
       }
