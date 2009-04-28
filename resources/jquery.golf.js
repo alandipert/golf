@@ -3,6 +3,9 @@ function Component() {
   this._dom = null;
 }
 
+function Model() {
+}
+
 // install override on the jQ bind method to inject proxy links and golfIDs
 
 if (serverside) {
@@ -231,7 +234,7 @@ jQuery.golf = {
     if ($.component.js.length > 10) {
       var f;
       eval("f = "+$.component.js);
-      f.call(obj, argv);
+      f.apply(obj, argv);
     }
   },
     
@@ -255,6 +258,15 @@ jQuery.golf = {
 
       pkg = jQuery.golf.makePkg(m[1]);
       pkg[m[2]] = jQuery.golf.componentConstructor(name);
+    }
+
+    for (name in jQuery.golf.models) {
+      mdl = jQuery.golf.models[name];
+      if (!(m = name.match(/^(.*)\.([^.]+)$/)))
+        throw "bad model name: '"+name+"'";
+
+      pkg = jQuery.golf.makePkg(m[1], Model);
+      pkg[m[2]] = jQuery.golf.modelConstructor(name);
     }
 
     if (urlHash && !location.hash)
@@ -339,17 +351,20 @@ jQuery.golf = {
   },
 
   componentConstructor: function(name) {
-    var result = function(argv) {
+    var result = function() {
+      var argv = [];
       var obj = this;
       var _index = [];
+
+      for (var i=0; i<arguments.length; i++)
+        argv[i] = arguments[i];
 
       var $ = function(selector) {
         var isHtml = /^[^<]*(<(.|\s)+>)[^>]*$/;
 
         // if it's not a selector then passthru to jQ
-        if (typeof(selector) != "string" || selector.match(isHtml)) {
+        if (typeof(selector) != "string" || selector.match(isHtml))
           return jQuery(selector);
-        }
 
         var res = jQuery(selector, obj._dom).get();
         var tmp = [];
@@ -381,6 +396,29 @@ jQuery.golf = {
       }
     };
     result.prototype = new Component();
+    return result;
+  },
+
+  modelConstructor: function(name) {
+    var result = function() {
+      var argv    = [];
+      var obj     = this;
+      var _index  = [];
+      var $       = {};
+      var cmp     = jQuery.golf.models[name];
+      
+      for (var i=0; i<arguments.length; i++)
+        argv[i] = arguments[i];
+
+      $.component = cmp;
+
+      if (cmp) {
+        jQuery.golf.doCall(obj, $, argv);
+      } else {
+        throw "can't find model: "+name;
+      }
+    };
+    result.prototype = new Model();
     return result;
   }
 };

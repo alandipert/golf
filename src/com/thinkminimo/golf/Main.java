@@ -80,14 +80,14 @@ public class Main
   private   static GetOpt             o               = null;
   private   static RingList<String>   mCfDomains      = null;
 
+  private   static HashMap<String, String> mApps      = null;
+  private   static HashMap<String, String> mBackends  = null;
+
   private AWSCredentials              mAwsKeys        = null;
   private RestS3Service               mS3svc          = null;
   private CloudFrontService           mCfsvc          = null;
   private S3Bucket                    mBucket         = null;
   private AccessControlList           mAcl            = null;
-  private HashMap<String, String>     mApps           = null;
-  private HashMap<String, String>     mBackends       = null;
-
 
   public Main(String[] argv) throws Exception {
     mApps       = new HashMap<String, String>();
@@ -186,7 +186,7 @@ public class Main
     // process single flag command lines
 
     if (o.getFlag("version")) {
-      System.out.println("0.12-dev");
+      System.out.println("0.13-dev");
       System.exit(0);
     } else if (o.getFlag("help")) {
       usage(null);
@@ -200,10 +200,10 @@ public class Main
       System.exit(1);
     }
       
-    if (o.getExtra().size() >= 2)
-      mBackends.put(o.getExtra().get(0), o.getExtra().get(1));
-
     mApps.put(o.getOpt("appname"), o.getOpt("approot"));
+
+    while (o.getExtra().size() >= 2)
+      mBackends.put(o.getExtra().remove(0), o.getExtra().remove(0));
 
     try {
       if (o.getFlag("war"))
@@ -523,6 +523,8 @@ public class Main
     String        headStr       = headHtml.toString();
     String        noscriptStr   = noscriptHtml.toString();
 
+    JSONArray     backends      = new JSONArray(mBackends.keySet());
+
     String result = newStr;
     result = result.replaceFirst("\n *__HEAD_HTML__ *\n *", 
         " custom head section -->\n"+headStr+
@@ -531,6 +533,7 @@ public class Main
         " custom noscript section -->\n"+noscriptStr+
         "      <!-- end custom noscript section ");
     result = result.replaceFirst("__CLOUDFRONTDOMAIN__", o.getOpt("cfdomains"));
+    result = result.replaceFirst("__RESTBACKENDS__", backends.toString());
 
     return result;
   }
@@ -551,7 +554,8 @@ public class Main
 
   private static String getComponentsString() throws Exception {
     return "jQuery.golf.components = " + getComponentsJSON(null, null) + ";" +
-           "jQuery.golf.res = " + getResourcesJSON(null, null) + ";";
+           "jQuery.golf.res = " + getResourcesJSON(null, null) + ";" +
+           "jQuery.golf.models = " + getModelsJSON(null, null) + ";";
   }
 
   private static String getResourcesJSON(String path, JSONObject json) 
@@ -602,6 +606,31 @@ public class Main
     return json.toString();
   }
 
+  private static String getModelsJSON(String path, JSONObject json) 
+      throws Exception {
+    if (path == null) path = "";
+    if (json == null) json = new JSONObject();
+
+    File file = new File(new File(o.getOpt("approot"), "models"), path);
+      
+    if (!file.getName().startsWith(".")) {
+      if (file.isFile()) {
+        if (path.endsWith(".js")) {
+          String cmpName = path.replaceFirst("\\.js$", "");
+          String keyName = cmpName.replaceFirst("^/+", "").replace("/", ".");
+          json.put(keyName, processModel(cmpName).put("name", keyName));
+        }
+      } else if (file.isDirectory()) {
+        for (String f : file.list()) {
+          String ppath = path + "/" + f;
+          getModelsJSON(path+"/"+f, json);
+        }
+      }
+    }
+
+    return json.toString();
+  }
+
   public static JSONObject processComponent(String name) throws Exception {
     name = name.replaceFirst("^/+", "");
     String className = name.replace('/', '-');
@@ -618,9 +647,8 @@ public class Main
     File         resDir  = new File(cwd, res);
 
     String htmlStr  = processComponentHtml(htmlRes.toString(), className);
-    String jsStr    = processComponentJs(jsRes.toString(), name+".js");
-    String cssStr   = 
-      processComponentCss(cssRes.toString(), className, name+".css");
+    String jsStr    = processComponentJs(jsRes.toString(), js);
+    String cssStr   = processComponentCss(cssRes.toString(), className, css);
     JSONObject resObj   = 
       processComponentRes(resDir, cwd, resDir, null);
 
@@ -635,6 +663,19 @@ public class Main
         .put("css",   cssStr)
         .put("js",    jsStr)
         .put("res",   resObj);
+
+    return json;
+  }
+
+  public static JSONObject processModel(String name) throws Exception {
+    name = name.replaceFirst("^/+", "");
+    String className    = name.replace('/', '-');
+    File   cwd          = new File(o.getOpt("approot"), "models");
+
+    String js           = name + ".js";
+    GolfResource jsRes  = new GolfResource(cwd, js);
+    String jsStr        = processComponentJs(jsRes.toString(), js);
+    JSONObject json     = new JSONObject().put("js",    jsStr);
 
     return json;
   }
