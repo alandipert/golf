@@ -85,6 +85,23 @@ if (serverside) {
 
 // main jQ golf object
 
+jQuery.import = function(name) {
+  var ret="", obj, basename, dirname, i;
+
+  basename = name.replace(/^.*\./, "");
+  dirname  = name.replace(/\.[^.]*$/, "");
+
+  if (basename == "*") {
+    obj = eval(dirname);
+    for (i in obj)
+      ret += "var "+i+" = "+dirname+"['"+i+"'];";
+  } else {
+    ret = "var "+basename+" = "+name+";";
+  }
+
+  return ret;
+};
+
 jQuery.golf = {
 
   defaultRoute: "home",
@@ -230,19 +247,8 @@ jQuery.golf = {
     return jQuery.golf.makePkg(m[4], obj[m[1]]);
   },
 
-  doCall: function(obj, $, argv) {
-    if ($.component.js.length > 10) {
-      var f;
-      eval("f = "+$.component.js);
-      f.apply(obj, argv);
-    }
-  },
-    
-  onLoad: function() {
+  setupComponents: function() {
     var cmp, name, m, pkg;
-
-    if (serverside)
-      $("noscript").remove();
 
     for (name in jQuery.golf.components) {
       cmp = jQuery.golf.components[name];
@@ -268,10 +274,23 @@ jQuery.golf = {
       pkg = jQuery.golf.makePkg(m[1], Model);
       pkg[m[2]] = jQuery.golf.modelConstructor(name);
     }
+  },
+
+  doCall: function(obj, $, argv) {
+    if ($.component.js.length > 10) {
+      var f;
+      eval("f = "+$.component.js);
+      f.apply(obj, argv);
+    }
+  },
+    
+  onLoad: function() {
+    if (serverside)
+      $("noscript").remove();
 
     if (urlHash && !location.hash)
       location.href = servletUrl + "#" + urlHash;
-    jQuery.ajaxSetup({ async: serverside ? false : true });
+
     jQuery.history.init(jQuery.golf.onHistoryChange);
   },
 

@@ -555,7 +555,8 @@ public class Main
   private static String getComponentsString() throws Exception {
     return "jQuery.golf.components = " + getComponentsJSON(null, null) + ";" +
            "jQuery.golf.res = " + getResourcesJSON(null, null) + ";" +
-           "jQuery.golf.models = " + getModelsJSON(null, null) + ";";
+           "jQuery.golf.models = " + getModelsJSON(null, null) + ";" +
+           "jQuery.golf.setupComponents();";
   }
 
   private static String getResourcesJSON(String path, JSONObject json) 
