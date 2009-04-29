@@ -6,6 +6,9 @@ function Component() {
 function Model() {
 }
 
+function REST(contextPath) {
+}
+
 // install override on the jQ bind method to inject proxy links and golfIDs
 
 if (serverside) {
@@ -85,7 +88,7 @@ if (serverside) {
 
 // main jQ golf object
 
-jQuery.import = function(name) {
+jQuery.Import = function(name) {
   var ret="", obj, basename, dirname, i;
 
   basename = name.replace(/^.*\./, "");
