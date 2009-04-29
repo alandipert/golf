@@ -16,8 +16,8 @@ import java.security.NoSuchAlgorithmException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Constructor;
 
-import org.mozilla.javascript.ErrorReporter;
-import org.mozilla.javascript.EvaluatorException;
+import net.sourceforge.htmlunit.corejs.javascript.ErrorReporter;
+import net.sourceforge.htmlunit.corejs.javascript.EvaluatorException;
 import com.yahoo.platform.yui.compressor.CssCompressor;
 import com.yahoo.platform.yui.compressor.JavaScriptCompressor;
 

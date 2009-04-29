@@ -6,7 +6,7 @@ import org.json.JSONException;
 import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.*;
-import org.mozilla.javascript.*;
+import net.sourceforge.htmlunit.corejs.javascript.*;
 
 import java.net.*;
 
