@@ -259,9 +259,9 @@ public class GolfServlet extends HttpServlet {
     mPoolExpire = config.getInitParameter("poolexpire");
 
     // default values
-    mDevMode    = mDevMode    != null ? mDevMode    : "true";
-    mPoolSize   = mPoolSize   != null ? mPoolSize   : "10";
-    mDevMode    = mPoolExpire != null ? mPoolExpire : "900";  // 15 min
+    mDevMode    = (mDevMode    != null ? mDevMode    : "true" );
+    mPoolSize   = (mPoolSize   != null ? mPoolSize   : "10"   );
+    mDevMode    = (mPoolExpire != null ? mPoolExpire : "900"  );  // 15 min
     
     // process the static files that need to be kept in memory
     cacheStaticFiles();
@@ -613,8 +613,8 @@ public class GolfServlet extends HttpServlet {
    * make sure there is room for another jsvm.
    */
   private void createNewJsvm(GolfContext context) throws ServletException {
-    int   psize = Integer.getInteger(mPoolSize);
-    long  ptime = Long.getLong(mPoolExpire) * 1000L; // convert sec --> msec
+    int   psize = Integer.parseInt(mPoolSize);
+    long  ptime = Long.parseLong(mPoolExpire) * 1000L; // convert sec --> msec
     long  ctime = (new Date()).getTime();
 
     for (String key : mJsvms.keySet())
