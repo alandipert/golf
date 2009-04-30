@@ -153,4 +153,11 @@
     </zip>
   </target>
 
+  <target name="google" depends="clean,jar"
+    description="Upload to google code.">
+    <exec executable="googlecode_golf.py">
+      <arg value="${jarfile.dist}"/>
+    </exec>
+  </target>
+
 </project>
