@@ -43,12 +43,12 @@ public class GolfServlet extends HttpServlet {
   private class StoredJSVM {
     public WebClient client;
     public HtmlPage  lastPage;
-    public long      created;
+    public long      lastAccessTime;
 
     StoredJSVM(WebClient client) {
       this.client   = client;
       this.lastPage = null;
-      this.created  = (new Date()).getTime();
+      this.lastAccessTime = (new Date()).getTime();
     }
   }
 
@@ -470,6 +470,10 @@ public class GolfServlet extends HttpServlet {
     if (result == null || !path.equals(lastUrl)) {
       if (lastEvent == null || lastTarget == null || !path.equals(lastUrl)) {
         if (event != null && target != null && client != null) {
+
+          // update last access time
+          context.jsvm.lastAccessTime = (new Date()).getTime();
+
           if (event.equals("onclick")) {
             // nothing here
           } else if (event.equals("onsubmit")) {
@@ -618,7 +622,7 @@ public class GolfServlet extends HttpServlet {
     long  ctime = (new Date()).getTime();
 
     for (String key : mJsvms.keySet())
-      if (ctime - mJsvms.get(key).created > ptime)
+      if (ctime - mJsvms.get(key).lastAccessTime > ptime)
         mJsvms.remove(key);
 
     if (mJsvms.size() >= psize) {
