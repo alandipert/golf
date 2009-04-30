@@ -261,7 +261,7 @@ public class GolfServlet extends HttpServlet {
     // default values
     mDevMode    = (mDevMode    != null ? mDevMode    : "true" );
     mPoolSize   = (mPoolSize   != null ? mPoolSize   : "10"   );
-    mDevMode    = (mPoolExpire != null ? mPoolExpire : "900"  );  // 15 min
+    mPoolExpire = (mPoolExpire != null ? mPoolExpire : "900"  );  // 15 min
     
     // process the static files that need to be kept in memory
     cacheStaticFiles();
