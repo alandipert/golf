@@ -532,8 +532,10 @@ public class Main
     result = result.replaceFirst("\n *__NOSCRIPT_HTML__ *\n *", 
         " custom noscript section -->\n"+noscriptStr+
         "      <!-- end custom noscript section ");
-    result = result.replaceFirst("__CLOUDFRONTDOMAIN__", o.getOpt("cfdomains"));
+    result = result.replaceFirst("__DEVMODE__", 
+        Boolean.toString(o.getFlag("devmode")));
     result = result.replaceFirst("__RESTBACKENDS__", backends.toString());
+    result = result.replaceFirst("__CLOUDFRONTDOMAIN__", o.getOpt("cfdomains"));
 
     return result;
   }

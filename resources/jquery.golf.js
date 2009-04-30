@@ -334,29 +334,33 @@ jQuery.golf = {
     if (!b) b = jQuery("body > div.golfbody").eq(0);
     b.empty();
 
-    try {
-      for (i in jQuery.golf.controller) {
-        pat   = new RegExp(i);
-        match = theName.match(pat);
+    for (i in jQuery.golf.controller) {
+      pat   = new RegExp(i);
+      match = theName.match(pat);
 
-        if (match) {
+      if (match) {
+        if (!devmode) {
+          try {
+            theAction = jQuery.golf.controller[i];
+          } catch (x) {
+            x = "Exception: <em>"+x+"</em> :: "+fullName;
+
+            try  {
+              errorAction(b, [hash]);
+            } catch (y) {
+              x = "Exception: <em>"+y+"</em> :: "+fullErrorName+"<br/>"+x;
+              b = jQuery(document.body);
+              b.empty();
+              b.append("<div class='error'><h1>oops!</h1><p>"+x+"</p></div>");
+            }
+          }
+        } else {
           theAction = jQuery.golf.controller[i];
-          if (theAction(b, match))
-            theAction = null;
-          else
-            break;
         }
-      }
-    } catch (x) {
-      x = "Exception: <em>"+x+"</em> :: "+fullName;
-
-      try  {
-        errorAction(b, [hash]);
-      } catch (y) {
-        x = "Exception: <em>"+y+"</em> :: "+fullErrorName+"<br/>"+x;
-        b = jQuery(document.body);
-        b.empty();
-        b.append("<div class='error'><h1>oops!</h1><p>"+x+"</p></div>");
+        if (theAction(b, match))
+          theAction = null;
+        else
+          break;
       }
     }
   },
