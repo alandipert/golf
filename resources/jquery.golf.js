@@ -6,7 +6,7 @@ function Component() {
 function Model() {
 }
 
-function REST(contextPath) {
+function Data() {
 }
 
 // install override on the jQ bind method to inject proxy links and golfIDs
@@ -118,6 +118,8 @@ jQuery.golf = {
                .replace(/"/g,   "&quot;");
   },
 
+  /* parseUri is based on work (c) 2007 Steven Levithan <stevenlevithan.com> */
+
   parseUri: (function() {
     var o = {
       strictMode: true,
@@ -147,81 +149,6 @@ jQuery.golf = {
       return uri;
     };
   })(),
-
-  toJSON: function(inVal) {
-    return jQuery.golf._json_encode(inVal).join('');
-  },
-
-  _json_encode: function(inVal, out) {
-    out = out || new Array();
-    var undef; // undefined
-    switch (typeof inVal) {
-      case 'object':
-        if (!inVal) {
-          out.push('null');
-        } else {
-          if (inVal.constructor == Array) {
-            var testVal = inVal.length;
-            var compVal = 0;
-            for (var key in inVal) compVal++;
-            if (testVal != compVal) {
-              out.push('{');
-              i = 0;
-              for (var key in inVal) {
-                if (i++ > 0) out.push(',\n');
-                out.push('"');
-                out.push(key);
-                out.push('":');
-                jQuery.golf._json_encode(inVal[key], out);
-              }
-              out.push('}');
-            } else {
-              out.push('[');          
-              for (var i = 0; i < inVal.length; ++i) {
-                if (i > 0) out.push(',\n');
-                jQuery.golf._json_encode(inVal[i], out);
-              }
-              out.push(']');
-            }
-          } else if (typeof inVal.toString != 'undefined') {
-            out.push('{');
-            var first = true;
-            for (var i in inVal) {
-              var curr = out.length;
-              if (!first) out.push(',\n');
-              jQuery.golf._json_encode(i, out);
-              out.push(':');                    
-              jQuery.golf._json_encode(inVal[i], out);
-              if (out[out.length - 1] == undef)
-              {
-                out.splice(curr, out.length - curr);
-              } else {
-                first = false;
-              }
-            }
-            out.push('}');
-          }
-        }
-        return out;
-      case 'unknown':
-      case 'undefined':
-      case 'function':
-        out.push(undef);
-        return out;
-      case 'string':
-            out.push('"');
-            out.push(
-              inVal.replace(/(["\\])/g, '\$1')
-                   .replace(/\r/g, '')
-                   .replace(/\n/g, '\n')
-            );
-            out.push('"');
-            return out;
-      default:
-        out.push(String(inVal));
-        return out;
-    }
-  },
 
   index: function(idx, node) {
     idx.push(node);
@@ -279,10 +206,10 @@ jQuery.golf = {
     }
   },
 
-  doCall: function(obj, $, argv) {
-    if ($.component.js.length > 10) {
+  doCall: function(obj, $, argv, js) {
+    if (js.length > 10) {
       var f;
-      eval("f = "+$.component.js);
+      eval("f = "+js);
       f.apply(obj, argv);
     }
   },
@@ -413,10 +340,17 @@ jQuery.golf = {
       
       $.component = cmp;
 
+      $.require = function(js) {
+        var argv = [];
+        for (var i=1; i<arguments.length; i++)
+          argv[i-1] = arguments[i];
+        jQuery.golf.doCall(obj, $, argv, js);
+      }
+
       if (cmp) {
         obj._dom = jQuery(cmp.html);
         jQuery.golf.index(_index, obj._dom.get()[0]);
-        jQuery.golf.doCall(obj, $, argv);
+        jQuery.golf.doCall(obj, $, argv, cmp.js);
       } else {
         throw "can't find component: "+name;
       }
@@ -439,7 +373,7 @@ jQuery.golf = {
       $.component = cmp;
 
       if (cmp) {
-        jQuery.golf.doCall(obj, $, argv);
+        jQuery.golf.doCall(obj, $, argv, cmp.js);
       } else {
         throw "can't find model: "+name;
       }
