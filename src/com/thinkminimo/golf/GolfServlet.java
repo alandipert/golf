@@ -329,8 +329,10 @@ public class GolfServlet extends HttpServlet {
    */
   public void cacheStaticFiles() throws ServletException {
     try {
-      Main.cacheComponentsFile();
-      Main.cacheNewDotHtmlFile();
+      if (Boolean.parseBoolean(mDevMode)) {
+        Main.cacheComponentsFile();
+        Main.cacheNewDotHtmlFile();
+      }
       mNewHtml  =
         (new GolfResource(getServletContext(), FILE_NEW_HTML)).toString();
       mJsDetect = 
@@ -648,6 +650,9 @@ public class GolfServlet extends HttpServlet {
     String      remoteAddr  = context.request.getRemoteAddr();
     String      sessionAddr = context.s.getIpAddr();
     String      sid         = session.getId();
+
+    if (sid == null)
+      throw new Exception("sid is null");
 
     if (! session.isNew()) {
       if (context.p.getForce() != null && context.p.getForce().booleanValue())
