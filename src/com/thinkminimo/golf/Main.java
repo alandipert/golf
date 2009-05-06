@@ -490,7 +490,6 @@ public class Main
       "/jquery.js",             "/jsdetect.html",
       "/jquery.history.js",     "/loading.gif",
       "/jquery.golf.js",    
-      "/taffy.js",          
     };
     for (String res : resources)
       cacheJarResourceAws(res);
@@ -828,17 +827,14 @@ public class Main
   }
 
   private void cacheResourcesAws(File file, String path) throws Exception {
-    if (path.startsWith("/.")         || 
-        path.equals("/head.html")     || 
-        path.equals("/noscript.html"))
-      return;
-
     if (file.isFile()) {
       cacheFileAws(file, path);
     } else if (file.isDirectory()) {
       for (String f : file.list()) {
-        String ppath = path + (path.endsWith("/") ? f : "/" + f);
-        cacheResourcesAws(new File(file, f), ppath);
+        if (!f.startsWith(".")) {
+          String ppath = path + (path.endsWith("/") ? f : "/" + f);
+          cacheResourcesAws(new File(file, f), ppath);
+        }
       }
     }
   }
