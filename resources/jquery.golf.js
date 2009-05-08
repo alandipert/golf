@@ -54,7 +54,6 @@ if (serverside) {
           return function(a) { 
             var e = jQuery(a instanceof Component ? a._dom : a);
             jQuery.golf.prepare(e);
-            console.log(!!this._dom);
             var ret = bak.call(jQuery(this), e);
             jQuery(e.parent()).each(function() {
               jQuery(this).removeData("_golf_prepared");
@@ -151,14 +150,6 @@ jQuery.golf = {
       return uri;
     };
   })(),
-
-  index: function(idx, node) {
-    idx.push(node);
-
-    jQuery(node).children().each(function() {
-      jQuery.golf.index(idx, this); 
-    });
-  },
 
   makePkg: function(pkg, obj) {
     if (!obj)
@@ -309,7 +300,6 @@ jQuery.golf = {
     var result = function() {
       var argv = [];
       var obj = this;
-      var _index = [];
 
       for (var i=0; i<arguments.length; i++)
         argv[i] = arguments[i];
@@ -320,22 +310,6 @@ jQuery.golf = {
         // if it's not a selector then passthru to jQ
         if (typeof(selector) != "string" || selector.match(isHtml))
           return jQuery(selector);
-
-        /*
-        var res = jQuery(selector, obj._dom).get();
-        var tmp = [];
-
-        for (var i = 0; i < res.length; i++) {
-          for (var j = 0; j < _index.length; j++) {
-            if (res[i] == _index[j]) {
-              tmp.push(res[i]);
-            }
-          }
-        }
-        res = tmp;
-
-        return jQuery(res);
-        */
 
         return jQuery(selector, obj._dom).not(".component .component *")
                                          .not(".component");
@@ -359,7 +333,6 @@ jQuery.golf = {
 
       if (cmp) {
         obj._dom = jQuery(cmp.html);
-        jQuery.golf.index(_index, obj._dom.get()[0]);
         jQuery.golf.doCall(obj, $, argv, cmp.js);
       } else {
         throw "can't find component: "+name;
@@ -373,7 +346,6 @@ jQuery.golf = {
     var result = function() {
       var argv    = [];
       var obj     = this;
-      var _index  = [];
       var $       = {};
       var cmp     = jQuery.golf.models[name];
       
