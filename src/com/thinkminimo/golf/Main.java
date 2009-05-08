@@ -559,6 +559,7 @@ public class Main
            "jQuery.golf.res=" + getResourcesJSON(null, null) + ";" +
            "jQuery.golf.models=" + getScriptsJSON("models", null) + ";" +
            "jQuery.golf.plugins=" + getScriptsJSON("plugins", null) + ";" +
+           "jQuery.golf.scripts=" + getScriptsJSON("scripts", null) + ";" +
            "jQuery.golf.setupComponents();";
   }
 

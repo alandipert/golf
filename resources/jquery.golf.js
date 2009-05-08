@@ -42,6 +42,7 @@ if (serverside) {
         return bak(options);
       };
   })();
+
 }
 
 // install overrides on jQ DOM manipulation methods to incorporate components
@@ -87,7 +88,7 @@ if (serverside) {
     })();
 })();
 
-// main jQ golf object
+// Static jQuery methods
 
 jQuery.Import = function(name) {
   var ret="", obj, basename, dirname, i;
@@ -105,6 +106,18 @@ jQuery.Import = function(name) {
 
   return ret;
 };
+
+jQuery.require = function(plugin) {
+  var js = jQuery.golf.plugins[plugin].js;
+  var argv = [];
+  if (js.length > 10) {
+    for (var i=1; i<arguments.length; i++)
+      argv[i-1] = arguments[i];
+    jQuery.golf.doCall(window, jQuery, argv, js);
+  }
+};
+
+// main jQ golf object
 
 jQuery.golf = {
 
@@ -171,7 +184,7 @@ jQuery.golf = {
   },
 
   setupComponents: function() {
-    var cmp, name, m, pkg;
+    var cmp, name, i, m, pkg, scripts=[];
 
     for (name in jQuery.golf.components) {
       cmp = jQuery.golf.components[name];
@@ -196,6 +209,17 @@ jQuery.golf = {
 
       pkg = jQuery.golf.makePkg(m[1], Model);
       pkg[m[2]] = jQuery.golf.modelConstructor(name);
+    }
+
+    for (name in jQuery.golf.scripts)
+      scripts.push(name);
+
+    // sort scripts by name
+    scripts = scripts.sort();
+
+    for (i=0, m=scripts.length; i<m; i++) {
+      js = jQuery.golf.scripts[scripts[i]].js;
+      jQuery.golf.doCall(window, jQuery, [], js);
     }
   },
 
