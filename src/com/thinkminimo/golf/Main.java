@@ -186,7 +186,7 @@ public class Main
     // process single flag command lines
 
     if (o.getFlag("version")) {
-      System.out.println("0.13-dev");
+      System.out.println("sorry, not implemented.");
       System.exit(0);
     } else if (o.getFlag("help")) {
       usage(null);
