@@ -217,10 +217,8 @@ jQuery.golf = {
     // sort scripts by name
     scripts = scripts.sort();
 
-    for (i=0, m=scripts.length; i<m; i++) {
-      js = jQuery.golf.scripts[scripts[i]].js;
-      jQuery.golf.doCall(window, jQuery, [], js);
-    }
+    for (i=0, m=scripts.length; i<m; i++)
+      jQuery.globalEval(jQuery.golf.scripts[scripts[i]].js);
   },
 
   doCall: function(obj, $, argv, js) {
