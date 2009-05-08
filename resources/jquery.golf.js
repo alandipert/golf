@@ -1,6 +1,7 @@
 
 function Component() {
   this._dom = null;
+  this._idx = [];
 }
 
 function Model() {
@@ -53,6 +54,7 @@ if (serverside) {
           return function(a) { 
             var e = jQuery(a instanceof Component ? a._dom : a);
             jQuery.golf.prepare(e);
+            console.log(!!this._dom);
             var ret = bak.call(jQuery(this), e);
             jQuery(e.parent()).each(function() {
               jQuery(this).removeData("_golf_prepared");
@@ -319,6 +321,7 @@ jQuery.golf = {
         if (typeof(selector) != "string" || selector.match(isHtml))
           return jQuery(selector);
 
+        /*
         var res = jQuery(selector, obj._dom).get();
         var tmp = [];
 
@@ -332,6 +335,10 @@ jQuery.golf = {
         res = tmp;
 
         return jQuery(res);
+        */
+
+        return jQuery(selector, obj._dom).not(".component .component *")
+                                         .not(".component");
       };
 
       jQuery.extend($, jQuery);
@@ -340,11 +347,14 @@ jQuery.golf = {
       
       $.component = cmp;
 
-      $.require = function(js) {
+      $.require = function(plugin) {
+        var js = jQuery.golf.plugins[plugin];
         var argv = [];
-        for (var i=1; i<arguments.length; i++)
-          argv[i-1] = arguments[i];
-        jQuery.golf.doCall(obj, $, argv, js);
+        if (js.length > 10) {
+          for (var i=1; i<arguments.length; i++)
+            argv[i-1] = arguments[i];
+          jQuery.golf.doCall(obj, $, argv, js);
+        }
       }
 
       if (cmp) {

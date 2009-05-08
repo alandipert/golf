@@ -490,6 +490,7 @@ public class Main
       "/jquery.js",             "/jsdetect.html",
       "/jquery.history.js",     "/loading.gif",
       "/jquery.golf.js",    
+      "/taffy.js",          
     };
     for (String res : resources)
       cacheJarResourceAws(res);
@@ -556,7 +557,8 @@ public class Main
   private static String getComponentsString() throws Exception {
     return "jQuery.golf.components = " + getComponentsJSON(null, null) + ";" +
            "jQuery.golf.res = " + getResourcesJSON(null, null) + ";" +
-           "jQuery.golf.models = " + getModelsJSON(null, null) + ";" +
+           "jQuery.golf.models = " + getScriptsJSON("models", null) + ";" +
+           "jQuery.golf.plugins = " + getScriptsJSON("plugins", null) + ";" +
            "jQuery.golf.setupComponents();";
   }
 
@@ -608,7 +610,7 @@ public class Main
     return json.toString();
   }
 
-  private static String getModelsJSON(String path, JSONObject json) 
+  private static String getScriptsJSON(String path, JSONObject json) 
       throws Exception {
     if (path == null) path = "";
     if (json == null) json = new JSONObject();
@@ -625,7 +627,7 @@ public class Main
       } else if (file.isDirectory()) {
         for (String f : file.list()) {
           String ppath = path + "/" + f;
-          getModelsJSON(path+"/"+f, json);
+          getScriptsJSON(path+"/"+f, json);
         }
       }
     }
@@ -827,14 +829,17 @@ public class Main
   }
 
   private void cacheResourcesAws(File file, String path) throws Exception {
+    if (path.startsWith("/.")         || 
+        path.equals("/head.html")     || 
+        path.equals("/noscript.html"))
+      return;
+
     if (file.isFile()) {
       cacheFileAws(file, path);
     } else if (file.isDirectory()) {
       for (String f : file.list()) {
-        if (!f.startsWith(".")) {
-          String ppath = path + (path.endsWith("/") ? f : "/" + f);
-          cacheResourcesAws(new File(file, f), ppath);
-        }
+        String ppath = path + (path.endsWith("/") ? f : "/" + f);
+        cacheResourcesAws(new File(file, f), ppath);
       }
     }
   }
