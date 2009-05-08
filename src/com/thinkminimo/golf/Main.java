@@ -555,10 +555,10 @@ public class Main
   }
 
   private static String getComponentsString() throws Exception {
-    return "jQuery.golf.components = " + getComponentsJSON(null, null) + ";" +
-           "jQuery.golf.res = " + getResourcesJSON(null, null) + ";" +
-           "jQuery.golf.models = " + getScriptsJSON("models", null) + ";" +
-           "jQuery.golf.plugins = " + getScriptsJSON("plugins", null) + ";" +
+    return "jQuery.golf.components=" + getComponentsJSON(null, null) + ";" +
+           "jQuery.golf.res=" + getResourcesJSON(null, null) + ";" +
+           "jQuery.golf.models=" + getScriptsJSON("models", null) + ";" +
+           "jQuery.golf.plugins=" + getScriptsJSON("plugins", null) + ";" +
            "jQuery.golf.setupComponents();";
   }
 
@@ -615,14 +615,15 @@ public class Main
     if (path == null) path = "";
     if (json == null) json = new JSONObject();
 
-    File file = new File(new File(o.getOpt("approot"), "models"), path);
+    File file = new File(o.getOpt("approot"), path);
       
     if (!file.getName().startsWith(".")) {
       if (file.isFile()) {
         if (path.endsWith(".js")) {
           String cmpName = path.replaceFirst("\\.js$", "");
-          String keyName = cmpName.replaceFirst("^/+", "").replace("/", ".");
-          json.put(keyName, processModel(cmpName).put("name", keyName));
+          String keyName = 
+            cmpName.replaceFirst("^[a-z]+/+", "").replace("/", ".");
+          json.put(keyName, processScript(cmpName).put("name", keyName));
         }
       } else if (file.isDirectory()) {
         for (String f : file.list()) {
@@ -671,11 +672,11 @@ public class Main
     return json;
   }
 
-  public static JSONObject processModel(String name) throws Exception {
-    name = name.replaceFirst("^/+", "");
-    String className    = name.replace('/', '-');
-    File   cwd          = new File(o.getOpt("approot"), "models");
+  public static JSONObject processScript(String name) throws Exception {
+    String dir = name.replaceAll("/.*$", "");
+    name = name.replaceFirst("^[a-z]+/+", "");
 
+    File   cwd          = new File(o.getOpt("approot"), dir);
     String js           = name + ".js";
     GolfResource jsRes  = new GolfResource(cwd, js);
     String jsStr        = processComponentJs(jsRes.toString(), js);

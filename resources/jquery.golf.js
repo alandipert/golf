@@ -322,7 +322,7 @@ jQuery.golf = {
       $.component = cmp;
 
       $.require = function(plugin) {
-        var js = jQuery.golf.plugins[plugin];
+        var js = jQuery.golf.plugins[plugin].js;
         var argv = [];
         if (js.length > 10) {
           for (var i=1; i<arguments.length; i++)
