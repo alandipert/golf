@@ -79,6 +79,7 @@ public class Main
 
   private   static GetOpt             o               = null;
   private   static RingList<String>   mCfDomains      = null;
+  private   static String             mNewHtml        = null;
 
   private   static HashMap<String, String> mApps      = null;
   private   static HashMap<String, String> mBackends  = null;
@@ -471,7 +472,7 @@ public class Main
       file.delete();
 
       PrintWriter out = new PrintWriter(new FileWriter(file));
-      out.println(src);
+      out.print(src);
       out.close();
     }
 
@@ -508,7 +509,7 @@ public class Main
       f.delete();
     f.deleteOnExit();
     PrintWriter out = new PrintWriter(new FileWriter(f));
-    out.println(newHtmlStr);
+    out.print(newHtmlStr);
     out.close();
   }
 
@@ -519,7 +520,10 @@ public class Main
     GolfResource  headHtml      = new GolfResource(cwd, "head.html");
     GolfResource  noscriptHtml  = new GolfResource(cwd, "noscript.html");
 
-    String        newStr        = newHtml.toString();
+    if (mNewHtml == null)
+      mNewHtml = newHtml.toString();
+
+    String        newStr        = mNewHtml;
     String        headStr       = headHtml.toString();
     String        noscriptStr   = noscriptHtml.toString();
 
@@ -546,7 +550,7 @@ public class Main
       f.delete();
     f.deleteOnExit();
     PrintWriter out = new PrintWriter(new FileWriter(f));
-    out.println(getComponentsString());
+    out.print(getComponentsString());
     out.close();
   }
 
