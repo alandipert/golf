@@ -109,12 +109,9 @@ jQuery.Import = function(name) {
 
 jQuery.require = function(plugin) {
   var js = jQuery.golf.plugins[plugin].js;
-  var argv = [];
-  if (js.length > 10) {
-    for (var i=1; i<arguments.length; i++)
-      argv[i-1] = arguments[i];
+  var argv = Array.slice(arguments, 1);
+  if (js.length > 10)
     jQuery.golf.doCall(window, jQuery, argv, js);
-  }
 };
 
 // main jQ golf object
@@ -320,11 +317,8 @@ jQuery.golf = {
 
   componentConstructor: function(name) {
     var result = function() {
-      var argv = [];
-      var obj = this;
-
-      for (var i=0; i<arguments.length; i++)
-        argv[i] = arguments[i];
+      var argv = Array.slice(arguments);
+      var obj  = this;
 
       var $ = function(selector) {
         var isHtml = /^[^<]*(<(.|\s)+>)[^>]*$/;
@@ -333,8 +327,9 @@ jQuery.golf = {
         if (typeof(selector) != "string" || selector.match(isHtml))
           return jQuery(selector);
 
-        return jQuery(selector, obj._dom).not(".component .component *")
-                                         .not(".component");
+        return jQuery(selector, obj._dom)
+                  .not(jQuery(".component *", obj._dom))
+                  .not(".component");
       };
 
       jQuery.extend($, jQuery);
@@ -345,12 +340,9 @@ jQuery.golf = {
 
       $.require = function(plugin) {
         var js = jQuery.golf.plugins[plugin].js;
-        var argv = [];
-        if (js.length > 10) {
-          for (var i=1; i<arguments.length; i++)
-            argv[i-1] = arguments[i];
+        var argv = Array.slice(arguments, 1);
+        if (js.length > 10)
           jQuery.golf.doCall(obj, $, argv, js);
-        }
       }
 
       if (cmp) {
@@ -366,14 +358,11 @@ jQuery.golf = {
 
   modelConstructor: function(name) {
     var result = function() {
-      var argv    = [];
+      var argv    = Array.slice(arguments);
       var obj     = this;
       var $       = {};
       var cmp     = jQuery.golf.models[name];
       
-      for (var i=0; i<arguments.length; i++)
-        argv[i] = arguments[i];
-
       $.component = cmp;
 
       if (cmp) {

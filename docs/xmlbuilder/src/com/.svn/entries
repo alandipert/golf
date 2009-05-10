@@ -1,19 +1,0 @@
-8
-
-dir
-2
-https://java-xmlbuilder.googlecode.com/svn/trunk/src/com
-https://java-xmlbuilder.googlecode.com/svn
-
-
-
-2008-12-14T06:51:25.466326Z
-2
-jamurty
-
-
-svn:special svn:externals svn:needs-lock
-
-jamesmurty
-dir
-
