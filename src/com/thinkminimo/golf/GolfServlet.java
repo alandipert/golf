@@ -5,6 +5,7 @@ import org.json.JSONException;
 
 import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.*;
 import net.sourceforge.htmlunit.corejs.javascript.*;
 
@@ -39,6 +40,7 @@ public class GolfServlet extends HttpServlet {
   public static final String  FILE_NEW_HTML       = "new.html";
   public static final String  FILE_JSDETECT_HTML  = "jsdetect.html";
   public static final String  FILE_COMPONENTS_JS  = "components.js";
+  public static final String  FILE_IMABOT_TXT     = ".imabot.txt";
 
   private class StoredJSVM {
     public WebClient client;
@@ -117,6 +119,13 @@ public class GolfServlet extends HttpServlet {
     }
     public void setLastTarget(String value) {
       set("lasttarget", value);
+    }
+
+    public Boolean isABot() {
+      return get("isabot") == null ? null : Boolean.parseBoolean(get("isabot"));
+    }
+    public void setIsABot(Boolean value) {
+      set("isabot", String.valueOf(value));
     }
   }
 
@@ -246,6 +255,8 @@ public class GolfServlet extends HttpServlet {
   private static String               mDevMode      = null;
   private static String               mPoolSize     = null;
   private static String               mPoolExpire   = null;
+  private static AtomicBoolean        mBotMutex     = new AtomicBoolean();
+  private static ArrayList<String>    mBotAgents    = new ArrayList<String>();
 
   /**
    * @see javax.servlet.Servlet#init(javax.servlet.ServletConfig)
@@ -263,6 +274,9 @@ public class GolfServlet extends HttpServlet {
     mPoolSize   = (mPoolSize   != null ? mPoolSize   : "10"   );
     mPoolExpire = (mPoolExpire != null ? mPoolExpire : "900"  );  // 15 min
     
+    // set initial values
+    mBotMutex.set(false);
+
     // process the static files that need to be kept in memory
     cacheStaticFiles();
   }
@@ -277,6 +291,8 @@ public class GolfServlet extends HttpServlet {
       throws IOException, ServletException {
     GolfContext   context         = new GolfContext(request, response);
     String        result          = null;
+
+    System.err.println("{{{{"+request.getHeader("User-Agent")+"}}}}");
 
     logRequest(context);
 
@@ -339,6 +355,24 @@ public class GolfServlet extends HttpServlet {
         (new GolfResource(getServletContext(), FILE_JSDETECT_HTML)).toString();
       mComponents =
         (new GolfResource(getServletContext(), FILE_COMPONENTS_JS)).toString();
+
+      try {
+        // wait for resource to be available
+        while (!mBotMutex.compareAndSet(false, true));
+
+        String imabot =
+          (new GolfResource(getServletContext(), FILE_IMABOT_TXT))
+            .toString();
+
+        mBotAgents.clear();
+
+        for (String i : imabot.split("\n"))
+          mBotAgents.add(i);
+
+      } catch (FileNotFoundException fx) {
+      } finally {
+        mBotMutex.set(false);
+      }
     } catch (Exception e) {
       throw new ServletException("can't cache static files", e);
     }
@@ -387,10 +421,11 @@ public class GolfServlet extends HttpServlet {
 
       for (int i=0, j=0; (i=page.indexOf("<style", i)) != -1; i=j) {
         j = page.indexOf("</style>", i);
-        page = page.substring(0, i) 
+        page = page.substring(0, i)
           + page.substring(i, j).replaceAll("&gt;", ">") 
                                 .replaceAll("&lt;", "<")
                                 .replaceAll("&amp;", "&")
+                                .replaceAll("\n", "") // FIXME this is sketchy
           + page.substring(j);
       }
     } else {
@@ -649,12 +684,30 @@ public class GolfServlet extends HttpServlet {
     HttpSession session     = context.request.getSession();
     String      remoteAddr  = context.request.getRemoteAddr();
     String      sessionAddr = context.s.getIpAddr();
+    Boolean     isabot      = context.s.isABot();
     String      sid         = session.getId();
+    String      uagent      = context.request.getHeader("User-Agent");
 
     if (sid == null)
       throw new Exception("sid is null");
 
-    if (! session.isNew()) {
+    // FIXME: store this info in session unless in devmode
+    if (isabot == null) {
+      isabot = false;
+      for (String i : mBotAgents) {
+        System.err.println(".....|"+uagent+"|.....");
+        System.err.println(".....|"+i+"|.....");
+        if (uagent.matches(i)) {
+          isabot = true;
+          context.s.setJs(false);
+          context.s.setSeq(1);
+        }
+      }
+      if (!Boolean.parseBoolean(mDevMode))
+        context.s.setIsABot(isabot);
+    }
+
+    if (! session.isNew() || isabot) {
       if (context.p.getForce() != null && context.p.getForce().booleanValue())
         context.s.setSeq(0);
 
@@ -662,8 +715,8 @@ public class GolfServlet extends HttpServlet {
       
       context.s.setSeq(++seq);
 
-      if (sessionAddr != null && sessionAddr.equals(remoteAddr)) {
-        if (seq == 1) {
+      if (isabot || sessionAddr != null && sessionAddr.equals(remoteAddr)) {
+        if (!isabot && seq == 1) {
           if (context.p.getJs() != null) {
             context.s.setJs(context.p.getJs().booleanValue());
 
@@ -672,9 +725,10 @@ public class GolfServlet extends HttpServlet {
             throw new RedirectException(
                 context.response.encodeRedirectURL(uri));
           }
-        } else if (seq >= 2) {
-          if (context.s.getJs() != null) {
-            if (context.s.getJs().booleanValue())
+        } else if (seq >= 2 || isabot) {
+          if (context.s.getJs() != null || isabot) {
+            // FIXME: lurking NPE if you change this
+            if (!isabot && context.s.getJs().booleanValue())
               doNoProxy(context);
             else
               doProxy(context);
