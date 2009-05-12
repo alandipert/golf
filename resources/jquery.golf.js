@@ -1,7 +1,6 @@
 
 function Component() {
   this._dom = null;
-  this._idx = [];
 }
 
 function Model() {
@@ -81,6 +80,11 @@ if (serverside) {
             } else if (uri1.anchor) {
               if (serverside)
                 uri = servletUrl + uri1.anchor;
+              else
+                this.click(function() {
+                  jQuery.history.load(uri1.anchor);
+                  return false;
+                });
             }
           }
           this.attr("href", uri);
@@ -109,7 +113,7 @@ jQuery.Import = function(name) {
 
 jQuery.require = function(plugin) {
   var js = jQuery.golf.plugins[plugin].js;
-  var argv = Array.slice(arguments, 1);
+  var argv = Array.prototype.slice.call(arguments, 1);
   if (js.length > 10)
     jQuery.golf.doCall(window, jQuery, argv, js);
 };
@@ -317,7 +321,7 @@ jQuery.golf = {
 
   componentConstructor: function(name) {
     var result = function() {
-      var argv = Array.slice(arguments);
+      var argv = Array.prototype.slice.call(arguments);
       var obj  = this;
 
       var $ = function(selector) {
@@ -340,7 +344,7 @@ jQuery.golf = {
 
       $.require = function(plugin) {
         var js = jQuery.golf.plugins[plugin].js;
-        var argv = Array.slice(arguments, 1);
+        var argv = Array.prototype.slice.call(arguments, 1);
         if (js.length > 10)
           jQuery.golf.doCall(obj, $, argv, js);
       }
@@ -358,7 +362,7 @@ jQuery.golf = {
 
   modelConstructor: function(name) {
     var result = function() {
-      var argv    = Array.slice(arguments);
+      var argv    = Array.prototype.slice.call(arguments);
       var obj     = this;
       var $       = {};
       var cmp     = jQuery.golf.models[name];
