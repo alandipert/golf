@@ -12,36 +12,55 @@ function Data() {
 // install override on the jQ bind method to inject proxy links and golfIDs
 
 if (serverside) {
-  jQuery.fn.bind = (function() {
-    var lastId = 0;
-    var bak    = jQuery.fn.bind;
-    return function(name, fn) {
-      var jself = jQuery(this);
-      if (name == "click") {
-        ++lastId;
-        jself.attr("golfid", lastId);
-        var e = "onclick";
-        var a = "<a rel='nofollow' class='golfproxylink' href='?target="+
-          lastId+"&amp;event=onclick'></a>";
-        jself.wrap(a);
-      } else if (name == "submit") {
-        ++lastId;
-        jself.attr("golfid", lastId);
-        jself.append("<input type='hidden' name='event' value='onsubmit'/>");
-        jself.append("<input type='hidden' name='target' value='"+lastId+"'/>");
-      }
-      return bak.call(jQuery(this), name, fn);
-    };
-  })();
-
-  jQuery.ajax = (function() {
-      var bak = jQuery.ajax;
-      return function(options) {
-        options.async = false;
-        return bak(options);
+  (function() {
+    jQuery.fn.bind = (function(bind) {
+      var lastId = 0;
+      return function(name, fn) {
+        var jself = jQuery(this);
+        if (name == "click") {
+          ++lastId;
+          jself.attr("golfid", lastId);
+          var e = "onclick";
+          var a = "<a rel='nofollow' class='golfproxylink' href='?target="+
+            lastId+"&amp;event=onclick'></a>";
+          jself.wrap(a);
+        } else if (name == "submit") {
+          ++lastId;
+          jself.attr("golfid", lastId);
+          jself.append("<input type='hidden' name='event' value='onsubmit'/>");
+          jself.append("<input type='hidden' name='target' value='"+lastId+"'/>");
+        }
+        return bind.call(jQuery(this), name, fn);
       };
-  })();
+    })(jQuery.fn.bind);
 
+    jQuery.ajax = (function(ajax) {
+        return function(options) {
+          options.async = false;
+          return ajax(options);
+        };
+    })(jQuery.ajax);
+
+    var fns = { 
+      show:["fadeIn", "slideDown"],
+      hide:["slideUp", "fadeOut"],
+      toggle: ["slideToggle"]
+    };
+
+    for (var proxyreplace in fns) {
+      var clientfns = fns[proxyreplace];
+      for (var clientfn in clientfns) {
+        jQuery.fn[clientfn] = (function(clientfn) {
+          return function() {
+            if (!serverside)
+              return clientfn(arguments);
+            else
+              return this[proxyreplace]();
+          };
+        })(jQuery.fn[clientfn]);
+      }
+    }
+  })();
 }
 
 // install overrides on jQ DOM manipulation methods to incorporate components
@@ -267,7 +286,7 @@ jQuery.golf = {
     theAction       = null;
 
     if (!b) b = jQuery("body > div.golfbody").eq(0);
-    b.empty();
+    //b.empty();
 
     for (i in jQuery.golf.controller) {
       pat   = new RegExp(i);
