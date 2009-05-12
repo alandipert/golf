@@ -259,20 +259,12 @@ jQuery.golf = {
   })(),
 
   route: function(hash, b) {
+    var theName, theAction, i, x, pat, match;
     if (!hash) 
       hash = String(jQuery.golf.defaultRoute+"/").replace(/\/+$/, "/");
 
-    var theName         = hash;
-    var actionBaseName  = "jQuery.golf.controller";
-    var theErrorName    = "errorAction";
-
-    var theAction       = null;
-
-    var errorAction     = jQuery.golf.onRouteError;
-    var fullName        = actionBaseName+"['"+theName+"']";
-    var fullErrorName   = actionBaseName+"."+theErrorName;
-
-    var i, x, pat, match;
+    theName         = hash;
+    theAction       = null;
 
     if (!b) b = jQuery("body > div.golfbody").eq(0);
     b.empty();
@@ -282,28 +274,10 @@ jQuery.golf = {
       match = theName.match(pat);
 
       if (match) {
-        if (!devmode) {
-          try {
-            theAction = jQuery.golf.controller[i];
-          } catch (x) {
-            x = "Exception: <em>"+x+"</em> :: "+fullName;
-
-            try  {
-              errorAction(b, [hash]);
-            } catch (y) {
-              x = "Exception: <em>"+y+"</em> :: "+fullErrorName+"<br/>"+x;
-              b = jQuery(document.body);
-              b.empty();
-              b.append("<div class='error'><h1>oops!</h1><p>"+x+"</p></div>");
-            }
-          }
-        } else {
-          theAction = jQuery.golf.controller[i];
-        }
-        if (theAction(b, match))
-          theAction = null;
-        else
+        theAction = jQuery.golf.controller[i];
+        if (theAction(b, match)==false)
           break;
+        theAction = null;
       }
     }
   },
