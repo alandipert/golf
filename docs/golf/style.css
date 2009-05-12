@@ -1,0 +1,48 @@
+*{
+	margin:0;
+	padding:0;
+}
+.golfbody{
+	background:#fff;
+	font:11px/18px "Lucida Sans Unicode", "Lucida Grande", Arial, Helvetica, sans-serif;
+	color:#222;
+}
+
+.clearfix:after {
+	content: ".";
+	display: block;
+	clear: both;
+	visibility: hidden;
+	line-height: 0;
+	height: 0;
+}
+.clearfix {
+	display: inline-block;
+}
+html[xmlns] .clearfix {
+	display: block;
+}
+* html .clearfix {
+	height: 1%;
+}
+a {
+	color:#4e7896;
+	text-decoration:none;
+	font-weight:bold;
+}
+a:hover {text-decoration:underline;color:#4e7896;}
+h1{font-size:32px;}
+h2{font-size:24px;}
+h3{font-size:20px;}
+h4{font-size:16px;}
+h5, h6{font-size:14px;}
+h2,h3,h4,h5,h6{margin:0 0 25px 0; font-family:"Trebuchet MS";}
+img{border:none;}
+.clear{clear:both;}
+.floatleft{float:left;}
+.floatright{float:right;}
+.text-left{text-align:left;}
+.text-right{text-align:right;}
+.normal a{font-weight:normal;}
+.fc1{color:#b86d13;}
+.fs1{font-size:22px;}
