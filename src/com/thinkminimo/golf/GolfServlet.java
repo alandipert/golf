@@ -292,8 +292,6 @@ public class GolfServlet extends HttpServlet {
     GolfContext   context         = new GolfContext(request, response);
     String        result          = null;
 
-    System.err.println("{{{{"+request.getHeader("User-Agent")+"}}}}");
-
     logRequest(context);
 
     // All query string parameters are considered to be arguments directed
