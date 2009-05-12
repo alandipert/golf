@@ -2,7 +2,14 @@
 
   eval($.Import("Component.com.thinkminimo.golf.docs.*"));
 
-  return function(unit) {
-    $(".container").empty().append(new Content(unit));
+  var content;
+
+  return function() {
+    this.setPath = function(path) {
+      content.setPath(path);
+    };
+
+    if (!content)
+      $(".container").append(content = new Content());
   };
 })()

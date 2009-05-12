@@ -1,9 +1,15 @@
-$.golf.defaultRoute = "welcome/";
+(function() {
+  $.golf.defaultRoute = "welcome/";
 
-$.golf.controller = {
+  var main;
 
-  "^([^/]+)/$": function(b, match) {
-    b.append(new Component.com.thinkminimo.golf.docs.Main(match[1]));
-  }
+  $.golf.controller = {
 
-};
+    ".*": function(b, match) {
+      if (!main)
+        b.append(main = new Component.com.thinkminimo.golf.docs.Main());
+      main.setPath(match);
+    }
+
+  };
+})()

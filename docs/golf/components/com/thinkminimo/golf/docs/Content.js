@@ -3,23 +3,22 @@
   var sd = new Showdown.converter();
   var cache = {};
 
-  function doit(unit) {
-    $(".content").empty().append(cache[unit]);
+  function doit(path) {
+    $(".content").hide();
+    $(".content").empty().append(cache[path]);
+    $(".content").fadeIn();
   };
 
-  return function(unit) {
-    if (!!cache[unit])
-      doit(unit);
-    else
-      $.get($.component.res[unit+"/index.markdown"], function(data) {
-        try {
-          cache[unit] = sd.makeHtml(data);
-          doit(unit);
-        } catch (e) {
-          if (serverside)
-            alert(e.stack);
-        }
-      });
+  return function() {
+    this.setPath = function(path) {
+      if (!!cache[path])
+        doit(path);
+      else
+        $.get($.component.res[path+"index.markdown"], function(data) {
+          cache[path] = sd.makeHtml(data);
+          doit(path);
+        });
+    };
   };
 
 })()
