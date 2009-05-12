@@ -38,6 +38,10 @@
 	cursor:pointer;
 }
 
+caption{
+  font-family: serif;
+}
+
 h2{
 	font-weight:normal;
 }
@@ -50,9 +54,11 @@ p{
 }
 p img.floatleft{
 	margin:0 10px 0 0;
+  border: 1px solid #ccc;
 }
 p img.floatright{
 	margin:0 0 0 10px;
+  border: 1px solid #ccc;
 }
 form p{
 	margin:0 0 8px 0;

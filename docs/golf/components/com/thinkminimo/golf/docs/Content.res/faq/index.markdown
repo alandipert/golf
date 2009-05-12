@@ -1,12 +1,17 @@
 Frequently Asked <span>Questions</span>
 ---------------------------------------
 
-Here are the questions that people like to ask all the time.
+Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut
+fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem
+sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor
+sit amet, consectetur, adipisci velit, sed quia non numquam eius modi
+tempora incidunt ut labore et dolore magnam aliquam quaerat
+voluptatem.
 
-* **Hi, do you rule?**
++ **Hi, what is this?**
 
-  Why yes, we do.
+  It's software to improve your life.
 
-* **Is Golf kosher for passover?**
++ **Is Golf also a sport?**
 
-  Negative. And it also doesn't roll on shabbos.
+  Yes. But it doesn't roll on shabbos.
