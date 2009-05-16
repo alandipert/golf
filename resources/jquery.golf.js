@@ -41,6 +41,7 @@ if (serverside) {
         };
     })(jQuery.ajax);
 
+    /*
     var fns = { 
       show:["fadeIn", "slideDown"],
       hide:["slideUp", "fadeOut"],
@@ -60,26 +61,31 @@ if (serverside) {
         })(jQuery.fn[clientfn]);
       }
     }
+    */
   })();
 }
 
 // install overrides on jQ DOM manipulation methods to incorporate components
 
 (function() {
-    var fns = ["append", "prepend", "after", "before", "replaceWith"];
-    for (var i in fns) {
-      jQuery.fn[fns[i]] = (function() {
-          var bak = jQuery.fn[fns[i]]; 
-          return function(a) { 
-            var e = jQuery(a instanceof Component ? a._dom : a);
-            jQuery.golf.prepare(e);
-            var ret = bak.call(jQuery(this), e);
-            jQuery(e.parent()).each(function() {
-              jQuery(this).removeData("_golf_prepared");
-            });
-          }; 
-      })();
-    }
+    jQuery.each([
+        "append",
+        "prepend",
+        "after",
+        "before",
+        "replaceWith"
+      ], function(k,v) {
+        jQuery.fn[v] = (function(orig) {
+            return function(a) { 
+              var e = jQuery(a instanceof Component ? a._dom : a);
+              jQuery.golf.prepare(e);
+              var ret = orig.call(jQuery(this), e);
+              jQuery(e.parent()).each(function() {
+                jQuery(this).removeData("_golf_prepared");
+              });
+            }; 
+        })(jQuery.fn[v]);
+    });
 
     jQuery.fn.href = (function() {
         var uri2;
@@ -99,11 +105,6 @@ if (serverside) {
             } else if (uri1.anchor) {
               if (serverside)
                 uri = servletUrl + uri1.anchor;
-              else
-                this.click(function() {
-                  jQuery.history.load(uri1.anchor);
-                  return false;
-                });
             }
           }
           this.attr("href", uri);
@@ -256,20 +257,22 @@ jQuery.golf = {
     if (urlHash && !location.hash)
       location.href = servletUrl + "#" + urlHash;
 
-    jQuery.history.init(jQuery.golf.onHistoryChange);
+    jQuery.address.change(function(evnt) {
+        jQuery.golf.onHistoryChange(evnt.value);
+    });
   },
 
   onHistoryChange: (function() {
-    var lastHash = "", argv;
+    var lastHash = "";
     return function(hash, b) {
-      if (!hash) {
-        jQuery.history.load(String(jQuery.golf.defaultRoute+"/")
-          .replace(/\/+$/, "/"));
+      if (hash == "/") {
+        jQuery.address.value(String(jQuery.golf.defaultRoute));
         return;
       }
 
       if (hash && hash != lastHash) {
         lastHash = hash;
+        hash = hash.replace(/^\/+/, "/");
         jQuery.golf.route(hash, b);
         jQuery.golf.location = String(hash+"/").replace(/\/+$/, "/");
         window.location.hash = "#"+jQuery.golf.location;

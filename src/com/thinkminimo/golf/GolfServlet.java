@@ -228,10 +228,11 @@ public class GolfServlet extends HttpServlet {
       if (! this.servletURL.endsWith("/")) this.servletURL += "/";
 
       if (urlHash != null && urlHash.length() > 0) {
-        urlHash    = urlHash.replaceFirst("/", "");
-        servletURL = servletURL.replaceFirst("\\Q"+urlHash+"\\E$", "");
+        servletURL = servletURL.replaceFirst("\\Q"+urlHash+"\\E$", "/");
+        System.err.println("~~~~~~~~~~~~~~~~~~~~"+servletURL);
+        System.err.println("~~~~~~~~~~~~~~~~~~~~"+urlHash);
       } else {
-        urlHash    = "";
+        urlHash    = "/";
       }
 
       this.jsvm = mJsvms.get(request.getSession().getId());
@@ -488,7 +489,7 @@ public class GolfServlet extends HttpServlet {
     String      sid     = context.request.getSession().getId();
     HtmlPage    result  = context.jsvm.lastPage;
 
-    String      path    = context.request.getPathInfo().replaceFirst("^/+", "");
+    String      path    = context.request.getPathInfo();
     String      event   = context.p.getEvent();
     String      target  = context.p.getTarget();
     WebClient   client  = context.jsvm.client;
@@ -574,7 +575,7 @@ public class GolfServlet extends HttpServlet {
             client.getCurrentWindow()
           );
         } else {
-          String script = "jQuery.history.load('"+context.urlHash+"');";
+          String script = "jQuery.address.value('"+context.urlHash+"');";
           if (Boolean.parseBoolean(mDevMode))
             script = mComponents + script;
           result = (HtmlPage) client.getCurrentWindow().getEnclosedPage();
