@@ -717,9 +717,17 @@ public class GolfServlet extends HttpServlet {
       if (isabot || sessionAddr != null && sessionAddr.equals(remoteAddr)) {
         if (!isabot && seq == 1) {
           if (context.p.getJs() != null) {
-            context.s.setJs(context.p.getJs().booleanValue());
+            String uri;
+            boolean js = context.p.getJs().booleanValue();
 
-            String uri = context.request.getRequestURI();
+            context.s.setJs(js);
+
+            if (js) {
+              String hash = context.urlHash.replaceFirst("^/+", "/");
+              uri = context.servletURL + "#" + hash;
+            } else {
+              uri = context.request.getRequestURI();
+            }
             
             throw new RedirectException(
                 context.response.encodeRedirectURL(uri));
