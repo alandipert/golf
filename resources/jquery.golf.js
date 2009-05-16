@@ -83,6 +83,8 @@ if (serverside) {
               jQuery(e.parent()).each(function() {
                 jQuery(this).removeData("_golf_prepared");
               });
+              if (a instanceof Component && a.onAppend)
+                a.onAppend();
             }; 
         })(jQuery.fn[v]);
     });
